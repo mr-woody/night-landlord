@@ -11,6 +11,7 @@
     "check:config": "node scripts/check-config.mjs",
     "sync:cocos": "node scripts/sync-cocos.mjs",
     "sync:cocos:check": "node scripts/sync-cocos.mjs --check",
+    "check:cocos": "node scripts/check-cocos-shared.mjs",
     "verify": "node apps/headless/src/main.ts verify",
     "simulate": "node apps/headless/src/main.ts simulate --days 30",
     "depgraph": "node apps/headless/src/main.ts depgraph"

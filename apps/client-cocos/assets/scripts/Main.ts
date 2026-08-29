@@ -4,9 +4,8 @@ import { createKernel } from './shared/kernel/index'
 // 真实场景渲染在 M2（竖屏剖面），本文件只做 kernel 冒烟。
 const kernel = createKernel({ appName: 'nl-client' })
 kernel.register([]) // M1 冒烟：空插件集；后续包同步后在此注册 diag/core-loop/formula/systems/battle/director。
-kernel.boot()
-
-// @ts-expect-error Cocos 组件装饰器仅存在于引擎环境，此处仅做存在性探测。
-const hasCocos = typeof cc !== 'undefined'
-console.log('kernel boot ok', { cocosEnv: hasCocos, day: kernel.clock.logicalDay() })
+void kernel.boot().then(() => {
+  const hasCocos = (globalThis as unknown as { cc?: unknown }).cc !== undefined
+  console.log('kernel boot ok', { cocosEnv: hasCocos, day: kernel.clock.logicalDay() })
+})
 export { kernel }
