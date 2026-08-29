@@ -1,9 +1,10 @@
 // @rn/headless —— 无头运行器（M1 硬性验收，内核档 §5.7）。
 // 命令：simulate / verify / replay / diagnose / depgraph
-// 约束：本文件属应用层（uniform 策略允许读表），逻辑包保持零平台依赖。
+// 架构：kernel.boot(bundle) → 经服务（formula/game/battle/director/persistence）驱动日循环；
+//       逻辑包零平台依赖；uniform 策略属应用层，允许读配置表。
 import { readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { createKernel, definePlugin, type PluginDeclaration } from '@rn/kernel'
+import { createKernel, definePlugin, type Kernel, type PluginDeclaration } from '@rn/kernel'
 import { createDiagPlugin } from '@rn/diag'
 import { createDayRng, createRngStreams, hash32, canonicalJson } from '@rn/core'
 import { createFormula, loadConstants, type Quality } from '@rn/formula'
@@ -36,8 +37,15 @@ export function loadApp(): AppContext {
   }
 }
 
-// ---- M1 bundle（内核档 §2.5 headlessBundle 子集）----
-export function buildBundle(app: AppContext): PluginDeclaration[] {
+interface DirectorService {
+  scriptedEffectsFor(day: number): EffectOp[][]
+  planNight(state: GameState, day: number): { day: number; routes: { roomId: string; hp: number }[]; modifiers: string[]; seed: number }
+}
+interface BattleService { run(state: GameState, plan: Parameters<typeof runNight>[1]): BattleSession }
+interface GameService { tables: Tables; createState(seed: number): GameState }
+
+// ---- M1 bundle（内核档 §2.5 headlessBundle 子集；+devtools 为 devBundle）----
+export function buildBundle(app: AppContext, options: { devtools?: boolean } = {}): PluginDeclaration[] {
   const diag = createDiagPlugin()
   const formula = definePlugin({
     name: 'rn.formula', version: '0.1.0', hotplug: 'core',
@@ -64,10 +72,7 @@ export function buildBundle(app: AppContext): PluginDeclaration[] {
     provides: ['game'], produces: [],
     hooks: {
       setup(ctx) {
-        ctx.provide('game', {
-          tables: app.tables,
-          createState: (seed: number): GameState => createGameState(seed)
-        })
+        ctx.provide('game', { tables: app.tables, createState: (seed: number): GameState => createGameState(seed) })
       }
     }
   })
@@ -97,41 +102,68 @@ export function buildBundle(app: AppContext): PluginDeclaration[] {
         ctx.provide('director', {
           scriptedEffectsFor(day: number): EffectOp[][] {
             const lib = loadJson<{ entries: { type: string; triggerDay: number; options: { outcomes: { effects: EffectOp[] }[] }[] }[] }>('config/event_lib.json')
+            // D0 教学事件并入 D1 执行（模拟自 D1 起）
             return lib.entries
-              .filter(e => e.type === 'scripted' && e.triggerDay === day)
+              .filter(e => e.type === 'scripted' && (e.triggerDay === day || (day === 1 && e.triggerDay === 0)))
               .map(e => e.options[0]?.outcomes[0]?.effects ?? [])
           },
           planNight(state: GameState, day: number) {
             const row = app.formula.row(day)
             const rng = createDayRng(state.seed, 'monster', day)
-            const routes = Array.from({ length: row.routes }, (_, i) => ({ roomId: `F1-R${i + 1}`, hp: row.hp }))
+            // 怪物三段式 AI 最简版：感知（有住户的房间）→ 决策（M1 均匀分散，血月 +1 路由 W 表达）→ 执行（破门点即房间）
+            const occupied = Array.from({ length: Math.min(state.tenants.length, state.roomsBuilt) }, (_, i) => `F1-R${i + 1}`)
+            const pool = occupied.length > 0 ? occupied : ['F1-R1']
+            const routes = Array.from({ length: row.routes }, (_, i) => ({ roomId: pool[Math.floor(rng.next() * pool.length)], hp: row.hp }))
             return { day, routes, modifiers: app.formula.bloodMoon(day) ? ['BLOOD_MOON'] : [], seed: rng.next() }
           }
         })
       }
     }
   })
-  return [diag, formula, save, systems, battle, director]
+  const list: PluginDeclaration[] = [diag, formula, save, systems, battle, director]
+  if (options.devtools) {
+    list.push(definePlugin({
+      name: 'rn.devtools', version: '0.1.0', hotplug: 'scope',
+      depends: [], provides: ['devtools'], produces: [],
+      hooks: {
+        setup(ctx) {
+          ctx.provide('devtools', {
+            dump(): Record<string, unknown> { return { plugin: 'rn.devtools', note: 'M1 雏形：健康/日志由 diagnose 命令输出' } }
+          })
+        }
+      }
+    }))
+  }
+  return list
 }
 
-// ---- uniform 策略（F2P 中位数基准：招募跟随人口曲线，防御跟随 fReq）----
+// ---- uniform 策略（F2P 中位数基准）----
 interface DayRecord {
   day: number; population: number; gold: number; income: number; power: number
   rAvg: number; deaths: number; wounds: number; sessionHash: string; invariantErrors: string[]
+  events: number; checkpoints: number
 }
 
 function target(d: number, t: Tables): number {
   return t.dayCurve.rows.find(r => r.day === d)?.population ?? 30
 }
 
-export function runSimulation(app: AppContext, options: { days: number; seed: number }): {
-  records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>
-} {
-  const { tables, formula, constants } = app
-  const state = createGameState(options.seed)
+export function runSimulation(
+  app: AppContext, kernel: Kernel, options: { days: number; seed: number }
+): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number } {
+  const { tables, constants } = app
+  const formula = kernel.service<ReturnType<typeof createFormula>>('formula')
+  const director = kernel.service<DirectorService>('director')
+  const battle = kernel.service<BattleService>('battle')
+  const persistence = kernel.service<{ put(slot: string, json: string): void; get(slot: string): string | undefined }>('persistence')
+  const state: GameState = kernel.service<GameService>('game').createState(options.seed)
   const rng = createRngStreams(options.seed)
   const records: DayRecord[] = []
   const sessions: Record<number, BattleSession> = {}
+  const findings: string[] = []
+  let eventsFired = 0
+  let checkpoints = 0
+
   for (let d = 1; d <= options.days; d++) {
     state.day = d
     state.phase = 'DAY'
@@ -170,21 +202,34 @@ export function runSimulation(app: AppContext, options: { days: number; seed: nu
       const r = applyEffects(state, [{ op: 'SPAWN_TENANT', quality: q }], { constants, buildingDef: tables.buildingDef })
       if (r.applied === 0) break
     }
+    // 教学事件（Director 固定脚本版，A 组）
+    const scripted = director.scriptedEffectsFor(d)
+    let events = 0
+    for (const effects of scripted) {
+      applyEffects(state, effects, { constants, buildingDef: tables.buildingDef })
+      events++
+    }
+    eventsFired += events
     // 防御投资（目标 fReq(d)）
     const need = Math.max(0, formula.fReq(d) - state.defense.power)
     const invest = Math.min(Math.ceil(need * constants.CFG_K_POWER), state.resources.gold)
     state.resources.gold -= invest
     state.defense.power += Math.floor(invest / constants.CFG_K_POWER)
+    persistence.put(`ckpt_${d}_day`, serialize(state))
+    checkpoints++
 
-    // DUSK：夜计划
+    // DUSK：夜计划（Director）
     state.phase = 'DUSK_FORECAST'
-    const routes = Array.from({ length: row.routes }, (_, i) => ({ roomId: `F1-R${i + 1}`, hp: row.hp }))
-    const plan = { day: d, routes, modifiers: formula.bloodMoon(d) ? ['BLOOD_MOON'] : [], seed: options.seed * 1000 + d }
+    const plan = director.planNight(state, d)
+    persistence.put(`ckpt_${d}_dusk`, serialize(state))
+    checkpoints++
 
     // NIGHT：路级判定
     state.phase = 'NIGHT'
-    const session = runNight(state, plan, { formula, constants, buildingDef: tables.buildingDef, dayRng: createDayRng(options.seed, 'monster', d) })
+    const session = battle.run(state, plan)
     sessions[d] = session
+    persistence.put(`ckpt_${d}_night`, serialize(state))
+    checkpoints++
 
     // DAWN：收租结算（死亡后的收入线即时断裂）
     state.phase = 'DAWN_SETTLE'
@@ -195,11 +240,11 @@ export function runSimulation(app: AppContext, options: { days: number; seed: nu
       day: d, population: state.tenants.length, gold: state.resources.gold,
       income: settle.income, power: state.defense.power, rAvg: Math.round(rAvg * 1000) / 1000,
       deaths: session.deaths, wounds: session.wounds, sessionHash: session.settlementHash,
-      invariantErrors
+      invariantErrors, events, checkpoints: 3
     })
+    void checkpoints
   }
   const finalHash = hash32(canonicalJson(records))
-  const findings: string[] = []
   const simBeta = betaSim(records, tables)
   const designed = [17, 27, 42, 58]
   for (let i = 0; i < simBeta.length; i++) {
@@ -207,7 +252,7 @@ export function runSimulation(app: AppContext, options: { days: number; seed: nu
       findings.push(`β_sim D${[1, 8, 15, 22][i]}-=${simBeta[i]}% vs 设计 ${designed[i]}%：白盒基础经济无 u 线深度（M0 §3.2 部件，M2 实现住户升级线），见证据台账 FINDING-1`)
     }
   }
-  return { records, finalHash, findings, sessions }
+  return { records, finalHash, findings, sessions, eventsFired }
 }
 
 function betaSim(records: DayRecord[], tables: Tables): number[] {
@@ -222,20 +267,20 @@ function betaSim(records: DayRecord[], tables: Tables): number[] {
 }
 
 // ---- 命令 ----
-function cmdSimulate(app: AppContext, args: Record<string, string>): number {
+function cmdSimulate(app: AppContext, kernel: Kernel, args: Record<string, string>): number {
   const days = Number(args.days ?? 30)
   const seed = Number(args.seed ?? 42)
-  const sim = runSimulation(app, { days, seed })
+  const sim = runSimulation(app, kernel, { days, seed })
   for (const r of sim.records) {
     console.log(`D${String(r.day).padStart(2)} 人口${String(r.population).padStart(3)} 金币${String(r.gold).padStart(7)} 租金${String(r.income).padStart(6)} 战力${String(r.power).padStart(6)} r均${String(r.rAvg).padStart(6)} 死${r.deaths} hash=${r.sessionHash}${r.invariantErrors.length ? ' ⚠' + r.invariantErrors.join(',') : ''}`)
   }
-  console.log(`\nfinalHash=${sim.finalHash}  累计死亡=${sim.records.reduce((a, r) => a + r.deaths, 0)}`)
+  console.log(`\nfinalHash=${sim.finalHash}  累计死亡=${sim.records.reduce((a, r) => a + r.deaths, 0)}  教学事件=${sim.eventsFired}`)
   sim.findings.forEach(f => console.log(`FINDING: ${f}`))
   if (args.out) writeFileSync(resolve(ROOT, args.out), JSON.stringify(sim, null, 2))
   return 0
 }
 
-function cmdVerify(app: AppContext, args: Record<string, string>): number {
+function cmdVerify(app: AppContext, kernel: Kernel, args: Record<string, string>): number {
   const results: { name: string; ok: boolean; detail: string }[] = []
   const cfg = spawnSync('node', ['scripts/check-config.mjs'], { cwd: ROOT, encoding: 'utf8' })
   results.push({ name: 'V0 config-schema', ok: cfg.status === 0, detail: cfg.status === 0 ? '六张表全部通过' : String(cfg.stderr).slice(0, 300) })
@@ -249,8 +294,8 @@ function cmdVerify(app: AppContext, args: Record<string, string>): number {
   })
 
   if (args.design === undefined) {
-    const a = runSimulation(app, { days: 30, seed: 42 })
-    const b = runSimulation(app, { days: 30, seed: 42 })
+    const a = runSimulation(app, kernel, { days: 30, seed: 42 })
+    const b = runSimulation(app, kernel, { days: 30, seed: 42 })
     results.push({ name: 'V4 determinism', ok: a.finalHash === b.finalHash, detail: `${a.finalHash} vs ${b.finalHash}` })
     const r7 = a.records.find(r => r.day === 7)
     results.push({ name: 'V5 sim r(7)=1.02±0.05', ok: !!r7 && Math.abs(r7.rAvg - 1.02) <= 0.05, detail: `rAvg=${r7?.rAvg}` })
@@ -258,6 +303,7 @@ function cmdVerify(app: AppContext, args: Record<string, string>): number {
     results.push({ name: 'V6 deaths ≤ GUARD_DEATH_30D', ok: deaths <= app.constants.GUARD_DEATH_30D, detail: `deaths=${deaths}` })
     const bad = a.records.filter(r => r.invariantErrors.length > 0)
     results.push({ name: 'V7 invariants clean', ok: bad.length === 0, detail: bad.length ? bad.map(r => `D${r.day}:${r.invariantErrors.join(',')}`).join('; ') : 'clean' })
+    results.push({ name: 'V8 事件引擎', ok: a.eventsFired >= 6, detail: `30 天触发 scripted 事件 ${a.eventsFired} 次（≥6）` })
     a.findings.forEach(f => results.push({ name: 'FINDING', ok: true, detail: f }))
   }
 
@@ -271,10 +317,10 @@ function cmdVerify(app: AppContext, args: Record<string, string>): number {
   return ok ? 0 : 1
 }
 
-function cmdReplay(app: AppContext, args: Record<string, string>): number {
+function cmdReplay(app: AppContext, kernel: Kernel, args: Record<string, string>): number {
   const seed = Number(args.seed ?? 42)
   const day = Number(args.day ?? 7)
-  const sim = runSimulation(app, { days: day, seed })
+  const sim = runSimulation(app, kernel, { days: day, seed })
   const session = sim.sessions[day]
   if (!session) { console.error(`no session at D${day}`); return 1 }
   const state = deserialize(serialize(createGameState(seed)))
@@ -288,8 +334,7 @@ function cmdReplay(app: AppContext, args: Record<string, string>): number {
 
 async function cmdDiagnose(app: AppContext): Promise<number> {
   const kernel = createKernel({ appName: 'nl-headless', clock: { logicalDay: () => 0, wallMs: () => Date.now() } })
-  void app
-  await kernel.boot(buildBundle(app))
+  await kernel.boot(buildBundle(app, { devtools: true }))
   console.log('== plugins ==')
   for (const h of kernel.healthAll()) console.log(`  ${h.name.padEnd(14)} ${h.status}${h.detail ? ' — ' + h.detail : ''}`)
   const logger = kernel.service<{ tail(n: number): { level: string; channel: string; msg: string }[] }>('logger')
@@ -301,9 +346,9 @@ async function cmdDiagnose(app: AppContext): Promise<number> {
 
 async function cmdDepgraph(app: AppContext, args: Record<string, string>): Promise<number> {
   const kernel = createKernel({ appName: 'nl-headless', clock: { logicalDay: () => 0, wallMs: () => Date.now() } })
-  void app
   await kernel.boot(buildBundle(app))
   const graph = kernel.exportGraph()
+  if (args.out) writeFileSync(resolve(ROOT, args.out), JSON.stringify(graph, null, 2))
   if (args.check !== undefined) {
     // FR-D3：无环（resolve 已保证）+ 分层（内核档 §4.1）
     const layers: Record<string, number> = {
@@ -338,10 +383,12 @@ async function main(): Promise<void> {
     }
   }
   const app = loadApp()
+  const kernel = createKernel({ appName: 'nl-headless', clock: { logicalDay: () => 0, wallMs: () => Date.now() } })
+  await kernel.boot(buildBundle(app))
   let code = 0
-  if (cmd === 'simulate') code = cmdSimulate(app, args)
-  else if (cmd === 'verify') code = cmdVerify(app, args)
-  else if (cmd === 'replay') code = cmdReplay(app, args)
+  if (cmd === 'simulate') code = cmdSimulate(app, kernel, args)
+  else if (cmd === 'verify') code = cmdVerify(app, kernel, args)
+  else if (cmd === 'replay') code = cmdReplay(app, kernel, args)
   else if (cmd === 'diagnose') code = await cmdDiagnose(app)
   else if (cmd === 'depgraph') code = await cmdDepgraph(app, args)
   else { console.error('用法: main.ts simulate|verify|replay|diagnose|depgraph [--days N] [--seed S] [--out f] [--check] [--design]'); code = 2 }
