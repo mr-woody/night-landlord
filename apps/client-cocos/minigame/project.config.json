@@ -1,0 +1,20 @@
+{
+  "description": "M1 白盒微信小游戏骨架（验收门③）",
+  "packOptions": { "ignore": [], "include": [] },
+  "setting": {
+    "es6": true,
+    "postcss": true,
+    "minified": false,
+    "urlCheck": false,
+    "coverView": true,
+    "autoAudits": false,
+    "uglifyFileName": false,
+    "enhance": true,
+    "showShadowRootInWxmlPanel": true
+  },
+  "compileType": "game",
+  "libVersion": "latest",
+  "appid": "touristappid",
+  "projectname": "night-landlord-whitebox",
+  "condition": {}
+}
