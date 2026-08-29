@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "sourceDoc": "docs/M0-数值模型-三曲线调参表.md §2 / docs/技术架构与模块规划 v1.0 §5.3 / docs/数据配置表结构设计 §3",
+  "entries": [
+    { "key": "CFG_R0",                 "value": 100,  "min": 50,   "max": 200,   "desc": "N品质住户基准日产出（金币/天）", "sourceDoc": "M0 §2" },
+    { "key": "CFG_G_U",                "value": 1.055, "min": 1.05, "max": 1.06,  "desc": "户均升级系数日增长", "sourceDoc": "M0 §2" },
+    { "key": "CFG_G_T",                "value": 1.15, "min": 1.14, "max": 1.17,  "desc": "强度日指数", "sourceDoc": "M0 §2" },
+    { "key": "CFG_HP0",                "value": 100,  "min": 50,   "max": 150,   "desc": "单怪基准HP", "sourceDoc": "M0 §2" },
+    { "key": "CFG_J_BM",               "value": 1.6,  "min": 1.45, "max": 1.8,   "desc": "血月跳变倍率", "sourceDoc": "M0 §2" },
+    { "key": "CFG_K_POWER",            "value": 2.6,  "min": 2.2,  "max": 3.0,   "desc": "金币/战力点转化成本", "sourceDoc": "M0 §2" },
+    { "key": "CFG_ECPM",               "value": 45,   "min": 30,   "max": 80,    "desc": "激励视频 eCPM（元）", "sourceDoc": "M0 §7.1" },
+    { "key": "CFG_QUALITY_MUL_N",      "value": 1,    "min": 1,    "max": 1,     "desc": "N品质产出倍率", "sourceDoc": "M0 §1 品质权重" },
+    { "key": "CFG_QUALITY_MUL_R",      "value": 1.5,  "min": 1.5,  "max": 1.5,   "desc": "R品质产出倍率", "sourceDoc": "M0 §1" },
+    { "key": "CFG_QUALITY_MUL_SR",     "value": 2.5,  "min": 2.5,  "max": 2.5,   "desc": "SR品质产出倍率", "sourceDoc": "M0 §1" },
+    { "key": "CFG_QUALITY_MUL_SSR",    "value": 5,    "min": 5,    "max": 5,     "desc": "SSR品质产出倍率", "sourceDoc": "M0 §1" },
+    { "key": "PANIC_MAX",              "value": 100,  "min": 100,  "max": 100,   "desc": "单户恐慌上限", "sourceDoc": "v1.0 §5.3" },
+    { "key": "PANIC_ESCAPE_AT",        "value": 70,   "min": 60,   "max": 80,    "desc": "出逃恐慌阈值", "sourceDoc": "v1.0 §5.3" },
+    { "key": "PANIC_ESCAPE_P",         "value": 0.15, "min": 0.1,  "max": 0.2,   "desc": "达阈值后每日出逃概率", "sourceDoc": "v1.0 §5.3" },
+    { "key": "PANIC_DECAY",            "value": 10,   "min": 5,    "max": 15,    "desc": "每日恐慌自然衰减", "sourceDoc": "v1.0 §5.3" },
+    { "key": "PANIC_PROP_FLOOR",       "value": 5,    "min": 3,    "max": 8,     "desc": "同层破防恐慌传播量", "sourceDoc": "v1.0 §5.3" },
+    { "key": "PANIC_MEAN_PENALTY_AT",  "value": 50,   "min": 40,   "max": 60,    "desc": "全楼均值恐慌产出惩罚阈值", "sourceDoc": "v1.0 §5.3" },
+    { "key": "PANIC_MEAN_PENALTY",     "value": 0.9,  "min": 0.8,  "max": 0.95,  "desc": "超阈值后户产乘数", "sourceDoc": "v1.0 §5.3" },
+    { "key": "TUTORIAL_PANIC_CAP",     "value": 30,   "min": 20,   "max": 40,    "desc": "D1–D7 教学段恐慌封顶", "sourceDoc": "v1.0 §5.3" },
+    { "key": "GUARD_DEATH_DAY",        "value": 4,    "min": 3,    "max": 4,     "desc": "单日死亡护栏", "sourceDoc": "M0 §4.3" },
+    { "key": "GUARD_DEATH_30D",        "value": 6,    "min": 4,    "max": 8,     "desc": "30 日累计死亡护栏", "sourceDoc": "M0 §4.3" },
+    { "key": "STAB_J_ADJUST_MIN",      "value": 0.9,  "min": 0.85, "max": 0.95,  "desc": "灾难调制下限", "sourceDoc": "内核档 §5.5" },
+    { "key": "STAB_J_ADJUST_MAX",      "value": 1.1,  "min": 1.05, "max": 1.15,  "desc": "灾难调制上限", "sourceDoc": "内核档 §5.5" },
+    { "key": "M1_RECRUIT_GOLD",        "value": 150,  "min": 100,  "max": 300,   "desc": "M1 白盒招募单价（金币/人）", "sourceDoc": "M1 实现" },
+    { "key": "M1_ROOM_GOLD",           "value": 300,  "min": 200,  "max": 500,   "desc": "M1 白盒建房单价（金币/间）", "sourceDoc": "M1 实现" }
+  ]
+}

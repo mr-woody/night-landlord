@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "sourceDoc": "docs/M0-数值模型-三曲线调参表.md §7.2",
+  "entries": [
+    { "id": "sku_storage_d3",  "type": "pack",        "price": 6,   "triggerDay": 3,    "repeatable": false, "valueAnchor": 3.0,  "contents": [ { "op": "ADD_RES", "res": "material", "n": 800 }, { "op": "ADD_RES", "res": "food", "n": 500 } ] },
+    { "id": "sku_first_charge", "type": "firstCharge", "price": 6,   "triggerDay": 7,    "repeatable": false, "valueAnchor": 8.0,  "contents": [ { "op": "SPAWN_TENANT", "quality": "SR" }, { "op": "GRANT_BUFF", "buff": "rent_x2_7d", "days": 7 } ] },
+    { "id": "sku_moon_30",     "type": "pack",        "price": 30,  "triggerDay": 7,    "repeatable": true,  "valueAnchor": 2.5,  "contents": [ { "op": "ADD_GOLD", "n": 3400 }, { "op": "ADD_RES", "res": "talentStone", "n": 20 } ] },
+    { "id": "sku_moon_68",     "type": "pack",        "price": 68,  "triggerDay": 7,    "repeatable": true,  "valueAnchor": 3.0,  "contents": [ { "op": "ADD_GOLD", "n": 8200 }, { "op": "ADD_RES", "res": "talentStone", "n": 60 } ] },
+    { "id": "sku_moon_128",    "type": "pack",        "price": 128, "triggerDay": 7,    "repeatable": true,  "valueAnchor": 3.2,  "contents": [ { "op": "ADD_GOLD", "n": 16000 }, { "op": "ADD_RES", "res": "talentStone", "n": 130 } ] },
+    { "id": "sku_pass",        "type": "pass",        "price": 68,  "triggerDay": 14,   "repeatable": false, "valueAnchor": 3.5,  "contents": [ { "op": "SET_FLAG", "key": "passOwned", "v": 1 } ] },
+    { "id": "sku_monthly",     "type": "monthly",     "price": 30,  "triggerDay": 14,   "repeatable": true,  "valueAnchor": 4.7,  "contents": [ { "op": "SET_FLAG", "key": "monthlyOwned", "v": 1 } ] },
+    { "id": "sku_gacha",       "type": "gacha",       "price": 328, "triggerDay": 14,   "repeatable": true,  "valueAnchor": 1.0,  "contents": [ { "op": "SPAWN_TENANT", "quality": "SSR" } ] }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "sourceDoc": "docs/M0-事件文案库50条.md A 组（教学脚本 8 条）",
+  "scope": "M1 首版仅含 scripted 组；choice/mission/ord 共 42 条于 M2 随 Director 条件触发版入库",
+  "entries": [
+    { "id": "evt_tut_fortify",     "ver": 1, "type": "scripted", "triggerDay": 0, "title": "门口的抓痕",     "weight": 0, "cooldownDays": 0, "maxPerRun": 0, "text": "门板上有新鲜的抓痕……趁天还没黑，加固它。", "options": [ { "label": "加固门（教学引导）", "outcomes": [ { "p": 1.0, "text": "门板吱呀作响，但结实了。", "effects": [] } ] } ] },
+    { "id": "evt_tut_firstnight",  "ver": 1, "type": "scripted", "triggerDay": 0, "title": "第 1 夜动员",     "weight": 0, "cooldownDays": 0, "maxPerRun": 0, "text": "入夜前，把有限的人手布到最可能有问题的位置。", "options": [ { "label": "布防引导", "outcomes": [ { "p": 1.0, "text": "夜色压下来，楼里安静得能听见心跳。", "effects": [] } ] } ] },
+    { "id": "evt_tut_rescue",      "ver": 1, "type": "scripted", "triggerDay": 1, "title": "隔壁的呼救",     "weight": 0, "cooldownDays": 0, "maxPerRun": 0, "text": "「救命——还有人吗！」", "options": [ { "label": "派主角去救", "outcomes": [ { "p": 1.0, "text": "拖回来一个浑身发抖的幸存者。记住了：保住人，就是保住钱。", "effects": [ { "op": "SPAWN_TENANT", "quality": "N" } ] } ] } ] },
+    { "id": "evt_tut_referral",    "ver": 1, "type": "scripted", "triggerDay": 2, "title": "老张说：我还有俩邻居", "weight": 0, "cooldownDays": 0, "maxPerRun": 0, "text": "「他们人不错，就在下一条街。」", "options": [ { "label": "接引", "outcomes": [ { "p": 1.0, "text": "一老一少，行李都没丢。", "effects": [ { "op": "SPAWN_TENANT", "quality": "N" }, { "op": "SPAWN_TENANT", "quality": "N" } ] } ] } ] },
+    { "id": "evt_tut_broadcast",   "ver": 1, "type": "scripted", "triggerDay": 2, "title": "广播站第一通广播", "weight": 0, "cooldownDays": 0, "maxPerRun": 0, "text": "「这里是 7 号楼，我们收留活人。」", "options": [ { "label": "招募", "outcomes": [ { "p": 1.0, "text": "当天下午，门口排起了队。", "effects": [ { "op": "ADD_RES", "res": "food", "n": -100 }, { "op": "SPAWN_TENANT", "quality": "N" }, { "op": "SPAWN_TENANT", "quality": "N" } ] } ] } ] },
+    { "id": "evt_tut_bills",       "ver": 1, "type": "scripted", "triggerDay": 3, "title": "第一笔「物业费」", "weight": 0, "cooldownDays": 0, "maxPerRun": 0, "text": "住进来可以，但规矩得立：按天交租。", "options": [ { "label": "收租", "outcomes": [ { "p": 1.0, "text": "金币入袋的声音，比枪声好听。", "effects": [ { "op": "ADD_GOLD", "n": 300 } ] } ] } ] },
+    { "id": "evt_tut_panic",       "ver": 1, "type": "scripted", "triggerDay": 5, "title": "有人半夜偷哭",     "weight": 0, "cooldownDays": 0, "maxPerRun": 0, "text": "恐慌像霉斑，会顺着楼板蔓延。", "options": [ { "label": "逐户安抚", "outcomes": [ { "p": 1.0, "text": "哭声停了。人心，也是要修的。", "effects": [ { "op": "ADD_PANIC", "n": -10 }, { "op": "SET_FLAG", "key": "orderIntro", "v": 1 } ] } ] } ] },
+    { "id": "evt_tut_omen",        "ver": 1, "type": "scripted", "triggerDay": 6, "title": "风向不对",       "weight": 0, "cooldownDays": 0, "maxPerRun": 0, "text": "狗不叫了。风里有铁锈味。", "options": [ { "label": "登高观星", "outcomes": [ { "p": 1.0, "text": "月亮是红的。明天，是血月。", "effects": [ { "op": "SET_FLAG", "key": "bloodmoonForetold", "v": 1 } ] } ] } ] }
+  ]
+}
