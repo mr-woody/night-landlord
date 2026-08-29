@@ -1,0 +1,112 @@
+{
+  "nodes": [
+    {
+      "name": "rn.diag",
+      "hotplug": "core",
+      "provides": [
+        "logger",
+        "audit"
+      ],
+      "depends": [],
+      "scope": null
+    },
+    {
+      "name": "rn.formula",
+      "hotplug": "core",
+      "provides": [
+        "formula"
+      ],
+      "depends": [],
+      "scope": null
+    },
+    {
+      "name": "rn.save",
+      "hotplug": "core",
+      "provides": [
+        "persistence"
+      ],
+      "depends": [],
+      "scope": null
+    },
+    {
+      "name": "rn.systems",
+      "hotplug": "core",
+      "provides": [
+        "game"
+      ],
+      "depends": [
+        {
+          "service": "formula"
+        },
+        {
+          "service": "persistence"
+        }
+      ],
+      "scope": null
+    },
+    {
+      "name": "rn.battle",
+      "hotplug": "standard",
+      "provides": [
+        "battle"
+      ],
+      "depends": [
+        {
+          "service": "game"
+        },
+        {
+          "service": "formula"
+        }
+      ],
+      "scope": null
+    },
+    {
+      "name": "rn.director",
+      "hotplug": "standard",
+      "provides": [
+        "director"
+      ],
+      "depends": [
+        {
+          "service": "game"
+        },
+        {
+          "service": "formula"
+        }
+      ],
+      "scope": null
+    }
+  ],
+  "edges": [
+    {
+      "from": "rn.systems",
+      "to": "rn.formula",
+      "service": "formula"
+    },
+    {
+      "from": "rn.systems",
+      "to": "rn.save",
+      "service": "persistence"
+    },
+    {
+      "from": "rn.battle",
+      "to": "rn.systems",
+      "service": "game"
+    },
+    {
+      "from": "rn.battle",
+      "to": "rn.formula",
+      "service": "formula"
+    },
+    {
+      "from": "rn.director",
+      "to": "rn.systems",
+      "service": "game"
+    },
+    {
+      "from": "rn.director",
+      "to": "rn.formula",
+      "service": "formula"
+    }
+  ]
+}

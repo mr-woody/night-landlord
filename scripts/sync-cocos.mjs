@@ -3,8 +3,8 @@
 // 并把跨包导入 '@rn/x' 改写为相对路径；写校验和清单防漂移。
 // 用法：node scripts/sync-cocos.mjs [--check]
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
-import { dirname, fileURLToPath } from 'node:url'
+import { dirname, join, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 // FNV-1a 32 位（与 @rn/core hash32 同实现，内联以保持脚本零依赖可独立运行）
 function hash32(input) {
@@ -40,10 +40,12 @@ function buildSyncPlan() {
     const outPkg = pkgName.replace('@rn/', '')
     for (const file of listTs(src)) {
       const original = readFileSync(file, 'utf8')
-      const up = relative(file, outDir).split('/').filter(Boolean).map(() => '..').join('/')
-      const code = original.replace(/from '(@rn\/[a-z]+)'/g, (_, name) => `from '${up}/${name.replace('@rn/', '')}/index'`)
+      const relFromPkgSrc = relative(src, file)
+      const depth = relFromPkgSrc.split('/').length
+      const up = '../'.repeat(depth)
+      const code = original.replace(/from '(@rn\/[a-z]+)'/g, (_, name) => `from '${up}${name.replace('@rn/', '')}/index'`)
       plan.rewrites += (original.match(/from '@rn\//g) || []).length
-      plan.files.push({ outFile: join(outDir, outPkg, relative(src, file)), code })
+      plan.files.push({ outFile: join(outDir, outPkg, relFromPkgSrc), code })
     }
   }
   return plan
