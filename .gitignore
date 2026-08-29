@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Node / TypeScript
+node_modules/
+dist/
+*.log
+
+# Cocos Creator（构建产物与本地缓存，assets/ 与项目设置正常提交）
+library/
+temp/
+local/
+build/
+
+# IDE
+.idea/
