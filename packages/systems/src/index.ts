@@ -62,7 +62,7 @@ export function createGameState(seed: number): GameState {
     day: 0,
     phase: 'DAWN_SETTLE',
     rng: {},
-    resources: { food: 600, water: 600, material: 400, ammo: 200, gold: 500, talentStone: 0 },
+    resources: { food: 600, water: 600, material: 400, ammo: 200, gold: 3200, talentStone: 0 },
     tenants: [],
     nextTenantId: 1,
     roomsBuilt: 3,

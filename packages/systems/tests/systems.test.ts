@@ -28,7 +28,7 @@ test('M0 锚点 A1（模拟侧）：D1 结算 10 户 N 品质 = 1000±5%', () =>
   const s = gameWith(10)
   const r = settleDawn(s, { formula, constants, rng: createRngStreams(42, s.rng) })
   assert.ok(Math.abs(r.income - 1000) / 1000 <= 0.05, `income=${r.income}`)
-  assert.equal(s.resources.gold, 500 + r.income)
+  assert.equal(s.resources.gold, 3200 + r.income)
 })
 
 test('applyEffects 护栏：单日死亡上限 / 30 日上限 / 资源非负（FR 护栏单点）', () => {
