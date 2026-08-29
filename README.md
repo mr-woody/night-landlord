@@ -33,6 +33,7 @@
 | [docs/插件化内核与诊断体系设计.md](docs/插件化内核与诊断体系设计.md) | **框架层技术设计**：对标 Cordis/dsh 的自研薄内核（七相生命周期/四级热插拔/Bundle 宿主组合）、15 插件分解与依赖图、全局控制面、贯穿式日志/Trace/分模块自诊断/状态变更审计（ADR D11–D16，参照系经本地 deepseek-harness/cordis 克隆实证） |
 | [docs/数据配置表结构设计.md](docs/数据配置表结构设计.md) | config 六张表（day_curve/constants/monster/iap_sku/event_lib/building_def）唯一权威 schema：字段约束、校验断言、Excel→JSON 管线与维护职责 |
 | [docs/文档验收与追溯矩阵.md](docs/文档验收与追溯矩阵.md) | 逐文件验收证据链：文件状态总表、一致性机检记录、功能落地追踪矩阵、方案选型复核、生产就绪门槛 |
+| [docs/可执行目标-M1.md](docs/可执行目标-M1.md) | **M1 执行指令**（对标 Nodus 任务书模板六要素改写）：边界合同、执行方式、7 个依赖排序功能点、整体验收门——新会话可直接粘贴下达 |
 
 ## 当前进度
 
