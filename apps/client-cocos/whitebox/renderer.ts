@@ -284,12 +284,13 @@ export class WhiteboxRenderer {
       }
       case 'DAY':
         this.drawDayBg(now)
-        if (ui.page === 'map') this.drawMapView(ui, frame, now)
+        if (ui.page === 'map') { this.drawMapView(ui, frame, now); this.drawTutorialBanner(frame) }
         else if (ui.page === 'interior') this.drawInterior(ui, frame, now, pb)
         else if (ui.page === 'wild') this.drawWildView(ui, frame, now, pb)
         else if (ui.page === 'main') {
           this.button(mapBackRect(), '◀ 小区', 'normal')
           this.drawHud(frame, now)
+          this.drawTutorialBanner(frame)
           this.drawResources(frame)
           this.drawBuilding(frame, now)
           this.drawEventEntry(frame)
@@ -949,6 +950,37 @@ export class WhiteboxRenderer {
     void now
   }
 
+  /** 新手引导横幅（M3.4-①首切片）：当日 scripted 教学事件 → 顶部金色目标条 */
+  private drawTutorialBanner(frame: DayFrame): void {
+    const tut = frame.eventCards.find(c => c.id.startsWith('evt_tut_'))
+    if (!tut) return
+    const { ctx } = this
+    const y = hudRect().h + 4
+    ctx.fillStyle = withAlpha(col('gold_primary'), 0.16)
+    ctx.beginPath(); ctx.roundRect(T.space.s, y, DESIGN_W - T.space.s * 2, 52, T.radius.chip); ctx.fill()
+    ctx.strokeStyle = col('gold_deep'); ctx.lineWidth = 2; ctx.stroke()
+    ctx.fillStyle = col('gold_primary')
+    ctx.beginPath(); ctx.roundRect(T.space.s + 10, y + 12, 56, 28, 6); ctx.fill()
+    ctx.fillStyle = shade(col('gold_primary'), 0.3)
+    ctx.font = font(T.typography.caption, { weight: 'bold' })
+    ctx.fillText('教学', T.space.s + 18, y + 27)
+    ctx.fillStyle = col('text_primary')
+    ctx.font = font(T.typography.body, { weight: 'bold' })
+    ctx.fillText(`目标：${tut.title}`, T.space.s + 80, y + 27)
+  }
+
+  /** 新开放角标（楼栋解锁后 3 天内显示，替代锁定态） */
+  private newlyOpenBadge(cx: number, cy: number): void {
+    const { ctx } = this
+    ctx.fillStyle = col('success')
+    ctx.beginPath(); ctx.roundRect(cx - 34, cy - 12, 68, 26, T.radius.chip); ctx.fill()
+    ctx.fillStyle = shade(col('success'), 0.3)
+    ctx.font = font(T.typography.caption, { weight: 'bold' })
+    ctx.textAlign = 'center'
+    ctx.fillText('新开放', cx, cy + 1)
+    ctx.textAlign = 'left'
+  }
+
   // ---- L2 小区地图（等距；UI 规范 v2.0 §7.1）----
   private drawMapView(ui: UiState, frame: DayFrame, now: number): void {
     const { ctx } = this
@@ -972,6 +1004,7 @@ export class WhiteboxRenderer {
       const base = isoToScreen(lot.gx, lot.gy)
       const cx = base.x, cy = base.y + ISO_TILE_H / 2
       if (lot.kind === 'bld') this.drawIsoBuilding(cx, cy, locked, frame, id, now)
+      if (lot.kind === 'bld' && !locked && frame.day >= lot.unlockDay && frame.day - lot.unlockDay < 3) this.newlyOpenBadge(cx, cy - 6 * ISO_FLOOR_H - 34)
       else if (lot.kind === 'gate') this.drawIsoGate(cx, cy)
       else if (lot.kind === 'wall') this.drawIsoWall(cx, cy)
       else if (lot.kind === 'plaza') this.drawIsoPlaza(cx, cy)

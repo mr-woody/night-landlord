@@ -72,8 +72,8 @@ check(sku.entries.filter(s => s.type === 'firstCharge').length === 1, 'firstChar
 // ---- event_lib（M1 首版：scripted 组 8 条）----
 const ev = load('event_lib.json')
 const scripted = ev.entries.filter(e => e.type === 'scripted')
-check(scripted.length === 8, `event_lib scripted 应为 8 条，实际 ${scripted.length}`)
-check(ev.entries.length === 60, `event_lib 总数应为 60（50+世界组10），实际 ${ev.entries.length}`)
+check(scripted.length === 10, `event_lib scripted 应为 10 条（8 教学+2 楼栋解锁），实际 ${scripted.length}`)
+check(ev.entries.length === 62, `event_lib 总数应为 62（50+世界组10+楼栋解锁2），实际 ${ev.entries.length}`)
 const wd = ev.entries.filter(e => e.id.startsWith('evt_wd_'))
 const ind = ev.entries.filter(e => e.id.startsWith('evt_in_'))
 check(wd.length === 6, `evt_wd_* 应 6 条，实际 ${wd.length}`)
@@ -173,5 +173,5 @@ if (failures.length) {
   failures.forEach(f => console.error('  ✗ ' + f))
   process.exit(1)
 }
-console.log('check-config：六张表全部通过（day_curve 31 行 / constants 全键 / monster 7 / iap 8 / event_lib scripted 8 / building_def）')
+console.log('check-config：基础表全部通过（day_curve 31 行 / constants 全键 / monster 7 / iap 8 / event_lib 62=scripted10+48 / building_def）')
 console.log(`check-config：世界空间四表通过（map_def ${md.entries.length} / explore_def ${ed.entries.length} / gather_table ${gt.entries.length} / wildlife ${wl.entries.length}）`)

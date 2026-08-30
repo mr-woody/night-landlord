@@ -11,7 +11,7 @@ import { createGameState } from '@rn/systems'
 import { loadConstants } from '@rn/formula'
 import {
   createWorldState, dispatchParty, resolveDue, restoreStamina, unlockProgress,
-  worldHash, serializeWorld, deserializeWorld, type WorldTables
+  worldHash, serializeWorld, deserializeWorld, worldCapacity, type WorldTables
 } from '../src/index.ts'
 
 const tables: WorldTables = {
@@ -145,4 +145,11 @@ test('存档统一（PR-P2）：serialize→deserialize 往返哈希一致；旧
   const legacy = serializeWorld(world).replace('"food":0,', '"food":')
   const migrated = deserializeWorld(legacy, tables)
   assert.equal(migrated.totalYield.food, 0)
+})
+
+test('住户扩容（M3.4-①）：初始 30，B/C 栋解锁后 60/90（worldCapacity）', () => {
+  const { world } = freshWorld()
+  assert.equal(worldCapacity(world), 30, '仅 A 栋')
+  unlockProgress(world, 30, tables)
+  assert.equal(worldCapacity(world), 90, 'D30 三栋全解锁')
 })

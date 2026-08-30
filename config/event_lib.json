@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "sourceDoc": "docs/M0-事件文案库50条.md",
   "scope": "M2：50 条全量（scripted 8 / choice 24 / mission 10 / ord 8）",
   "entries": [
@@ -3562,6 +3562,66 @@
                 {
                   "op": "ADD_PANIC",
                   "n": 4
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evt_bld_b_open",
+      "ver": 1,
+      "type": "scripted",
+      "title": "B 栋开放",
+      "weight": 0,
+      "cooldownDays": 0,
+      "maxPerRun": 1,
+      "prereq": {},
+      "triggerDay": 30,
+      "text": "轰隆一声，B 栋的大门被拉开了。三十个新房间在火把光里等着住户。",
+      "options": [
+        {
+          "label": "确认",
+          "outcomes": [
+            {
+              "p": 1.0,
+              "text": null,
+              "effects": [
+                {
+                  "op": "SET_FLAG",
+                  "key": "evt_bld_b_open",
+                  "v": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evt_bld_c_open",
+      "ver": 1,
+      "type": "scripted",
+      "title": "C 栋开放",
+      "weight": 0,
+      "cooldownDays": 0,
+      "maxPerRun": 1,
+      "prereq": {},
+      "triggerDay": 30,
+      "text": "C 栋的窗口第一次亮起灯——空房间比金子还让人安心。",
+      "options": [
+        {
+          "label": "确认",
+          "outcomes": [
+            {
+              "p": 1.0,
+              "text": null,
+              "effects": [
+                {
+                  "op": "SET_FLAG",
+                  "key": "evt_bld_c_open",
+                  "v": 1
                 }
               ]
             }

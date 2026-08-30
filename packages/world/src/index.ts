@@ -104,6 +104,11 @@ export function unlockProgress(w: WorldState, day: number, tables: WorldTables):
   }
 }
 
+/** 住户容量：每栋解锁楼 30 房（设计方案 §4.1 锚点）；M0 数值窗口（D1–30）内仅 A 栋 */
+export function worldCapacity(w: WorldState): number {
+  return Object.entries(w.buildings).filter(([, b]) => b.unlocked).length * 30
+}
+
 // ---- 派出队伍 ----
 export interface DispatchResult { ok: boolean; reason?: string; partyId?: number }
 

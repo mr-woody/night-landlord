@@ -1715,7 +1715,7 @@
 
   // config/event_lib.json
   var event_lib_default = {
-    version: 2,
+    version: 3,
     sourceDoc: "docs/M0-\u4E8B\u4EF6\u6587\u6848\u5E9350\u6761.md",
     scope: "M2\uFF1A50 \u6761\u5168\u91CF\uFF08scripted 8 / choice 24 / mission 10 / ord 8\uFF09",
     entries: [
@@ -5284,6 +5284,66 @@
             ]
           }
         ]
+      },
+      {
+        id: "evt_bld_b_open",
+        ver: 1,
+        type: "scripted",
+        title: "B \u680B\u5F00\u653E",
+        weight: 0,
+        cooldownDays: 0,
+        maxPerRun: 1,
+        prereq: {},
+        triggerDay: 30,
+        text: "\u8F70\u9686\u4E00\u58F0\uFF0CB \u680B\u7684\u5927\u95E8\u88AB\u62C9\u5F00\u4E86\u3002\u4E09\u5341\u4E2A\u65B0\u623F\u95F4\u5728\u706B\u628A\u5149\u91CC\u7B49\u7740\u4F4F\u6237\u3002",
+        options: [
+          {
+            label: "\u786E\u8BA4",
+            outcomes: [
+              {
+                p: 1,
+                text: null,
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "evt_bld_b_open",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_bld_c_open",
+        ver: 1,
+        type: "scripted",
+        title: "C \u680B\u5F00\u653E",
+        weight: 0,
+        cooldownDays: 0,
+        maxPerRun: 1,
+        prereq: {},
+        triggerDay: 30,
+        text: "C \u680B\u7684\u7A97\u53E3\u7B2C\u4E00\u6B21\u4EAE\u8D77\u706F\u2014\u2014\u7A7A\u623F\u95F4\u6BD4\u91D1\u5B50\u8FD8\u8BA9\u4EBA\u5B89\u5FC3\u3002",
+        options: [
+          {
+            label: "\u786E\u8BA4",
+            outcomes: [
+              {
+                p: 1,
+                text: null,
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "evt_bld_c_open",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       }
     ]
   };
@@ -6168,12 +6228,15 @@
         }
         case "DAY":
           this.drawDayBg(now);
-          if (ui2.page === "map") this.drawMapView(ui2, frame, now);
-          else if (ui2.page === "interior") this.drawInterior(ui2, frame, now, pb2);
+          if (ui2.page === "map") {
+            this.drawMapView(ui2, frame, now);
+            this.drawTutorialBanner(frame);
+          } else if (ui2.page === "interior") this.drawInterior(ui2, frame, now, pb2);
           else if (ui2.page === "wild") this.drawWildView(ui2, frame, now, pb2);
           else if (ui2.page === "main") {
             this.button(mapBackRect(), "\u25C0 \u5C0F\u533A", "normal");
             this.drawHud(frame, now);
+            this.drawTutorialBanner(frame);
             this.drawResources(frame);
             this.drawBuilding(frame, now);
             this.drawEventEntry(frame);
@@ -6899,6 +6962,43 @@
       }
       void now;
     }
+    /** 新手引导横幅（M3.4-①首切片）：当日 scripted 教学事件 → 顶部金色目标条 */
+    drawTutorialBanner(frame) {
+      const tut = frame.eventCards.find((c) => c.id.startsWith("evt_tut_"));
+      if (!tut) return;
+      const { ctx } = this;
+      const y = hudRect().h + 4;
+      ctx.fillStyle = withAlpha(col("gold_primary"), 0.16);
+      ctx.beginPath();
+      ctx.roundRect(T.space.s, y, DESIGN_W - T.space.s * 2, 52, T.radius.chip);
+      ctx.fill();
+      ctx.strokeStyle = col("gold_deep");
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = col("gold_primary");
+      ctx.beginPath();
+      ctx.roundRect(T.space.s + 10, y + 12, 56, 28, 6);
+      ctx.fill();
+      ctx.fillStyle = shade(col("gold_primary"), 0.3);
+      ctx.font = font(T.typography.caption, { weight: "bold" });
+      ctx.fillText("\u6559\u5B66", T.space.s + 18, y + 27);
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.body, { weight: "bold" });
+      ctx.fillText(`\u76EE\u6807\uFF1A${tut.title}`, T.space.s + 80, y + 27);
+    }
+    /** 新开放角标（楼栋解锁后 3 天内显示，替代锁定态） */
+    newlyOpenBadge(cx, cy) {
+      const { ctx } = this;
+      ctx.fillStyle = col("success");
+      ctx.beginPath();
+      ctx.roundRect(cx - 34, cy - 12, 68, 26, T.radius.chip);
+      ctx.fill();
+      ctx.fillStyle = shade(col("success"), 0.3);
+      ctx.font = font(T.typography.caption, { weight: "bold" });
+      ctx.textAlign = "center";
+      ctx.fillText("\u65B0\u5F00\u653E", cx, cy + 1);
+      ctx.textAlign = "left";
+    }
     // ---- L2 小区地图（等距；UI 规范 v2.0 §7.1）----
     drawMapView(ui2, frame, now) {
       const { ctx } = this;
@@ -6922,6 +7022,7 @@
         const base = isoToScreen(lot.gx, lot.gy);
         const cx = base.x, cy = base.y + ISO_TILE_H / 2;
         if (lot.kind === "bld") this.drawIsoBuilding(cx, cy, locked, frame, id, now);
+        if (lot.kind === "bld" && !locked && frame.day >= lot.unlockDay && frame.day - lot.unlockDay < 3) this.newlyOpenBadge(cx, cy - 6 * ISO_FLOOR_H - 34);
         else if (lot.kind === "gate") this.drawIsoGate(cx, cy);
         else if (lot.kind === "wall") this.drawIsoWall(cx, cy);
         else if (lot.kind === "plaza") this.drawIsoPlaza(cx, cy);
@@ -7732,7 +7833,7 @@
     document.fonts.load('32px "BebasNeue"', "0123456789D+%.")
   ]).catch(() => void 0);
   boot.then(async () => {
-    const sim = runSimulation(app, kernel, { days: 7, seed: 42 });
+    const sim = runSimulation(app, kernel, { days: 30, seed: 42 });
     simSessions = sim.sessions;
     frames = sim.records.map((r) => ({
       day: r.day,
@@ -7754,6 +7855,7 @@
     }));
     const want = new URLSearchParams(location.search).get("phase");
     const wantPage = new URLSearchParams(location.search).get("page");
+    const wantDay = Number(new URLSearchParams(location.search).get("day") ?? "0");
     await fontsReady;
     renderer.start(
       () => {
@@ -7784,6 +7886,7 @@
       ui.phase = "DAWN_SETTLE";
       pb.settleStart = performance.now();
     } else enterDay(0);
+    if (wantDay >= 1 && wantDay <= frames.length) enterDay(wantDay - 1);
     if (wantPage) ui.page = wantPage;
     console.log(`\u767D\u76D2\u64AD\u653E\u5C31\u7EEA\uFF1A${frames.length} \u5929\uFF0C\u4E8B\u4EF6 ${sim.eventsFired} \u6B21\uFF0C\u72EC\u7ACB ${sim.distinctFired.length}`);
   });

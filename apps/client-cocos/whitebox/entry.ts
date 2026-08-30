@@ -252,7 +252,7 @@ const fontsReady = Promise.all([
 ]).catch(() => undefined)
 
 boot.then(async () => {
-  const sim = runSimulation(app, kernel, { days: 7, seed: 42 })
+  const sim = runSimulation(app, kernel, { days: 30, seed: 42 }) // 全程 30 天回放（D1–D30，含 D30 解锁日）
   simSessions = sim.sessions
   frames = sim.records.map(r => ({
     day: r.day, population: r.population, roomsBuilt: r.roomsBuilt,
@@ -266,6 +266,7 @@ boot.then(async () => {
   // 冒烟调试入口：?phase=day|dusk|night|dawn 进入对应相；?page=codex|shop|settings 直达占位页
   const want = new URLSearchParams(location.search).get('phase')
   const wantPage = new URLSearchParams(location.search).get('page')
+  const wantDay = Number(new URLSearchParams(location.search).get('day') ?? '0')
   await fontsReady
   renderer.start(
     () => {
@@ -290,6 +291,7 @@ boot.then(async () => {
   else if (want === 'night') { idx = 6; ui.phase = 'NIGHT'; pb.nightStart = performance.now(); pb.session = simSessions[7] ?? null }
   else if (want === 'dawn') { idx = 6; ui.phase = 'DAWN_SETTLE'; pb.settleStart = performance.now() }
   else enterDay(0)
+  if (wantDay >= 1 && wantDay <= frames.length) enterDay(wantDay - 1)
   if (wantPage) ui.page = wantPage as UiState['page']
   console.log(`白盒播放就绪：${frames.length} 天，事件 ${sim.eventsFired} 次，独立 ${sim.distinctFired.length}`)
 })
