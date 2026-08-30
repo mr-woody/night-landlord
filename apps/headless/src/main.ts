@@ -11,15 +11,25 @@ import { createDayRng } from '@rn/core'
 import { createFormula, loadConstants } from '@rn/formula'
 import { createGameState, serialize, deserialize, runNight, type Tables } from '@rn/systems'
 import { buildBundle, runSimulation, betaSim, type AppContext, type EventLibEntry } from './sim.ts'
+import { applyOverlay, type OverlayFile } from '@rn/control'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const loadJson = <T>(p: string): T => JSON.parse(readFileSync(join(ROOT, p), 'utf8')) as T
 
 
-export function loadApp(): AppContext {
+export function loadApp(overlayPath?: string): AppContext {
+  let constantsJson = loadJson<{ version: number; sourceDoc: string; entries: { key: string; value: number; min: number; max: number; desc: string; sourceDoc: string }[] }>('config/constants.json')
+  if (overlayPath) {
+    // FR-C3/C4：覆盖单通道 + 留痕（applied/rejected 全打印；base 永不改写，回滚=移除覆盖文件）
+    const ov = loadJson<OverlayFile>(overlayPath)
+    const r = applyOverlay('constants', constantsJson, ov)
+    r.applied.forEach(a => console.log(`[overlay] ${a.key}: ${a.before} → ${a.after}`))
+    r.rejected.forEach(x => console.log(`[overlay:REJECTED] ${x.key}: ${x.reason}`))
+    constantsJson = r.merged as typeof constantsJson
+  }
   const tables: Tables = {
     dayCurve: loadJson('config/day_curve.json'),
-    constants: loadJson('config/constants.json'),
+    constants: constantsJson,
     buildingDef: loadJson('config/building_def.json')
   }
   return {
@@ -131,7 +141,7 @@ function cmdReplay(app: AppContext, kernel: Kernel, args: Record<string, string>
   return ok ? 0 : 1
 }
 
-async function cmdDiagnose(app: AppContext): Promise<number> {
+async function cmdDiagnose(app: AppContext): Promise<number> { // eslint-disable-line
   const kernel = createKernel({ appName: 'nl-headless', clock: { logicalDay: () => 0, wallMs: () => Date.now() } })
   await kernel.boot(buildBundle(app, { devtools: true }))
   console.log('== plugins ==')
@@ -181,7 +191,7 @@ async function main(): Promise<void> {
       else args[a.slice(2)] = 'true'
     }
   }
-  const app = loadApp()
+  const app = loadApp(args.overlay)
   const kernel = createKernel({ appName: 'nl-headless', clock: { logicalDay: () => 0, wallMs: () => Date.now() } })
   await kernel.boot(buildBundle(app))
   let code = 0
