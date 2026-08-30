@@ -1022,6 +1022,7 @@
     const findings = [];
     const distinctFired = /* @__PURE__ */ new Set();
     const eventCounts = {};
+    const eventCards = {};
     let eventsFired = 0;
     let spent = 0;
     let checkpoints = 0;
@@ -1090,6 +1091,15 @@
         eventCounts[ev.id] = (eventCounts[ev.id] ?? 0) + 1;
       }
       eventsFired += events;
+      eventCards[d] = todays.map((ev) => {
+        const e = app2.eventLib.entries.find((x) => x.id === ev.id);
+        return {
+          id: ev.id,
+          title: e?.title ?? ev.id,
+          weight: e?.weight ?? 0,
+          options: (e?.options ?? []).map((o) => ({ label: o.label, ps: o.outcomes.map((oc) => oc.p) }))
+        };
+      });
       persistence.put(`ckpt_${d}_day`, serialize(state));
       checkpoints++;
       state.phase = "DUSK_FORECAST";
@@ -1137,7 +1147,7 @@
       }
     }
     const stabilizer = stabilizerL1(records);
-    return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, stabilizer };
+    return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, eventCards, stabilizer };
   }
   function stabilizerL1(records) {
     const windows = [[1, 7], [8, 14], [15, 21], [22, 28], [29, 30]];
@@ -1777,25 +1787,129 @@
     return `${weight}${px}px "${family}", sans-serif`;
   }
 
-  // apps/client-cocos/whitebox/renderer.ts
+  // apps/client-cocos/whitebox/state.ts
+  function createUiState() {
+    return { phase: "DAY", page: "main", modals: [], eventQueue: [] };
+  }
+  function topModal(s) {
+    return s.eventQueue[s.eventQueue.length - 1] ?? s.modals[s.modals.length - 1];
+  }
+  function openModal(s, m) {
+    if (s.phase === "NIGHT") return s;
+    return { ...s, modals: [...s.modals, m] };
+  }
+  function closeModal(s) {
+    if (s.eventQueue.length > 0) return { ...s, eventQueue: s.eventQueue.slice(0, -1) };
+    if (s.modals.length > 0) return { ...s, modals: s.modals.slice(0, -1) };
+    return s;
+  }
+
+  // apps/client-cocos/whitebox/layout.ts
+  var DESIGN_W = 750;
+  var DESIGN_H = 1624;
+  var HIT_MIN = 88;
+  var M = T.space.l;
+  var GAP = T.space.s;
+  var HUD_H = T.typography.h1 + T.space.s;
+  var RES_H = 64;
+  var DOCK_H = HIT_MIN;
+  var DOCK_Y = DESIGN_H - T.space.m - DOCK_H;
+  function hudRect() {
+    return { x: 0, y: 0, w: DESIGN_W, h: HUD_H };
+  }
+  function resourceRect() {
+    return { x: 0, y: HUD_H + T.space.xs, w: DESIGN_W, h: RES_H };
+  }
+  function settingsRect() {
+    return { x: DESIGN_W - M - HIT_MIN, y: (HUD_H - HIT_MIN) / 2 + 2, w: HIT_MIN, h: HIT_MIN };
+  }
   var FLOORS = 6;
   var ROOMS_PER_FLOOR = 5;
+  var FLOOR_LABEL_W = 48;
+  function buildingRect() {
+    const y = resourceRect().y + RES_H + GAP;
+    const h = DESIGN_H * 0.44;
+    return { x: M, y, w: DESIGN_W - M * 2, h };
+  }
+  function roomRect(floor, room) {
+    const b = buildingRect();
+    const gw = (b.w - FLOOR_LABEL_W - T.space.xs * (ROOMS_PER_FLOOR - 1)) / ROOMS_PER_FLOOR;
+    const gh = (b.h - T.space.xs * (FLOORS - 1)) / FLOORS;
+    return {
+      x: b.x + FLOOR_LABEL_W + room * (gw + T.space.xs),
+      y: b.y + floor * (gh + T.space.xs),
+      w: gw,
+      h: gh
+    };
+  }
+  function floorLabelRect(floor) {
+    const b = buildingRect();
+    const gh = (b.h - T.space.xs * (FLOORS - 1)) / FLOORS;
+    return { x: b.x, y: b.y + floor * (gh + T.space.xs), w: FLOOR_LABEL_W, h: gh };
+  }
+  function eventEntryRect() {
+    const y = buildingRect().y + buildingRect().h + GAP;
+    return { x: M, y, w: DESIGN_W - M * 2, h: 112 };
+  }
+  function reportRect() {
+    const y = eventEntryRect().y + eventEntryRect().h + GAP;
+    return { x: M, y, w: DESIGN_W - M * 2, h: 120 };
+  }
+  var DOCK_KEYS = [
+    { key: "deploy", label: "\u5E03\u9632" },
+    { key: "recruit", label: "\u62DB\u52DF" },
+    { key: "upgrade", label: "\u5347\u7EA7" },
+    { key: "night", label: "\u25B6\u591C" }
+  ];
+  function dockRects() {
+    const n = DOCK_KEYS.length;
+    const w = (DESIGN_W - M * 2 - T.space.s * (n - 1)) / n;
+    return DOCK_KEYS.map((_, i) => ({ x: M + i * (w + T.space.s), y: DOCK_Y, w, h: DOCK_H }));
+  }
+  var MODAL_H = 420;
+  function modalRect() {
+    return { x: M, y: DESIGN_H - T.space.m - MODAL_H, w: DESIGN_W - M * 2, h: MODAL_H };
+  }
+  function modalCloseRect() {
+    const r = modalRect();
+    return { x: r.x + r.w - HIT_MIN - T.space.s, y: r.y + r.h - HIT_MIN - T.space.s, w: HIT_MIN, h: HIT_MIN };
+  }
+  function hitTest(x, y, modalOpen = false) {
+    const inRect = (r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+    if (modalOpen) {
+      if (inRect(modalCloseRect())) return { kind: "modalClose" };
+      return { kind: "modal" };
+    }
+    for (const [i, r] of dockRects().entries()) {
+      if (inRect(r)) return { kind: "dock", key: DOCK_KEYS[i].key };
+    }
+    if (inRect(settingsRect())) return { kind: "settings" };
+    if (inRect(eventEntryRect())) return { kind: "eventEntry" };
+    for (let f = 0; f < FLOORS; f++) {
+      for (let r = 0; r < ROOMS_PER_FLOOR; r++) {
+        if (inRect(roomRect(f, r))) return { kind: "room", floor: FLOORS - f, room: r };
+      }
+    }
+    return { kind: "none" };
+  }
+
+  // apps/client-cocos/whitebox/renderer.ts
+  function fmt(n) {
+    return n.toLocaleString("en-US");
+  }
   var WhiteboxRenderer = class {
     constructor(canvas2, cb) {
-      this.canvas = canvas2;
       this.cb = cb;
       this.ctx = canvas2.getContext("2d");
     }
-    canvas;
     cb;
     ctx;
     frames = 0;
     fpsSamples = [];
     lastSample = 0;
-    /** rAF 主循环：帧率采样（P6 性能预算冒烟）+ 重绘；物资雨窗口=motion.rain.dur（tokens） */
-    start(getFrame, dayMs) {
-      const rainDur = motion("rain").dur;
-      let dayStart = performance.now();
+    modalOpenAt = null;
+    /** rAF 主循环：帧率采样（预算 min ≥50fps）+ 重绘 */
+    start(getFrame, getUi) {
       const tick = (now) => {
         this.frames++;
         if (now - this.lastSample >= 1e3) {
@@ -1806,74 +1920,265 @@
           this.lastSample = now;
         }
         const frame = getFrame();
-        const elapsed = now - dayStart;
-        if (frame) {
-          const rain = elapsed < rainDur;
-          this.draw(frame, rain, rain ? elapsed / rainDur : 0);
-          if (elapsed >= dayMs) {
-            dayStart = now;
-          }
-        }
+        if (frame) this.draw(getUi(), frame, now);
         requestAnimationFrame(tick);
       };
       this.lastSample = performance.now();
       requestAnimationFrame(tick);
     }
-    draw(frame, rain, rainT) {
-      const { ctx, canvas: canvas2 } = this;
-      const W = canvas2.width, H = canvas2.height;
-      ctx.fillStyle = col("bg_night");
-      ctx.fillRect(0, 0, W, H);
+    getSamples() {
+      return this.fpsSamples;
+    }
+    // ---- 主界面（§3.1 线框 1:1；DAY 相暖色 bg_dawn）----
+    draw(ui2, frame, now) {
+      const { ctx } = this;
+      ctx.fillStyle = col("bg_dawn");
+      ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
+      this.drawHud(frame, now);
+      this.drawResources(frame);
+      this.drawBuilding(frame, now);
+      this.drawEventEntry(frame);
+      this.drawReport(frame);
+      this.drawDock();
+      this.drawModal(ui2, now);
+    }
+    panel(x, y, w, h, r = T.radius.panel) {
+      const { ctx } = this;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      ctx.fillStyle = col("panel");
+      ctx.fill();
+      ctx.strokeStyle = col("panel_stroke");
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    drawHud(frame, now) {
+      const { ctx } = this;
+      const hud = hudRect();
+      ctx.fillStyle = col("panel");
+      ctx.fillRect(hud.x, hud.y, hud.w, hud.h);
+      ctx.strokeStyle = col("panel_stroke");
+      ctx.beginPath();
+      ctx.moveTo(0, hud.h);
+      ctx.lineTo(hud.w, hud.h);
+      ctx.stroke();
+      ctx.textBaseline = "middle";
       ctx.fillStyle = col("text_primary");
       ctx.font = font(T.typography.h2, { weight: "bold" });
-      ctx.fillText(`\u7B2C ${frame.day} \u5929`, T.space.s, T.typography.h2);
-      ctx.font = font(T.typography.caption);
-      ctx.fillStyle = col("gold_primary");
-      ctx.fillText(`\u91D1\u5E01 ${frame.gold}`, T.space.s + 124, T.typography.h2);
+      ctx.fillText(`\u65E5\u6B21 D${frame.day}`, T.space.l, hud.h / 2);
+      ctx.font = font(T.typography.body);
+      ctx.fillText(`\u{1F319}${Math.ceil(frame.day / 7)}/4`, T.space.l + 180, hud.h / 2);
+      const st = settingsRect();
       ctx.fillStyle = col("text_secondary");
-      ctx.fillText(`\u4EBA\u53E3 ${frame.population}/${frame.roomsBuilt}`, T.space.s, T.typography.h2 + T.space.s + 2);
-      ctx.fillText(`\u6218\u529B ${frame.power}`, T.space.s + 144, T.typography.h2 + T.space.s + 2);
+      ctx.fillText("\u2699", st.x + st.w / 2 - 14, st.y + st.h / 2);
       if (frame.modifiers.length) {
-        ctx.fillStyle = col("alert_blood");
-        ctx.fillText(`\u7279\u6B8A\u591C: ${frame.modifiers.join("/")}`, T.space.s, T.typography.h2 + T.space.s * 2 + 4);
+        const isBM = frame.modifiers.includes("BLOOD_MOON");
+        ctx.fillStyle = isBM ? col("alert_blood") : col("danger");
+        ctx.font = font(T.typography.caption);
+        const label = frame.modifiers.join("/");
+        const tw = ctx.measureText(label).width;
+        const threat = motion("threat");
+        const pulse = isBM ? 0.55 + 0.45 * Math.sin(now / (threat.dur * 2) * Math.PI * 2) : 1;
+        ctx.globalAlpha = pulse;
+        ctx.fillText(label, st.x - tw - T.space.s, hud.h / 2);
+        ctx.globalAlpha = 1;
       }
-      const gx = T.space.s, gy = T.space.l + T.typography.h2 + 40, gw = (W - T.space.s * 2) / ROOMS_PER_FLOOR, gh = 64;
-      let occupied = frame.population;
-      for (let f = 0; f < FLOORS; f++) {
+    }
+    drawResources(frame) {
+      const { ctx } = this;
+      const r = resourceRect();
+      ctx.textBaseline = "middle";
+      ctx.font = font(T.typography.body);
+      const items = [
+        { glyph: "\u{1FA99}", text: fmt(frame.gold), color: col("gold_primary") },
+        // 金色数字=货币（§二色彩角色）
+        { glyph: "\u{1F465}", text: `${frame.population}/${frame.roomsBuilt}`, color: col("text_primary") },
+        { glyph: "\u2694", text: fmt(frame.power), color: col("text_primary") },
+        { glyph: "\u{1F631}", text: `${frame.panicSum}`, color: col("panic") }
+        // 恐慌紫=恐慌系统视觉锚
+      ];
+      const colW = r.w / items.length;
+      items.forEach((it, i) => {
+        const x = r.x + colW * i + T.space.m;
         ctx.fillStyle = col("text_secondary");
-        ctx.fillText(`${FLOORS - f}F`, gx, gy + f * gh + gh / 2);
+        ctx.fillText(it.glyph, x, r.y + r.h / 2);
+        ctx.fillStyle = it.color;
+        ctx.fillText(it.text, x + 36, r.y + r.h / 2);
+      });
+    }
+    drawBuilding(frame, now) {
+      const { ctx } = this;
+      ctx.textBaseline = "middle";
+      let occupied = frame.population;
+      const threat = motion("threat");
+      for (let f = 0; f < FLOORS; f++) {
+        const label = floorLabelRect(f);
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText(`${FLOORS - f}F`, label.x, label.y + label.h / 2);
         for (let r = 0; r < ROOMS_PER_FLOOR; r++) {
-          const x = gx + 28 + r * gw, y = gy + f * gh;
-          const isOccupied = occupied > 0;
+          const rect = roomRect(f, r);
+          const roomId = `F${FLOORS - f}-R${r + 1}`;
+          const breached = frame.breachedRooms.includes(roomId);
+          const isPublic = f === FLOORS - 1 && r < 3;
+          const isTower = f === 0 && r === 0;
+          const isOccupied = !isPublic && !isTower && occupied > 0;
           if (isOccupied) occupied--;
-          ctx.strokeStyle = isOccupied ? col("success") : col("panel_stroke");
-          ctx.strokeRect(x + 4, y + 6, gw - 12, gh - 14);
-          if (isOccupied) {
-            ctx.fillStyle = withAlpha(col("success"), 0.2);
-            ctx.fillRect(x + 4, y + 6, gw - 12, gh - 14);
+          if (breached) {
+            const pulse = 0.5 + 0.5 * Math.sin(now / (threat.dur * 2) * Math.PI * 2);
+            ctx.fillStyle = withAlpha(col("alert_blood"), 0.25 + 0.35 * pulse);
+            ctx.beginPath();
+            ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip);
+            ctx.fill();
+            ctx.strokeStyle = col("alert_blood");
+            ctx.stroke();
             ctx.fillStyle = col("text_primary");
             ctx.font = font(T.typography.caption);
-            ctx.fillText("\u4F4F", x + gw / 2 - 6, y + gh / 2 + 4);
+            ctx.fillText("\u7834\u9632", rect.x + rect.w / 2 - 18, rect.y + rect.h / 2);
+          } else if (isPublic || isTower) {
+            ctx.strokeStyle = col("panel_stroke");
+            ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+            ctx.fillStyle = withAlpha(col("gold_deep"), 0.2);
+            ctx.beginPath();
+            ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip);
+            ctx.fill();
+            ctx.fillStyle = col("text_secondary");
+            ctx.font = font(T.typography.caption);
+            const name = isTower ? "\u77AD\u671B\u5854" : ["\u5927\u5385", "\u533B\u52A1", "\u4ED3"][r];
+            ctx.fillText(name, rect.x + rect.w / 2 - name.length * 9, rect.y + rect.h / 2);
+          } else if (isOccupied) {
+            ctx.fillStyle = withAlpha(col("success"), 0.15);
+            ctx.beginPath();
+            ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip);
+            ctx.fill();
+            ctx.strokeStyle = col("success");
+            ctx.beginPath();
+            ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip);
+            ctx.stroke();
+            ctx.fillStyle = col("text_primary");
+            ctx.font = font(T.typography.caption);
+            ctx.fillText("\u{1F9D1}", rect.x + 12, rect.y + rect.h / 2);
+            ctx.fillText("\u{1F6CF}", rect.x + rect.w - 34, rect.y + rect.h / 2);
+          } else {
+            ctx.strokeStyle = col("panel_stroke");
+            ctx.beginPath();
+            ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip);
+            ctx.stroke();
           }
         }
       }
-      if (rain) {
-        ctx.fillStyle = col("gold_primary");
-        for (let i = 0; i < 24; i++) {
-          const seed = (i * 97 + frame.day * 31) % 1e3 / 1e3;
-          const x = T.space.s + 14 + seed * (W - T.space.s * 2 - 38);
-          const y = (rainT * H * 1.4 + seed * 300) % (H * 0.9);
-          ctx.fillRect(x, y, 10, 16);
-        }
-        ctx.font = font(T.typography.h1, { weight: "bold" });
-        ctx.fillText(`+${frame.income} \u7269\u8D44\u96E8`, W / 2 - 70, H / 2);
-      }
+    }
+    drawEventEntry(frame) {
+      const { ctx } = this;
+      const r = eventEntryRect();
+      this.panel(r.x, r.y, r.w, r.h, T.radius.btn);
+      ctx.textBaseline = "middle";
+      const top = frame.eventCards[0];
       ctx.fillStyle = col("text_secondary");
       ctx.font = font(T.typography.caption);
-      ctx.fillText(`\u591C\u6218: r\u5747=${frame.rAvg} \u6B7B\u4EA1${frame.deaths} \u8D1F\u4F24${frame.wounds} ${frame.modifiers.includes("BLOOD_MOON") ? "[\u8840\u6708]" : ""} hash=${frame.sessionHash}`, T.space.s, H - T.space.l - 6);
-      ctx.fillText(`\u6050\u614C\u603B\u91CF ${frame.panicSum} \xB7 \u5E73\u5747\u7B49\u7EA7 ${frame.avgLevel}`, T.space.s, H - T.space.m);
+      ctx.fillText("\u4ECA\u65E5\u4E8B\u4EF6", r.x + T.space.m, r.y + 30);
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.body, { weight: "bold" });
+      ctx.fillText(top ? top.title : "\u9759\u8C27 \xB7 \u65E0\u4E8B\u4EF6", r.x + T.space.m, r.y + 72);
+      if (frame.eventCards.length > 1) {
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText(`+${frame.eventCards.length - 1}`, r.x + r.w - T.space.l - 40, r.y + 30);
+      }
+      ctx.fillStyle = col("gold_primary");
+      ctx.font = font(T.typography.h2);
+      ctx.fillText("\u25B6", r.x + r.w - T.space.l - 28, r.y + 72);
+    }
+    drawReport(frame) {
+      const { ctx } = this;
+      const r = reportRect();
+      this.panel(r.x, r.y, r.w, r.h);
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = col("text_secondary");
+      ctx.font = font(T.typography.caption);
+      ctx.fillText("\u6628\u591C\u6218\u62A5", r.x + T.space.m, r.y + 26);
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.body);
+      ctx.fillText(`r\u5747 ${frame.rAvg} \xB7 \u6B7B\u4EA1 ${frame.deaths} \xB7 \u8D1F\u4F24 ${frame.wounds}`, r.x + T.space.m, r.y + 62);
+      const barW = r.w - T.space.m * 2;
+      ctx.fillStyle = withAlpha(col("panic"), 0.2);
+      ctx.fillRect(r.x + T.space.m, r.y + r.h - 34, barW, 10);
+      const panicRatio = Math.min(1, frame.population > 0 ? frame.panicSum / (frame.population * 100) : 0);
+      ctx.fillStyle = col("panic");
+      ctx.fillRect(r.x + T.space.m, r.y + r.h - 34, barW * panicRatio, 10);
+      ctx.fillStyle = col("text_secondary");
+      ctx.font = font(T.typography.caption);
+      ctx.fillText(`hash=${frame.sessionHash}`, r.x + r.w - T.space.m - 220, r.y + 26);
+    }
+    drawDock() {
+      const { ctx } = this;
+      ctx.textBaseline = "middle";
+      dockRects().forEach((r, i) => {
+        const key = DOCK_KEYS[i];
+        const isNight = key.key === "night";
+        ctx.beginPath();
+        ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn);
+        ctx.fillStyle = isNight ? withAlpha(col("gold_primary"), 0.16) : col("panel");
+        ctx.fill();
+        ctx.strokeStyle = isNight ? col("gold_deep") : col("panel_stroke");
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = isNight ? col("gold_primary") : col("text_primary");
+        ctx.font = font(T.typography.body, { weight: "bold" });
+        const tw = ctx.measureText(key.label).width;
+        ctx.fillText(key.label, r.x + (r.w - tw) / 2, r.y + r.h / 2);
+      });
+    }
+    // ---- 底部滑入模态（normal 300ms easeOutCubic；§3.1「模态面板自底部滑入」）----
+    drawModal(ui2, now) {
+      const { ctx } = this;
+      const top = topModal(ui2);
+      if (!top) {
+        this.modalOpenAt = null;
+        return;
+      }
+      if (this.modalOpenAt === null) this.modalOpenAt = now;
+      const m = motion("normal");
+      const p = Math.min(1, (now - this.modalOpenAt) / m.dur);
+      const eased = m.fn(p);
+      const r = modalRect();
+      const slide = (1 - eased) * (DESIGN_H - r.y);
+      ctx.fillStyle = withAlpha(col("bg_night"), 0.6 * eased);
+      ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
+      const y = r.y + slide;
+      this.panel(r.x, y, r.w, r.h);
+      ctx.textBaseline = "middle";
+      const title = top.kind === "event" ? top.card?.title ?? top.id : top.kind === "confirmNight" ? "\u786E\u8BA4\u5165\u591C\uFF1F" : { deploy: "\u5E03\u9632", recruit: "\u62DB\u52DF", upgrade: "\u5347\u7EA7", settings: "\u8BBE\u7F6E" }[top.id] ?? top.id;
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.h2, { weight: "bold" });
+      ctx.fillText(title, r.x + T.space.m, y + 48);
+      ctx.strokeStyle = col("panel_stroke");
+      ctx.beginPath();
+      ctx.moveTo(r.x + T.space.m, y + 80);
+      ctx.lineTo(r.x + r.w - T.space.m, y + 80);
+      ctx.stroke();
+      ctx.fillStyle = col("text_secondary");
+      ctx.font = font(T.typography.body);
+      const body = top.kind === "event" ? "\u4E8B\u4EF6\u8BE6\u60C5\u4E0E\u9009\u9879\uFF08P3 \u4E8B\u4EF6\u5361\u6A21\u677F\u843D\u5730\uFF09" : top.kind === "confirmNight" ? "\u5165\u591C\u540E\u4E0D\u53EF\u6253\u65AD\uFF08\u5168\u5C4F\u591C\u6218\uFF09" : "\u5360\u4F4D\u9762\u677F\uFF1AM3 \u63A5\u5165\u5BF9\u5E94\u7CFB\u7EDF\u64CD\u4F5C";
+      ctx.fillText(body, r.x + T.space.m, y + 120);
+      const c = modalCloseRect();
+      ctx.beginPath();
+      ctx.roundRect(c.x, y + (c.y - r.y), c.w, c.h, T.radius.btn);
+      ctx.fillStyle = withAlpha(col("text_secondary"), 0.15);
+      ctx.fill();
+      ctx.strokeStyle = col("panel_stroke");
+      ctx.stroke();
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.body);
+      const tw = ctx.measureText("\u5173\u95ED").width;
+      ctx.fillText("\u5173\u95ED", c.x + (c.w - tw) / 2, y + (c.y - r.y) + c.h / 2);
     }
   };
+  function fpsReport(samples) {
+    const min = samples.length ? Math.min(...samples) : 0;
+    const avg = samples.length ? Math.round(samples.reduce((a, b) => a + b, 0) / samples.length) : 0;
+    return { min, avg, budgetOk: min >= 50 };
+  }
 
   // apps/client-cocos/whitebox/entry.ts
   var tables = {
@@ -1893,8 +2198,8 @@
   kernel.register([]);
   var boot = kernel.boot(buildBundle(app));
   var canvas = document.getElementById("stage");
-  canvas.width = 400;
-  canvas.height = 720;
+  canvas.width = DESIGN_W;
+  canvas.height = DESIGN_H;
   var renderer = new WhiteboxRenderer(canvas, {
     onFps(fps, min, avg) {
       const el = document.getElementById("fps");
@@ -1903,30 +2208,72 @@
     }
   });
   var DAY_MS = T.motion.dissolve.dur * 2;
+  var frames = [];
   var idx = 0;
+  var ui = createUiState();
+  canvas.addEventListener("click", (ev) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (ev.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
+    const hit = hitTest(x, y, topModal(ui) !== void 0);
+    if (hit.kind === "modalClose") {
+      Object.assign(ui, closeModal(ui));
+      return;
+    }
+    if (hit.kind === "modal") return;
+    if (hit.kind === "dock") {
+      if (hit.key === "night") {
+        Object.assign(ui, openModal(ui, { kind: "confirmNight", id: "night" }));
+      } else {
+        Object.assign(ui, openModal(ui, { kind: "panel", id: hit.key }));
+      }
+      return;
+    }
+    if (hit.kind === "settings") {
+      Object.assign(ui, openModal(ui, { kind: "panel", id: "settings" }));
+      return;
+    }
+    if (hit.kind === "eventEntry") {
+      const card = frames[idx]?.eventCards[0];
+      if (card) Object.assign(ui, openModal(ui, { kind: "event", id: card.id, card }));
+    }
+  });
   boot.then(() => {
     const sim = runSimulation(app, kernel, { days: 7, seed: 42 });
-    const frames = sim.records.map((r) => {
-      return {
-        day: r.day,
-        population: r.population,
-        roomsBuilt: r.roomsBuilt,
-        gold: r.gold,
-        income: r.income,
-        power: r.power,
-        rAvg: r.rAvg,
-        deaths: r.deaths,
-        wounds: r.wounds,
-        sessionHash: r.sessionHash,
-        modifiers: r.modifiers,
-        avgLevel: r.avgLevel,
-        panicSum: r.panicSum
-      };
-    });
-    renderer.start(() => {
-      if (idx >= frames.length) idx = 0;
-      return frames[idx];
-    }, DAY_MS);
+    let dayStart = performance.now();
+    const want = new URLSearchParams(location.search).get("modal");
+    if (want) Object.assign(ui, openModal(ui, want === "night" ? { kind: "confirmNight", id: "night" } : { kind: "panel", id: want }));
+    frames = sim.records.map((r) => ({
+      day: r.day,
+      population: r.population,
+      roomsBuilt: r.roomsBuilt,
+      gold: r.gold,
+      income: r.income,
+      power: r.power,
+      rAvg: r.rAvg,
+      deaths: r.deaths,
+      wounds: r.wounds,
+      sessionHash: r.sessionHash,
+      modifiers: r.modifiers,
+      avgLevel: r.avgLevel,
+      panicSum: r.panicSum,
+      // 表现层投影：破防房间（r<0.95）与今日事件（weight 高在前，含选项概率供 P3 卡模板用）
+      breachedRooms: (sim.sessions[r.day]?.routes ?? []).filter((rt) => rt.r < 0.95).map((rt) => rt.roomId),
+      eventCards: (sim.eventCards[r.day] ?? []).map((c) => ({ id: c.id, title: c.title, weight: c.weight, options: c.options })).sort((a, b) => b.weight - a.weight)
+    }));
+    renderer.start(
+      () => {
+        const now = performance.now();
+        if (now - dayStart >= DAY_MS) {
+          dayStart = now;
+          idx++;
+        }
+        if (idx >= frames.length) idx = 0;
+        return frames[idx];
+      },
+      () => ui
+    );
+    globalThis.__fpsReport = () => fpsReport(renderer.getSamples());
     console.log(`\u767D\u76D2\u64AD\u653E\u5C31\u7EEA\uFF1A${frames.length} \u5929\uFF0C\u4E8B\u4EF6 ${sim.eventsFired} \u6B21\uFF0C\u72EC\u7ACB ${sim.distinctFired.length}`);
   });
 })();

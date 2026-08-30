@@ -199,9 +199,17 @@ function target(d: number, t: Tables): number {
   return t.dayCurve.rows.find(r => r.day === d)?.population ?? 30
 }
 
+/** 事件卡渲染元数据（M2.5 表现层投影，纯加法）：标题/权重/选项标签+各 outcome 概率。不参与 finalHash。 */
+export interface EventCardMeta {
+  id: string
+  title: string
+  weight: number
+  options: { label: string; ps: number[] }[]
+}
+
 export function runSimulation(
   app: AppContext, kernel: Kernel, options: { days: number; seed: number }
-): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number; distinctFired: string[]; eventCounts: Record<string, number>; stabilizer: { window: string; wealth: number; produceConsume: number; panic: number }[] } {
+): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number; distinctFired: string[]; eventCounts: Record<string, number>; eventCards: Record<number, EventCardMeta[]>; stabilizer: { window: string; wealth: number; produceConsume: number; panic: number }[] } {
   const { tables, constants } = app
   const formula = kernel.service<ReturnType<typeof createFormula>>('formula')
   const director = kernel.service<DirectorService>('director')
@@ -214,6 +222,7 @@ export function runSimulation(
   const findings: string[] = []
   const distinctFired = new Set<string>()
   const eventCounts: Record<string, number> = {}
+  const eventCards: Record<number, EventCardMeta[]> = {}
   let eventsFired = 0
   let spent = 0
   let checkpoints = 0
@@ -292,6 +301,15 @@ export function runSimulation(
       eventCounts[ev.id] = (eventCounts[ev.id] ?? 0) + 1
     }
     eventsFired += events
+    eventCards[d] = todays.map(ev => {
+      const e = app.eventLib.entries.find(x => x.id === ev.id)
+      return {
+        id: ev.id,
+        title: e?.title ?? ev.id,
+        weight: e?.weight ?? 0,
+        options: (e?.options ?? []).map(o => ({ label: o.label, ps: o.outcomes.map(oc => oc.p) }))
+      }
+    })
     persistence.put(`ckpt_${d}_day`, serialize(state))
     checkpoints++
 
@@ -331,7 +349,7 @@ export function runSimulation(
     }
   }
   const stabilizer = stabilizerL1(records)
-  return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, stabilizer }
+  return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, eventCards, stabilizer }
 }
 
 /** Stabilizer L1 度量（只记录不干预）：财富指数/产出消耗比/恐慌总量，按血月周期聚合 */

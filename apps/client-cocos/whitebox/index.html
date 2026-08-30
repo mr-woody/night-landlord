@@ -14,8 +14,9 @@
 </head>
 <body>
   <div id="fps">FPS 采样中…</div>
-  <canvas id="stage" width="400" height="720"></canvas>
-  <p>M2.5 白盒渲染：tokens 驱动（色板/字号/动效曲线全部取自 config/theme.json）竖屏剖面占位 UI + 物资雨占位动画 + rAF 帧率采样。
+  <canvas id="stage" width="750" height="1624" style="width: 375px; height: 812px;"></canvas>
+  <p>M2.5 白盒渲染：主界面风格化（§3.1 线框：HUD/资源栏/剖面楼栋/dock 四键/事件卡入口），
+     tokens 驱动（色板/字号/动效全部取自 config/theme.json），点击可交互（布防/招募/升级/▶夜/⚙/事件入口）。
      控制台执行 __fpsReport() 可导出帧率报告（性能预算：min ≥50fps）。</p>
   <script src="./bundle.js"></script>
 </body>
