@@ -7367,11 +7367,12 @@
       this.button(duskConfirmRect(), "\u5E03\u9632", "primary");
       ctx.globalAlpha = 1;
     }
-    // ---- NIGHT 夜战面板 ----
+    // ---- NIGHT 全屏夜战（M3.3 v2：类 3D 深度战场——三车道/影子/小屋防区/双方交互实体）----
     drawNight(frame, now, pb2) {
       const { ctx } = this;
       ctx.save();
-      if (frame.modifiers.includes("BLOOD_MOON") && pb2.nightStart !== null) {
+      const isBM = frame.modifiers.includes("BLOOD_MOON");
+      if (isBM && pb2.nightStart !== null) {
         const burst = threatBurst(pb2.nightStart, now);
         if (burst.shake > 0) ctx.translate(Math.sin(now / 16) * burst.shake, Math.cos(now / 13) * burst.shake);
         this.bgBase(col("bg_night"));
@@ -7384,7 +7385,7 @@
         this.bgBase(col("bg_night"));
         this.drawStars(now, 0.9);
       }
-      if (frame.modifiers.includes("BLOOD_MOON")) {
+      if (isBM) {
         ctx.beginPath();
         ctx.arc(DESIGN_W - 120, 150, 52, 0, Math.PI * 2);
         ctx.fillStyle = withAlpha(col("alert_blood"), 0.25);
@@ -7392,14 +7393,13 @@
         this.iconMoon(DESIGN_W - 120, 150, 40, true);
       }
       ctx.textBaseline = "middle";
-      const isBM = frame.modifiers.includes("BLOOD_MOON");
-      const waves = pb2.session && pb2.nightStart !== null ? nightWaves(pb2.session.routes, pb2.nightStart, now) : null;
       ctx.fillStyle = isBM ? col("alert_blood") : col("text_primary");
       ctx.font = font(T.typography.h1, { weight: "bold" });
       ctx.fillText(isBM ? "\u8840\u6708" : "\u591C\u88AD", T.space.l, 120);
       if (isBM) this.iconMoon(T.space.l + 130, 118, 14, true);
       ctx.fillStyle = col("text_secondary");
       ctx.font = this.numFont(T.typography.h2);
+      const waves = pb2.session && pb2.nightStart !== null ? nightWaves(pb2.session.routes, pb2.nightStart, now) : null;
       ctx.fillText(`${waves?.waveNo ?? 0}/${pb2.session?.routes.length ?? 0}`, T.space.l + 260, 120);
       ctx.font = font(T.typography.caption);
       ctx.fillText("\u6CE2", T.space.l + 344, 120);
@@ -7408,218 +7408,210 @@
         ctx.font = this.numFont(T.typography.h2);
         ctx.fillText("?", T.space.l + 420, 120);
       }
+      const laneDefs = [
+        { y: 430, scale: 0.78 },
+        { y: 640, scale: 0.9 },
+        { y: 880, scale: 1 }
+      ];
+      const houseX = 590;
+      laneDefs.forEach((l, d) => {
+        ctx.fillStyle = withAlpha(col("bg_dawn"), 0.06 + d * 0.02);
+        ctx.beginPath();
+        ctx.moveTo(40 + d * 20, l.y - 40 * l.scale);
+        ctx.lineTo(DESIGN_W - 40 - d * 10, l.y - 40 * l.scale);
+        ctx.lineTo(DESIGN_W - 40, l.y + 50 * l.scale);
+        ctx.lineTo(40, l.y + 50 * l.scale);
+        ctx.closePath();
+        ctx.fill();
+      });
+      if (pb2.session && waves) {
+        pb2.session.routes.forEach((_, i) => {
+          const lane = laneDefs[i % laneDefs.length];
+          const hx = houseX + Math.floor(i / laneDefs.length) * 90;
+          const hy = lane.y + 8;
+          const rv = waves.revealed[i];
+          const breachedNow = rv && rv.state !== 2;
+          const resolved = waves.waveNo > i + 1;
+          this.drawHouseMini(hx, hy, lane.scale, breachedNow && (resolved || this.isCurrentLane(waves, i, now)) ? col("alert_blood") : void 0, now);
+          const gx = hx - 46 * lane.scale;
+          ctx.save();
+          ctx.translate(gx, hy);
+          ctx.scale(lane.scale, lane.scale);
+          this.iconPerson(0, 0, 26, col("text_primary"));
+          ctx.fillStyle = col("alert_blood");
+          ctx.fillRect(-3, -2, 8, 5);
+          ctx.restore();
+          ctx.fillStyle = col("text_secondary");
+          ctx.font = this.numFont(T.typography.body);
+          ctx.fillText(WAVE_LETTERS[i], 56 + i % laneDefs.length * 12, lane.y + 6);
+        });
+      }
+      if (pb2.session && waves && pb2.nightStart !== null) {
+        pb2.session.routes.forEach((rt, i) => {
+          const rv = waves.revealed[i];
+          if (!rv) return;
+          const lane = laneDefs[i % laneDefs.length];
+          const isCurrent = waves.waveNo === i + 1;
+          const prog = isCurrent ? monsterProgress(waves.waveNo, pb2.nightStart ?? 0, now) : waves.waveNo > i + 1 ? 1 : 0;
+          if (prog <= 0 && !isCurrent) return;
+          const visual = monsterVisual(rt.monsterId ?? "");
+          const startX = 90, endX = houseX - 70 * lane.scale;
+          const mx = startX + (endX - startX) * prog;
+          const my = lane.y + 20 * lane.scale + (visual === "flyer" ? -26 * lane.scale : 0) + (isCurrent ? Math.sin(now / 95) * 2.5 * lane.scale : 0);
+          const lunge = isCurrent && prog > 0.72 ? Math.sin(now / 55) * 7 * lane.scale : 0;
+          const sc = lane.scale * (visual === "elite" ? 1.3 : 1);
+          const shOff = visual === "flyer" ? 26 * lane.scale : 0;
+          ctx.beginPath();
+          ctx.ellipse(mx - lunge, my + shOff, 20 * sc * lane.scale, 6 * sc * lane.scale, 0, 0, Math.PI * 2);
+          ctx.fillStyle = withAlpha(col("bg_night"), 0.6);
+          ctx.fill();
+          ctx.save();
+          ctx.translate(mx + lunge, my + (visual === "flyer" ? Math.sin(now / 120) * 4 : Math.abs(Math.sin(now / 110)) * -3));
+          ctx.scale(sc, sc);
+          if (isCurrent && prog > 0.72 && Math.sin(now / 55) > 0.4) {
+            ctx.fillStyle = withAlpha(col("text_primary"), 0.55);
+            ctx.fillRect(-16, -14, 32, 26);
+          }
+          this.drawMonster(visual, now);
+          ctx.restore();
+          if (isCurrent && prog > 0.72 && Math.sin(now / 55) > 0.4) {
+            ctx.fillStyle = withAlpha(col("text_primary"), 0.25);
+            ctx.fillRect(houseX - 40, lane.y - 60, 130, 110);
+          }
+          void frame;
+        });
+        pb2.session.routes.forEach((_, i) => {
+          const rv = waves?.revealed[i];
+          if (!rv || waves.waveNo <= i + 1) return;
+          const lane = laneDefs[i % laneDefs.length];
+          const hx = houseX + Math.floor(i / laneDefs.length) * 90, hy = lane.y + 8;
+          if (rv.state === 2) {
+            for (let p = 0; p < 6; p++) {
+              const a = prand(i * 7 + p) * Math.PI * 2;
+              ctx.beginPath();
+              ctx.arc(hx - 40 + Math.cos(a) * (8 + p * 4), hy - 30 - Math.sin(a) * (6 + p * 3), 3, 0, Math.PI * 2);
+              ctx.fillStyle = withAlpha(col("text_primary"), 0.55);
+              ctx.fill();
+            }
+          } else {
+            ctx.fillStyle = withAlpha(col("alert_blood"), 0.3 + 0.25 * Math.sin(now / 160));
+            ctx.beginPath();
+            ctx.roundRect(hx - 30, hy - 46, 96, 74, 8);
+            ctx.fill();
+            ctx.fillStyle = col("text_primary");
+            ctx.font = font(T.typography.caption, { weight: "bold" });
+            ctx.textAlign = "center";
+            ctx.fillText("\u7834\u9632", hx + 18, hy - 8);
+            ctx.textAlign = "left";
+          }
+        });
+      }
+      pb2.skills.forEach((sk) => {
+        if (now >= sk.fxUntil) return;
+        const remain = (sk.fxUntil - now) / 1200;
+        if (sk.fxKind === "supply") {
+          const py = 180 + (1 - remain) * 420;
+          ctx.strokeStyle = withAlpha(col("text_primary"), 0.7);
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(DESIGN_W / 2 - 26, py);
+          ctx.lineTo(DESIGN_W / 2, py + 26);
+          ctx.moveTo(DESIGN_W / 2 + 26, py);
+          ctx.lineTo(DESIGN_W / 2, py + 26);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(DESIGN_W / 2, py - 6, 30, Math.PI, 0);
+          ctx.fillStyle = withAlpha(col("gold_primary"), 0.85);
+          ctx.fill();
+          ctx.strokeStyle = col("bg_night");
+          ctx.stroke();
+          ctx.fillStyle = mix(col("gold_deep"), col("bg_night"), 0.3);
+          ctx.fillRect(DESIGN_W / 2 - 14, py + 26, 28, 20);
+          ctx.beginPath();
+          ctx.arc(DESIGN_W / 2, py + 56, 34 * (1 - remain * 0.5), 0, Math.PI * 2);
+          ctx.strokeStyle = withAlpha(col("gold_primary"), 0.5);
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        } else {
+          const breathe = 0.5 + 0.5 * Math.sin(now / 180);
+          ctx.beginPath();
+          ctx.arc(houseX + 60, 760, 190, Math.PI, 0);
+          ctx.fillStyle = withAlpha(col("success"), 0.1 + breathe * 0.06);
+          ctx.fill();
+          ctx.strokeStyle = withAlpha(col("success"), 0.5 + breathe * 0.3);
+          ctx.lineWidth = 4;
+          ctx.stroke();
+        }
+      });
       if (pb2.session && waves) {
         pb2.session.routes.forEach((_, i) => {
           const rv = waves.revealed[i];
           const r = nightRouteRect(i);
           const isCurrent = waves.waveNo === i + 1;
           const fill = rv ? isCurrent ? waves.currentFill : 1 : 0;
+          const stateColor = !rv ? col("panel_stroke") : rv.state === 0 ? col("alert_blood") : rv.state === 1 ? col("gold_deep") : col("success");
           ctx.fillStyle = col("text_secondary");
-          ctx.font = this.numFont(T.typography.body);
-          ctx.fillText(WAVE_LETTERS[i], r.x, r.y + r.h / 2);
-          const barX = r.x + 64, barW = r.w - 64 - 180;
-          ctx.beginPath();
-          ctx.roundRect(barX, r.y + r.h / 2 - 16, barW, 32, T.radius.chip);
+          ctx.font = this.numFont(T.typography.caption);
+          ctx.textBaseline = "middle";
+          ctx.fillText(WAVE_LETTERS[i], r.x + 40, r.y + r.h / 2);
+          const barX = r.x + 76, barW = r.w - 76 - 150;
           ctx.fillStyle = withAlpha(col("bg_night"), 0.7);
+          ctx.beginPath();
+          ctx.roundRect(barX, r.y + r.h / 2 - 8, barW, 16, 8);
           ctx.fill();
-          ctx.strokeStyle = col("panel_stroke");
-          ctx.lineWidth = 2;
-          ctx.stroke();
           if (fill > 0 && rv) {
-            const stateColor = rv.state === 0 ? col("alert_blood") : rv.state === 1 ? col("gold_deep") : col("success");
-            const g = ctx.createLinearGradient(barX, 0, barX + barW, 0);
-            g.addColorStop(0, shade(stateColor, 0.75));
-            g.addColorStop(1, stateColor);
-            ctx.fillStyle = g;
+            ctx.fillStyle = stateColor;
             ctx.beginPath();
-            ctx.roundRect(barX + 3, r.y + r.h / 2 - 13, Math.max(8, (barW - 6) * fill), 26, T.radius.chip - 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(barX + 3 + Math.max(8, (barW - 6) * fill), r.y + r.h / 2, 5, 0, Math.PI * 2);
-            ctx.fillStyle = withAlpha(col("text_primary"), 0.7);
+            ctx.roundRect(barX + 2, r.y + r.h / 2 - 6, Math.max(6, (barW - 4) * fill), 12, 6);
             ctx.fill();
           }
           if (rv) {
-            const mon = pb2.monsterNames[rv.route.monsterId ?? ""] ?? "\u602A\u7269";
-            ctx.fillStyle = rv.state === 0 ? col("alert_blood") : col("text_primary");
-            ctx.font = font(T.typography.body);
-            ctx.fillText(`${this.roomLabel(rv.route.roomId)} ${mon} ${Math.round(rv.route.r * 100)}%${rv.state === 0 ? " \u203C" : rv.state === 1 ? " \u26A0" : ""}`, barX + barW + T.space.s, r.y + r.h / 2);
-          } else {
             ctx.fillStyle = col("text_secondary");
-            ctx.font = this.numFont(T.typography.body);
-            ctx.fillText("??", barX + barW + T.space.s, r.y + r.h / 2);
+            ctx.font = font(T.typography.caption);
+            ctx.fillText(`${this.roomLabel(rv.route.roomId)} ${Math.round(rv.route.r * 100)}%`, barX + barW + T.space.s, r.y + r.h / 2);
           }
         });
       }
-      if (pb2.session && waves) {
-        pb2.session.routes.forEach((_, i) => {
-          const rv = waves.revealed[i];
-          if (!rv) return;
-          const r = nightRouteRect(i);
-          const isCurrent = waves.waveNo === i + 1;
-          const prog = isCurrent ? monsterProgress(waves.waveNo, pb2.nightStart ?? 0, now) : waves.waveNo > i + 1 ? 1 : 0;
-          const barX = r.x + 64, barW = r.w - 64 - 160;
-          const visual = monsterVisual(rv.route.monsterId ?? "");
-          const mx = barX + 14 + (barW - 60) * prog;
-          const my = r.y + r.h / 2 + (visual === "flyer" ? -12 : 0) + (isCurrent ? Math.sin(now / 90) * 2 : 0);
-          const scale = visual === "elite" ? 1.3 : 1;
-          const gx = barX + barW - 18;
-          this.iconPerson(gx, r.y + r.h / 2 + 2, 26, col("text_primary"));
-          ctx.fillStyle = col("alert_blood");
-          ctx.fillRect(gx - 3, r.y + r.h / 2 - 2, 8, 5);
-          if (prog <= 0) return;
-          const lunge = isCurrent && prog > 0.85 ? Math.sin(now / 60) * 6 : 0;
-          const bobY = visual === "flyer" ? Math.sin(now / 120) * 4 : Math.abs(Math.sin(now / 110)) * -3;
-          ctx.save();
-          ctx.translate(mx + lunge, my + bobY);
-          ctx.scale(scale, scale);
-          this.drawMonster(visual, now);
-          ctx.restore();
-          if (!isCurrent && waves.waveNo > i + 1) {
-            if (rv.state === 2) {
-              for (let p = 0; p < 5; p++) {
-                const a = prand(i * 7 + p) * Math.PI * 2;
-                ctx.beginPath();
-                ctx.arc(gx - 10 + Math.cos(a) * (6 + p * 3), r.y + r.h / 2 - Math.sin(a) * (4 + p * 2), 2.5, 0, Math.PI * 2);
-                ctx.fillStyle = withAlpha(col("text_primary"), 0.6);
-                ctx.fill();
-              }
-            } else {
-              ctx.fillStyle = withAlpha(col("alert_blood"), 0.4 + 0.3 * Math.sin(now / 150));
-              ctx.beginPath();
-              ctx.arc(gx, r.y + r.h / 2, 16, 0, Math.PI * 2);
-              ctx.fill();
-            }
-          }
-        });
-      }
-      nightSkillRects().forEach((r, i) => {
-        const sk = pb2.skills[i];
-        if (!sk) return;
-        ctx.beginPath();
-        ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn);
-        ctx.fillStyle = col("panel");
-        ctx.fill();
-        ctx.strokeStyle = col("panel_stroke");
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        ctx.fillStyle = col("text_primary");
-        ctx.font = this.numFont(T.typography.h2);
-        ctx.fillText(sk.glyph, r.x + r.w / 2 - 16, r.y + r.h / 2 - 8);
-        ctx.font = font(T.typography.caption);
-        ctx.fillStyle = col("text_secondary");
-        const lw = ctx.measureText(sk.label).width;
-        ctx.fillText(sk.label, r.x + (r.w - lw) / 2, r.y + r.h - 18);
-        const cdLeft = sk.cdUntil - now;
-        if (cdLeft > 0) {
-          const frac = cdLeft / (motion("normal").dur * 10);
-          ctx.beginPath();
-          ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 8, 30, -Math.PI / 2, -Math.PI / 2 + (1 - frac) * Math.PI * 2);
-          ctx.strokeStyle = col("gold_primary");
-          ctx.lineWidth = 5;
-          ctx.stroke();
-          ctx.fillStyle = withAlpha(col("bg_night"), 0.55);
-          ctx.beginPath();
-          ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 8, 26, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      });
+      this.drawSkillButtons(now, pb2);
       ctx.restore();
     }
-    /** 怪物绘制（差异化：循声者爬行+声波圈/破窗者携梯/攀楼种挂钩/飞行种悬停/精英红眼尖刺） */
-    drawMonster(visual, now) {
+    isCurrentLane(waves, i, now) {
+      void now;
+      return waves.waveNo === i + 1;
+    }
+    /** 目标小屋立面（按房屋等级外观；等级来自 pb.houseLevels 覆盖或天数成长） */
+    drawHouseMini(x, y, scale, flash, now) {
       const { ctx } = this;
-      const body = shade(col("panel_stroke"), 0.55);
-      const legSwing = Math.sin(now / 90) * 3;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+      const w = 80, wallH = 34;
+      ctx.fillStyle = mix(col("panel"), col("gold_deep"), 0.3);
+      ctx.fillRect(0, -wallH, w, wallH);
       ctx.strokeStyle = col("bg_night");
       ctx.lineWidth = 3;
-      if (visual === "flyer") {
-        const flap = Math.sin(now / 60) * 6;
-        ctx.beginPath();
-        ctx.moveTo(0, -8);
-        ctx.lineTo(-14, -14 + flap);
-        ctx.moveTo(0, -8);
-        ctx.lineTo(14, -14 - flap);
-        ctx.stroke();
-      }
-      if (visual === "crawler" || visual === "elite") {
-        ctx.beginPath();
-        ctx.moveTo(-8, 8);
-        ctx.lineTo(-12, 14 + legSwing);
-        ctx.moveTo(8, 8);
-        ctx.lineTo(12, 14 - legSwing);
-        ctx.stroke();
-      }
+      ctx.strokeRect(0, -wallH, w, wallH);
       ctx.beginPath();
-      if (visual === "flyer") ctx.ellipse(0, 0, 12, 9, 0, 0, Math.PI * 2);
-      else ctx.ellipse(0, 0, 14, 10, 0, 0, Math.PI * 2);
-      ctx.fillStyle = body;
+      ctx.moveTo(-8, -wallH);
+      ctx.lineTo(w / 2, -wallH - 24);
+      ctx.lineTo(w + 8, -wallH);
+      ctx.closePath();
+      ctx.fillStyle = col("gold_deep");
       ctx.fill();
       ctx.strokeStyle = col("bg_night");
-      ctx.lineWidth = 2;
       ctx.stroke();
-      if (visual === "breaker") {
-        ctx.strokeStyle = col("bg_night");
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(10, -6);
-        ctx.lineTo(20, 4);
-        ctx.stroke();
-      }
-      if (visual === "climber") {
-        ctx.strokeStyle = col("bg_night");
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(-12, -4, 4, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      if (visual === "elite") {
-        ctx.beginPath();
-        ctx.moveTo(-10, -10);
-        ctx.lineTo(-14, -16);
-        ctx.moveTo(10, -10);
-        ctx.lineTo(14, -16);
-        ctx.stroke();
-      }
-      const er = visual === "elite" ? 4 : 3;
-      ctx.fillStyle = col("alert_blood");
-      ctx.beginPath();
-      ctx.arc(-5, -3, er, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(5, -3, er, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    /** 战况日志 + 战毕返回 */
-    drawNightLog(frame, now, pb2) {
-      const { ctx } = this;
-      const r = nightLogRect();
-      this.panel(r.x, r.y, r.w, r.h);
-      ctx.save();
-      ctx.beginPath();
-      ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel);
-      ctx.clip();
-      ctx.textBaseline = "middle";
-      const lines = [];
-      if (pb2.session && pb2.nightStart !== null) {
-        const waves = nightWaves(pb2.session.routes, pb2.nightStart, now);
-        waves.revealed.forEach((rv, i) => {
-          const mon = pb2.monsterNames[rv.route.monsterId ?? ""] ?? "\u602A\u7269";
-          lines.push(`\u7B2C${i + 1}\u6CE2 \u8DEF${WAVE_LETTERS[i]} \xB7 ${this.roomLabel(rv.route.roomId)} \xB7 ${mon} \xB7 r=${rv.route.r.toFixed(2)} \u2192 ${OUTCOME_LABEL[rv.route.outcome]}`);
-        });
-      }
-      lines.push(...pb2.logs);
-      ctx.font = font(T.typography.body);
-      const visible = lines.slice(-Math.floor((r.h - T.space.s * 2) / 36));
-      visible.forEach((ln, i) => {
-        ctx.fillStyle = i === visible.length - 1 ? col("text_primary") : col("text_secondary");
-        ctx.fillText(ln, r.x + T.space.m, r.y + 32 + i * 36);
-      });
-      if (pb2.session && pb2.nightStart !== null && nightWaves(pb2.session.routes, pb2.nightStart, now).done) {
-        this.button(nightBackRect(), "\u5929\u4EAE\u4E86 \u2192", "primary");
+      ctx.fillStyle = withAlpha(col("gold_primary"), 0.8);
+      ctx.fillRect(10, -wallH + 10, 14, 12);
+      ctx.fillRect(w - 26, -wallH + 10, 14, 12);
+      if (flash) {
+        ctx.fillStyle = flash;
+        ctx.globalAlpha = 0.3 + 0.2 * Math.sin(now / 120);
+        ctx.fillRect(-4, -wallH - 20, w + 8, wallH + 24);
+        ctx.globalAlpha = 1;
       }
       ctx.restore();
     }
+    // 主动技
     // ---- DAWN 收租结算 ----
     drawSettle(frame, now, pb2) {
       const { ctx } = this;
@@ -7981,6 +7973,135 @@
       ctx.textAlign = "center";
       ctx.fillText("\u65B0\u5F00\u653E", cx, cy + 1);
       ctx.textAlign = "left";
+    }
+    /** 怪物绘制（差异化：循声者爬行+声波圈/破窗者携梯/攀楼种挂钩/飞行种悬停/精英红眼尖刺） */
+    drawMonster(visual, now) {
+      const { ctx } = this;
+      const body = shade(col("panel_stroke"), 0.55);
+      const legSwing = Math.sin(now / 90) * 3;
+      ctx.strokeStyle = col("bg_night");
+      ctx.lineWidth = 3;
+      if (visual === "flyer") {
+        const flap = Math.sin(now / 60) * 6;
+        ctx.beginPath();
+        ctx.moveTo(0, -8);
+        ctx.lineTo(-14, -14 + flap);
+        ctx.moveTo(0, -8);
+        ctx.lineTo(14, -14 - flap);
+        ctx.stroke();
+      }
+      if (visual === "crawler" || visual === "elite") {
+        ctx.beginPath();
+        ctx.moveTo(-8, 8);
+        ctx.lineTo(-12, 14 + legSwing);
+        ctx.moveTo(8, 8);
+        ctx.lineTo(12, 14 - legSwing);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      if (visual === "flyer") ctx.ellipse(0, 0, 12, 9, 0, 0, Math.PI * 2);
+      else ctx.ellipse(0, 0, 14, 10, 0, 0, Math.PI * 2);
+      ctx.fillStyle = body;
+      ctx.fill();
+      ctx.strokeStyle = col("bg_night");
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      if (visual === "breaker") {
+        ctx.strokeStyle = col("bg_night");
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(10, -6);
+        ctx.lineTo(20, 4);
+        ctx.stroke();
+      }
+      if (visual === "climber") {
+        ctx.strokeStyle = col("bg_night");
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(-12, -4, 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (visual === "elite") {
+        ctx.beginPath();
+        ctx.moveTo(-10, -10);
+        ctx.lineTo(-14, -16);
+        ctx.moveTo(10, -10);
+        ctx.lineTo(14, -16);
+        ctx.stroke();
+      }
+      const er = visual === "elite" ? 4 : 3;
+      ctx.fillStyle = col("alert_blood");
+      ctx.beginPath();
+      ctx.arc(-5, -3, er, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(5, -3, er, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    /** 主动技按钮（88px 热区 + CD 环 + 差异化 VFX 触发窗） */
+    drawSkillButtons(now, pb2) {
+      const { ctx } = this;
+      nightSkillRects().forEach((r, i) => {
+        const sk = pb2.skills[i];
+        if (!sk) return;
+        ctx.beginPath();
+        ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn);
+        ctx.fillStyle = col("panel");
+        ctx.fill();
+        ctx.strokeStyle = col("panel_stroke");
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.fillStyle = col("text_primary");
+        ctx.font = this.numFont(T.typography.h2);
+        ctx.fillText(sk.glyph, r.x + r.w / 2 - 16, r.y + r.h / 2 - 8);
+        ctx.font = font(T.typography.caption);
+        ctx.fillStyle = col("text_secondary");
+        const lw = ctx.measureText(sk.label).width;
+        ctx.fillText(sk.label, r.x + (r.w - lw) / 2, r.y + r.h - 18);
+        const cdLeft = sk.cdUntil - now;
+        if (cdLeft > 0) {
+          const frac = cdLeft / (motion("normal").dur * 10);
+          ctx.beginPath();
+          ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 8, 30, -Math.PI / 2, -Math.PI / 2 + (1 - frac) * Math.PI * 2);
+          ctx.strokeStyle = col("gold_primary");
+          ctx.lineWidth = 5;
+          ctx.stroke();
+          ctx.fillStyle = withAlpha(col("bg_night"), 0.55);
+          ctx.beginPath();
+          ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 8, 26, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+    }
+    /** 战况日志 + 战毕返回 */
+    drawNightLog(frame, now, pb2) {
+      const { ctx } = this;
+      const r = nightLogRect();
+      this.panel(r.x, r.y, r.w, r.h);
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel);
+      ctx.clip();
+      ctx.textBaseline = "middle";
+      const lines = [];
+      if (pb2.session && pb2.nightStart !== null) {
+        const waves = nightWaves(pb2.session.routes, pb2.nightStart, now);
+        waves.revealed.forEach((rv, i) => {
+          const mon = pb2.monsterNames[rv.route.monsterId ?? ""] ?? "\u602A\u7269";
+          lines.push(`\u7B2C${i + 1}\u6CE2 \u8DEF${WAVE_LETTERS[i]} \xB7 ${this.roomLabel(rv.route.roomId)} \xB7 ${mon} \xB7 r=${rv.route.r.toFixed(2)} \u2192 ${OUTCOME_LABEL[rv.route.outcome]}`);
+        });
+      }
+      lines.push(...pb2.logs);
+      ctx.font = font(T.typography.body);
+      const visible = lines.slice(-Math.floor((r.h - T.space.s * 2) / 36));
+      visible.forEach((ln, i) => {
+        ctx.fillStyle = i === visible.length - 1 ? col("text_primary") : col("text_secondary");
+        ctx.fillText(ln, r.x + T.space.m, r.y + 32 + i * 36);
+      });
+      if (pb2.session && pb2.nightStart !== null && nightWaves(pb2.session.routes, pb2.nightStart, now).done) {
+        this.button(nightBackRect(), "\u5929\u4EAE\u4E86 \u2192", "primary");
+      }
+      ctx.restore();
     }
     // ---- L2 小区地图（等距；UI 规范 v2.0 §7.1）----
     drawMapView(ui2, frame, now) {
@@ -8659,8 +8780,8 @@
     wildReports: [],
     houseLevels: {},
     skills: [
-      { label: "\u7A7A\u6295\u7269\u8D44", glyph: "\u{1F48A}", cdUntil: 0 },
-      { label: "\u62A4\u76FE", glyph: "\u{1F6E1}", cdUntil: 0 }
+      { label: "\u7A7A\u6295\u7269\u8D44", glyph: "\u{1F48A}", cdUntil: 0, fxUntil: 0, fxKind: "supply" },
+      { label: "\u62A4\u76FE", glyph: "\u{1F6E1}", cdUntil: 0, fxUntil: 0, fxKind: "shield" }
     ]
   };
   function enterDay(d) {
@@ -8803,7 +8924,8 @@
           const sk = pb.skills[hit.index];
           if (sk && now >= sk.cdUntil) {
             sk.cdUntil = now + SKILL_CD_MS;
-            pb.logs.push(`\u4F7F\u7528\u4E3B\u52A8\u6280\u300C${sk.label}\u300D\uFF08\u5360\u4F4D\u6F14\u51FA\uFF09`);
+            sk.fxUntil = now + 1200;
+            pb.logs.push(`\u4F7F\u7528\u4E3B\u52A8\u6280\u300C${sk.label}\u300D`);
           }
         }
         return;

@@ -75,8 +75,8 @@ const pb: Playback = {
   wildReports: [],
   houseLevels: {},
   skills: [
-    { label: '空投物资', glyph: '💊', cdUntil: 0 },
-    { label: '护盾', glyph: '🛡', cdUntil: 0 }
+    { label: '空投物资', glyph: '💊', cdUntil: 0, fxUntil: 0, fxKind: 'supply' },
+    { label: '护盾', glyph: '🛡', cdUntil: 0, fxUntil: 0, fxKind: 'shield' }
   ]
 }
 
@@ -225,7 +225,8 @@ canvas.addEventListener('click', ev => {
         const sk = pb.skills[hit.index]
         if (sk && now >= sk.cdUntil) {
           sk.cdUntil = now + SKILL_CD_MS
-          pb.logs.push(`使用主动技「${sk.label}」（占位演出）`)
+          sk.fxUntil = now + 1200
+          pb.logs.push(`使用主动技「${sk.label}」`)
         }
       }
       return
