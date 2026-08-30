@@ -15,7 +15,7 @@ import {
   nightRouteRect, nightSkillRects, nightLogRect, nightBackRect,
   duskBannerRect, duskConfirmRect,
   settlePanelRect, settleCounterRect, settlePopRect, settleContinueRect, SETTLE_POP_MAX,
-  pageBackRect, pageTitleRect, codexCellRect, CODEX_COLS, CODEX_ROWS, shopCardRect, SHOP_CARDS,
+  pageBackRect, pageTitleRect, codexCellRect, CODEX_COLS, CODEX_ROWS, shopCardRect,
   settingsRowRect, SETTINGS_ROWS, LOTS, isoToScreen,
   ISO_TILE_W, ISO_TILE_H, ISO_FLOOR_H, interiorBackRect, interiorSlotRect, mapBackRect, HIT_MIN,
   wildZoneRect, wildBackRect, wildDetailRect, wildDispatchRect, wildMinusRect, wildPlusRect, WILD_ZONES, WILD_ZONE_NAME, EXPLORE_ENTRY
@@ -28,6 +28,8 @@ import { tutorialBoard, type TutRow } from './tutorial.ts'
 import { monsterProgress, monsterVisual, guardVisual } from './battle.ts'
 import weatherJson from '../../../config/weather.json' with { type: 'json' }
 import buildingDefJson from '../../../config/building_def.json' with { type: 'json' }
+import monstersJson from '../../../config/monster.json' with { type: 'json' }
+import iapSkuJson from '../../../config/iap_sku.json' with { type: 'json' }
 
 export interface DayFrame {
   day: number
@@ -327,7 +329,7 @@ export class WhiteboxRenderer {
           this.drawReport(frame)
           this.drawDock()
         } else {
-          this.drawPage(ui.page, now)
+          this.drawPage(ui.page, now, frame)
         }
         this.drawModal(ui, frame, now, pb)
         break
@@ -1930,8 +1932,8 @@ export class WhiteboxRenderer {
     })
   }
 
-  /** 占位页（功能点4）：图鉴 3 列网格剪影 / 商店礼包横滑 / 设置列表 */
-  private drawPage(page: 'main' | 'codex' | 'shop' | 'settings', now: number): void {
+  /** 占位页（M2.5 功能点4）：图鉴=monster.json 进化树 / 商店=iap_sku.json SKU / 设置列表 */
+  private drawPage(page: 'main' | 'codex' | 'shop' | 'settings', now: number, frame: DayFrame): void {
     const { ctx } = this
     ctx.textBaseline = 'middle'
     this.button(pageBackRect(), '◀ 返回', 'normal')
@@ -1940,45 +1942,71 @@ export class WhiteboxRenderer {
     ctx.font = font(T.typography.h1, { weight: 'bold' })
     ctx.fillText(titles[page] ?? '', pageTitleRect().x, pageTitleRect().y + pageTitleRect().h / 2)
     if (page === 'codex') {
-      for (let row = 0; row < CODEX_ROWS; row++) {
-        for (let c = 0; c < CODEX_COLS; c++) {
-          const r = codexCellRect(c, row)
-          const unlocked = row === 0 && c === 0
-          const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h)
-          g.addColorStop(0, unlocked ? withAlpha(col('success'), 0.16) : withAlpha(col('bg_night'), 0.55))
-          g.addColorStop(1, unlocked ? withAlpha(col('success'), 0.06) : withAlpha(col('bg_night'), 0.3))
-          ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel)
-          ctx.fillStyle = g; ctx.fill()
-          ctx.strokeStyle = unlocked ? col('success') : col('panel_stroke')
-          ctx.lineWidth = 2; ctx.stroke()
-          ctx.font = this.numFont(T.typography.h1)
-          ctx.fillStyle = unlocked ? col('text_primary') : col('text_secondary')
-          ctx.textAlign = 'center'
-          if (unlocked) this.iconPerson(r.x + r.w / 2, r.y + r.h / 2 - 14, 56, col('gold_primary'))
-          else {
-            // 锁：环 + 方体
+      const monsters = (monstersJson as unknown as { entries: { id: string; name: string; tier: string; unlockDay: number; mechanics: string[] }[] }).entries
+      const tierColor: Record<string, string> = { minion: col('text_secondary'), elite: col('gold_primary'), boss: col('alert_blood') }
+      const mechName: Record<string, string> = { breakDoor: '破门', climbWindow: '攀爬', fly: '飞行', focusFire: '集火', silentCompat: '静默潜入' }
+      const cells = CODEX_COLS * CODEX_ROWS
+      for (let i = 0; i < cells; i++) {
+        const c = i % CODEX_COLS, row = Math.floor(i / CODEX_COLS)
+        const r = codexCellRect(c, row)
+        const m = monsters[i]
+        const unlocked = m !== undefined && frame.day >= m.unlockDay
+        const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h)
+        g.addColorStop(0, unlocked ? withAlpha(col('success'), 0.16) : withAlpha(col('bg_night'), 0.55))
+        g.addColorStop(1, unlocked ? withAlpha(col('success'), 0.06) : withAlpha(col('bg_night'), 0.3))
+        ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel)
+        ctx.fillStyle = g; ctx.fill()
+        ctx.strokeStyle = unlocked ? col('success') : col('panel_stroke')
+        ctx.lineWidth = 2; ctx.stroke()
+        ctx.textAlign = 'center'
+        if (m) {
+          // 进化树条目：形态剪影按 tier 差异化，未解锁剪影+锁
+          ctx.save()
+          ctx.translate(r.x + r.w / 2, r.y + r.h / 2 - 34)
+          ctx.scale(2.2, 2.2)
+          this.drawMonster(unlocked ? (m.tier === 'boss' ? 'elite' : m.id === 'm_flier' ? 'flyer' : m.id === 'm_climber' ? 'climber' : m.id === 'm_breaker' ? 'breaker' : 'crawler') : 'crawler', now)
+          ctx.restore()
+          if (!unlocked) {
+            ctx.globalAlpha = 0.45
             ctx.strokeStyle = col('text_secondary'); ctx.lineWidth = 4
             ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 30, 16, Math.PI, 0); ctx.stroke()
             ctx.fillStyle = col('text_secondary')
             ctx.beginPath(); ctx.roundRect(r.x + r.w / 2 - 22, r.y + r.h / 2 - 30, 44, 34, 6); ctx.fill()
+            ctx.globalAlpha = 1
           }
-          ctx.font = font(T.typography.caption)
+          ctx.font = font(T.typography.caption, { weight: 'bold' })
           ctx.fillStyle = unlocked ? col('text_primary') : col('text_secondary')
-          ctx.fillText(unlocked ? '循声者' : '未解锁', r.x + r.w / 2, r.y + r.h - 40)
-          ctx.textAlign = 'left'
+          ctx.fillText(m.name, r.x + r.w / 2, r.y + r.h - 76)
+          ctx.font = font(T.typography.caption)
+          ctx.fillStyle = tierColor[m.tier] ?? col('text_secondary')
+          const mechs = m.mechanics.map(k => mechName[k] ?? k).join('·')
+          ctx.fillText(`${m.tier === 'minion' ? '杂兵' : m.tier === 'elite' ? '精英' : '首领'}${mechs ? ` · ${mechs}` : ''}`, r.x + r.w / 2, r.y + r.h - 46)
+          ctx.fillStyle = unlocked ? col('success') : col('text_secondary')
+          ctx.fillText(unlocked ? `D${m.unlockDay} 已入池` : `D${m.unlockDay} 解锁`, r.x + r.w / 2, r.y + r.h - 16)
+        } else {
+          // 空位：赛季预留（夜王 D30 之外的新进化枝）
+          ctx.strokeStyle = col('text_secondary'); ctx.lineWidth = 4
+          ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 30, 16, Math.PI, 0); ctx.stroke()
+          ctx.fillStyle = col('text_secondary')
+          ctx.beginPath(); ctx.roundRect(r.x + r.w / 2 - 22, r.y + r.h / 2 - 30, 44, 34, 6); ctx.fill()
+          ctx.font = font(T.typography.caption)
+          ctx.fillStyle = col('text_secondary')
+          ctx.fillText('赛季预留', r.x + r.w / 2, r.y + r.h - 46)
         }
+        ctx.textAlign = 'left'
       }
       ctx.fillStyle = col('text_secondary')
       ctx.font = font(T.typography.caption)
-      ctx.fillText('占位：M3 按怪物进化树/住户名册填充', T.space.l, codexCellRect(0, CODEX_ROWS - 1).y + codexCellRect(0, 0).h + 40)
+      ctx.fillText(`怪物进化树 · 共 ${monsters.length} 种（图鉴随主线日程解锁）`, T.space.l, codexCellRect(0, CODEX_ROWS - 1).y + codexCellRect(0, 0).h + 40)
     } else if (page === 'shop') {
-      const names = ['首充双倍', '物资补给包', '天赋石礼包']
-      const prices = ['¥6', '¥30', '¥68']
-      const was = ['¥12', '¥45', '¥98']
-      for (let i = 0; i < SHOP_CARDS; i++) {
+      const skus = (iapSkuJson as unknown as { entries: { id: string; type: string; price: number; triggerDay: number; valueAnchor: number; contents: { op: string; res?: string; n?: number; buff?: string }[] }[] }).entries
+      const typeName: Record<string, string> = { firstCharge: '首充双倍', pack: '物资礼包', pass: '特权通行证', monthly: '月卡', gacha: '招募补给' }
+      const resName: Record<string, string> = { material: '建材', food: '食物', gold: '金币' }
+      for (let i = 0; i < skus.length; i++) {
+        const sku = skus[i]
         const r = shopCardRect(i)
         this.panel(r.x, r.y, r.w, r.h)
-        ctx.strokeStyle = i === 0 ? col('gold_deep') : col('panel_stroke')
+        ctx.strokeStyle = sku.type === 'firstCharge' ? col('gold_deep') : col('panel_stroke')
         ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel); ctx.stroke()
         ctx.fillStyle = col('gold_primary')
         ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + 140, 42, 0, Math.PI * 2); ctx.fill()
@@ -1987,29 +2015,30 @@ export class WhiteboxRenderer {
         this.iconCoin(r.x + r.w / 2 - 30, r.y + 110, 12)
         ctx.fillStyle = col('text_primary')
         ctx.font = font(T.typography.h2, { weight: 'bold' })
-        ctx.fillText(names[i], r.x + T.space.m, r.y + 280)
+        ctx.fillText(typeName[sku.type] ?? sku.id, r.x + T.space.m, r.y + 260)
         ctx.fillStyle = col('text_secondary')
         ctx.font = font(T.typography.body)
-        ctx.fillText(was[i], r.x + T.space.m, r.y + 340)
-        const ww = ctx.measureText(was[i]).width
-        ctx.strokeStyle = col('danger')
-        ctx.beginPath(); ctx.moveTo(r.x + T.space.m, r.y + 340); ctx.lineTo(r.x + T.space.m + ww, r.y + 340); ctx.stroke()
+        const contents = sku.contents.map(c => c.op === 'ADD_RES' ? `${resName[c.res ?? ''] ?? c.res}×${c.n}` : c.op === 'ADD_GOLD' ? `金币×${c.n}` : c.op === 'SPAWN_TENANT' ? '高级住户' : c.op === 'GRANT_BUFF' ? '租金增益' : '专属特权').join(' + ')
+        ctx.fillText(contents, r.x + T.space.m, r.y + 316, r.w - T.space.m * 2)
+        ctx.fillStyle = col('text_secondary')
+        ctx.fillText(`D${sku.triggerDay} 曝光 · 性价比锚 ×${sku.valueAnchor}`, r.x + T.space.m, r.y + 356)
+        const price = `¥${sku.price}`
         ctx.fillStyle = col('gold_primary')
         ctx.font = this.numFont(T.typography.h2)
-        ctx.fillText(prices[i], r.x + T.space.m + ww + T.space.s, r.y + 340)
-        if (i === 0) {
+        ctx.fillText(price, r.x + T.space.m, r.y + 420)
+        if (sku.type === 'firstCharge') {
           ctx.fillStyle = col('alert_blood')
           ctx.beginPath(); ctx.roundRect(r.x + r.w - 128, r.y + 24, 96, 40, T.radius.chip); ctx.fill()
           ctx.fillStyle = col('text_primary')
           ctx.font = font(T.typography.caption, { weight: 'bold' })
           ctx.textAlign = 'center'
-          ctx.fillText('双倍', r.x + r.w - 80, r.y + 45)
+          ctx.fillText('首充', r.x + r.w - 80, r.y + 45)
           ctx.textAlign = 'left'
         }
       }
       ctx.fillStyle = col('text_secondary')
       ctx.font = font(T.typography.caption)
-      ctx.fillText('占位：SKU 走 iap_sku.json，IAA/IAP 合规审查后接入', T.space.l, shopCardRect(0).y + 600)
+      ctx.fillText(`SKU=iap_sku.json · 共 ${skus.length} 款（支付经平台 fail-open 通道，未开通时仅展示）`, T.space.l, shopCardRect(0).y + 600)
     } else {
       for (const [i, row] of SETTINGS_ROWS.entries()) {
         const r = settingsRowRect(i)

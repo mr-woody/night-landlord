@@ -5972,7 +5972,6 @@
     const ch = 240;
     return { x: gx + col2 * (cw + T.space.s), y: gy + row * (ch + T.space.s), w: cw, h: ch };
   }
-  var SHOP_CARDS = 3;
   function shopCardRect(i) {
     const w = 420, h = 560;
     return { x: M + i * (w + T.space.s), y: HUD_H + T.space.s * 2 + HIT_MIN, w, h };
@@ -6551,6 +6550,37 @@
     ]
   };
 
+  // config/monster.json with { type: 'json' }
+  var monster_default2 = {
+    version: 1,
+    sourceDoc: "docs/\u6570\u636E\u914D\u7F6E\u8868\u7ED3\u6784\u8BBE\u8BA1.md \xA74\uFF08\u8FDB\u5316\u6811\uFF1A\u8BBE\u8BA1\u65B9\u6848 4.5\uFF09",
+    entries: [
+      { id: "m_seeker", name: "\u5FAA\u58F0\u8005", tier: "minion", unlockDay: 1, hpMul: 1, mechanics: [], usableNightMods: ["NORMAL", "BLOOD_MOON", "SILENT", "MIGRATE"], active: true },
+      { id: "m_breaker", name: "\u7834\u7A97\u8005", tier: "minion", unlockDay: 3, hpMul: 1, mechanics: ["breakDoor"], usableNightMods: ["NORMAL", "BLOOD_MOON", "SILENT", "MIGRATE"], active: true },
+      { id: "m_climber", name: "\u6500\u697C\u79CD", tier: "minion", unlockDay: 5, hpMul: 1.05, mechanics: ["climbWindow"], usableNightMods: ["NORMAL", "BLOOD_MOON", "MIGRATE"], active: true },
+      { id: "m_flyer", name: "\u98DE\u884C\u79CD", tier: "elite", unlockDay: 9, hpMul: 1.1, mechanics: ["fly"], usableNightMods: ["NORMAL", "BLOOD_MOON", "MIGRATE"], active: true },
+      { id: "m_focus", name: "\u56F4\u653BAI", tier: "elite", unlockDay: 12, hpMul: 1.15, mechanics: ["focusFire"], usableNightMods: ["NORMAL", "BLOOD_MOON"], active: true },
+      { id: "m_elite", name: "\u7CBE\u82F1\u79CD", tier: "elite", unlockDay: 18, hpMul: 1.25, mechanics: [], usableNightMods: ["NORMAL", "BLOOD_MOON", "SILENT", "MIGRATE"], active: true },
+      { id: "m_nightking", name: "\u591C\u738B", tier: "boss", unlockDay: 30, hpMul: 2, mechanics: [], usableNightMods: [], active: false }
+    ]
+  };
+
+  // config/iap_sku.json
+  var iap_sku_default = {
+    version: 1,
+    sourceDoc: "docs/M0-\u6570\u503C\u6A21\u578B-\u4E09\u66F2\u7EBF\u8C03\u53C2\u8868.md \xA77.2",
+    entries: [
+      { id: "sku_storage_d3", type: "pack", price: 6, triggerDay: 3, repeatable: false, valueAnchor: 3, contents: [{ op: "ADD_RES", res: "material", n: 800 }, { op: "ADD_RES", res: "food", n: 500 }] },
+      { id: "sku_first_charge", type: "firstCharge", price: 6, triggerDay: 7, repeatable: false, valueAnchor: 8, contents: [{ op: "SPAWN_TENANT", quality: "SR" }, { op: "GRANT_BUFF", buff: "rent_x2_7d", days: 7 }] },
+      { id: "sku_moon_30", type: "pack", price: 30, triggerDay: 7, repeatable: true, valueAnchor: 2.5, contents: [{ op: "ADD_GOLD", n: 3400 }, { op: "ADD_RES", res: "talentStone", n: 20 }] },
+      { id: "sku_moon_68", type: "pack", price: 68, triggerDay: 7, repeatable: true, valueAnchor: 3, contents: [{ op: "ADD_GOLD", n: 8200 }, { op: "ADD_RES", res: "talentStone", n: 60 }] },
+      { id: "sku_moon_128", type: "pack", price: 128, triggerDay: 7, repeatable: true, valueAnchor: 3.2, contents: [{ op: "ADD_GOLD", n: 16e3 }, { op: "ADD_RES", res: "talentStone", n: 130 }] },
+      { id: "sku_pass", type: "pass", price: 68, triggerDay: 14, repeatable: false, valueAnchor: 3.5, contents: [{ op: "SET_FLAG", key: "passOwned", v: 1 }] },
+      { id: "sku_monthly", type: "monthly", price: 30, triggerDay: 14, repeatable: true, valueAnchor: 4.7, contents: [{ op: "SET_FLAG", key: "monthlyOwned", v: 1 }] },
+      { id: "sku_gacha", type: "gacha", price: 328, triggerDay: 14, repeatable: true, valueAnchor: 1, contents: [{ op: "SPAWN_TENANT", quality: "SSR" }] }
+    ]
+  };
+
   // apps/client-cocos/whitebox/renderer.ts
   var WAVE_LETTERS = ["A", "B", "C", "D", "E", "F"];
   var prand = (seed) => (seed * 9301 + 49297) % 233280 / 233280;
@@ -6851,7 +6881,7 @@
             this.drawReport(frame);
             this.drawDock();
           } else {
-            this.drawPage(ui2.page, now);
+            this.drawPage(ui2.page, now, frame);
           }
           this.drawModal(ui2, frame, now, pb2);
           break;
@@ -8697,8 +8727,8 @@
         ctx.textAlign = "left";
       });
     }
-    /** 占位页（功能点4）：图鉴 3 列网格剪影 / 商店礼包横滑 / 设置列表 */
-    drawPage(page, now) {
+    /** 占位页（M2.5 功能点4）：图鉴=monster.json 进化树 / 商店=iap_sku.json SKU / 设置列表 */
+    drawPage(page, now, frame) {
       const { ctx } = this;
       ctx.textBaseline = "middle";
       this.button(pageBackRect(), "\u25C0 \u8FD4\u56DE", "normal");
@@ -8707,25 +8737,34 @@
       ctx.font = font(T.typography.h1, { weight: "bold" });
       ctx.fillText(titles[page] ?? "", pageTitleRect().x, pageTitleRect().y + pageTitleRect().h / 2);
       if (page === "codex") {
-        for (let row = 0; row < CODEX_ROWS; row++) {
-          for (let c = 0; c < CODEX_COLS; c++) {
-            const r = codexCellRect(c, row);
-            const unlocked = row === 0 && c === 0;
-            const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-            g.addColorStop(0, unlocked ? withAlpha(col("success"), 0.16) : withAlpha(col("bg_night"), 0.55));
-            g.addColorStop(1, unlocked ? withAlpha(col("success"), 0.06) : withAlpha(col("bg_night"), 0.3));
-            ctx.beginPath();
-            ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel);
-            ctx.fillStyle = g;
-            ctx.fill();
-            ctx.strokeStyle = unlocked ? col("success") : col("panel_stroke");
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.font = this.numFont(T.typography.h1);
-            ctx.fillStyle = unlocked ? col("text_primary") : col("text_secondary");
-            ctx.textAlign = "center";
-            if (unlocked) this.iconPerson(r.x + r.w / 2, r.y + r.h / 2 - 14, 56, col("gold_primary"));
-            else {
+        const monsters = monster_default2.entries;
+        const tierColor = { minion: col("text_secondary"), elite: col("gold_primary"), boss: col("alert_blood") };
+        const mechName = { breakDoor: "\u7834\u95E8", climbWindow: "\u6500\u722C", fly: "\u98DE\u884C", focusFire: "\u96C6\u706B", silentCompat: "\u9759\u9ED8\u6F5C\u5165" };
+        const cells = CODEX_COLS * CODEX_ROWS;
+        for (let i = 0; i < cells; i++) {
+          const c = i % CODEX_COLS, row = Math.floor(i / CODEX_COLS);
+          const r = codexCellRect(c, row);
+          const m = monsters[i];
+          const unlocked = m !== void 0 && frame.day >= m.unlockDay;
+          const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+          g.addColorStop(0, unlocked ? withAlpha(col("success"), 0.16) : withAlpha(col("bg_night"), 0.55));
+          g.addColorStop(1, unlocked ? withAlpha(col("success"), 0.06) : withAlpha(col("bg_night"), 0.3));
+          ctx.beginPath();
+          ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel);
+          ctx.fillStyle = g;
+          ctx.fill();
+          ctx.strokeStyle = unlocked ? col("success") : col("panel_stroke");
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.textAlign = "center";
+          if (m) {
+            ctx.save();
+            ctx.translate(r.x + r.w / 2, r.y + r.h / 2 - 34);
+            ctx.scale(2.2, 2.2);
+            this.drawMonster(unlocked ? m.tier === "boss" ? "elite" : m.id === "m_flier" ? "flyer" : m.id === "m_climber" ? "climber" : m.id === "m_breaker" ? "breaker" : "crawler" : "crawler", now);
+            ctx.restore();
+            if (!unlocked) {
+              ctx.globalAlpha = 0.45;
               ctx.strokeStyle = col("text_secondary");
               ctx.lineWidth = 4;
               ctx.beginPath();
@@ -8735,24 +8774,45 @@
               ctx.beginPath();
               ctx.roundRect(r.x + r.w / 2 - 22, r.y + r.h / 2 - 30, 44, 34, 6);
               ctx.fill();
+              ctx.globalAlpha = 1;
             }
-            ctx.font = font(T.typography.caption);
+            ctx.font = font(T.typography.caption, { weight: "bold" });
             ctx.fillStyle = unlocked ? col("text_primary") : col("text_secondary");
-            ctx.fillText(unlocked ? "\u5FAA\u58F0\u8005" : "\u672A\u89E3\u9501", r.x + r.w / 2, r.y + r.h - 40);
-            ctx.textAlign = "left";
+            ctx.fillText(m.name, r.x + r.w / 2, r.y + r.h - 76);
+            ctx.font = font(T.typography.caption);
+            ctx.fillStyle = tierColor[m.tier] ?? col("text_secondary");
+            const mechs = m.mechanics.map((k) => mechName[k] ?? k).join("\xB7");
+            ctx.fillText(`${m.tier === "minion" ? "\u6742\u5175" : m.tier === "elite" ? "\u7CBE\u82F1" : "\u9996\u9886"}${mechs ? ` \xB7 ${mechs}` : ""}`, r.x + r.w / 2, r.y + r.h - 46);
+            ctx.fillStyle = unlocked ? col("success") : col("text_secondary");
+            ctx.fillText(unlocked ? `D${m.unlockDay} \u5DF2\u5165\u6C60` : `D${m.unlockDay} \u89E3\u9501`, r.x + r.w / 2, r.y + r.h - 16);
+          } else {
+            ctx.strokeStyle = col("text_secondary");
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 30, 16, Math.PI, 0);
+            ctx.stroke();
+            ctx.fillStyle = col("text_secondary");
+            ctx.beginPath();
+            ctx.roundRect(r.x + r.w / 2 - 22, r.y + r.h / 2 - 30, 44, 34, 6);
+            ctx.fill();
+            ctx.font = font(T.typography.caption);
+            ctx.fillStyle = col("text_secondary");
+            ctx.fillText("\u8D5B\u5B63\u9884\u7559", r.x + r.w / 2, r.y + r.h - 46);
           }
+          ctx.textAlign = "left";
         }
         ctx.fillStyle = col("text_secondary");
         ctx.font = font(T.typography.caption);
-        ctx.fillText("\u5360\u4F4D\uFF1AM3 \u6309\u602A\u7269\u8FDB\u5316\u6811/\u4F4F\u6237\u540D\u518C\u586B\u5145", T.space.l, codexCellRect(0, CODEX_ROWS - 1).y + codexCellRect(0, 0).h + 40);
+        ctx.fillText(`\u602A\u7269\u8FDB\u5316\u6811 \xB7 \u5171 ${monsters.length} \u79CD\uFF08\u56FE\u9274\u968F\u4E3B\u7EBF\u65E5\u7A0B\u89E3\u9501\uFF09`, T.space.l, codexCellRect(0, CODEX_ROWS - 1).y + codexCellRect(0, 0).h + 40);
       } else if (page === "shop") {
-        const names = ["\u9996\u5145\u53CC\u500D", "\u7269\u8D44\u8865\u7ED9\u5305", "\u5929\u8D4B\u77F3\u793C\u5305"];
-        const prices = ["\xA56", "\xA530", "\xA568"];
-        const was = ["\xA512", "\xA545", "\xA598"];
-        for (let i = 0; i < SHOP_CARDS; i++) {
+        const skus = iap_sku_default.entries;
+        const typeName = { firstCharge: "\u9996\u5145\u53CC\u500D", pack: "\u7269\u8D44\u793C\u5305", pass: "\u7279\u6743\u901A\u884C\u8BC1", monthly: "\u6708\u5361", gacha: "\u62DB\u52DF\u8865\u7ED9" };
+        const resName = { material: "\u5EFA\u6750", food: "\u98DF\u7269", gold: "\u91D1\u5E01" };
+        for (let i = 0; i < skus.length; i++) {
+          const sku = skus[i];
           const r = shopCardRect(i);
           this.panel(r.x, r.y, r.w, r.h);
-          ctx.strokeStyle = i === 0 ? col("gold_deep") : col("panel_stroke");
+          ctx.strokeStyle = sku.type === "firstCharge" ? col("gold_deep") : col("panel_stroke");
           ctx.beginPath();
           ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel);
           ctx.stroke();
@@ -8768,20 +8828,18 @@
           this.iconCoin(r.x + r.w / 2 - 30, r.y + 110, 12);
           ctx.fillStyle = col("text_primary");
           ctx.font = font(T.typography.h2, { weight: "bold" });
-          ctx.fillText(names[i], r.x + T.space.m, r.y + 280);
+          ctx.fillText(typeName[sku.type] ?? sku.id, r.x + T.space.m, r.y + 260);
           ctx.fillStyle = col("text_secondary");
           ctx.font = font(T.typography.body);
-          ctx.fillText(was[i], r.x + T.space.m, r.y + 340);
-          const ww = ctx.measureText(was[i]).width;
-          ctx.strokeStyle = col("danger");
-          ctx.beginPath();
-          ctx.moveTo(r.x + T.space.m, r.y + 340);
-          ctx.lineTo(r.x + T.space.m + ww, r.y + 340);
-          ctx.stroke();
+          const contents = sku.contents.map((c) => c.op === "ADD_RES" ? `${resName[c.res ?? ""] ?? c.res}\xD7${c.n}` : c.op === "ADD_GOLD" ? `\u91D1\u5E01\xD7${c.n}` : c.op === "SPAWN_TENANT" ? "\u9AD8\u7EA7\u4F4F\u6237" : c.op === "GRANT_BUFF" ? "\u79DF\u91D1\u589E\u76CA" : "\u4E13\u5C5E\u7279\u6743").join(" + ");
+          ctx.fillText(contents, r.x + T.space.m, r.y + 316, r.w - T.space.m * 2);
+          ctx.fillStyle = col("text_secondary");
+          ctx.fillText(`D${sku.triggerDay} \u66DD\u5149 \xB7 \u6027\u4EF7\u6BD4\u951A \xD7${sku.valueAnchor}`, r.x + T.space.m, r.y + 356);
+          const price = `\xA5${sku.price}`;
           ctx.fillStyle = col("gold_primary");
           ctx.font = this.numFont(T.typography.h2);
-          ctx.fillText(prices[i], r.x + T.space.m + ww + T.space.s, r.y + 340);
-          if (i === 0) {
+          ctx.fillText(price, r.x + T.space.m, r.y + 420);
+          if (sku.type === "firstCharge") {
             ctx.fillStyle = col("alert_blood");
             ctx.beginPath();
             ctx.roundRect(r.x + r.w - 128, r.y + 24, 96, 40, T.radius.chip);
@@ -8789,13 +8847,13 @@
             ctx.fillStyle = col("text_primary");
             ctx.font = font(T.typography.caption, { weight: "bold" });
             ctx.textAlign = "center";
-            ctx.fillText("\u53CC\u500D", r.x + r.w - 80, r.y + 45);
+            ctx.fillText("\u9996\u5145", r.x + r.w - 80, r.y + 45);
             ctx.textAlign = "left";
           }
         }
         ctx.fillStyle = col("text_secondary");
         ctx.font = font(T.typography.caption);
-        ctx.fillText("\u5360\u4F4D\uFF1ASKU \u8D70 iap_sku.json\uFF0CIAA/IAP \u5408\u89C4\u5BA1\u67E5\u540E\u63A5\u5165", T.space.l, shopCardRect(0).y + 600);
+        ctx.fillText(`SKU=iap_sku.json \xB7 \u5171 ${skus.length} \u6B3E\uFF08\u652F\u4ED8\u7ECF\u5E73\u53F0 fail-open \u901A\u9053\uFF0C\u672A\u5F00\u901A\u65F6\u4EC5\u5C55\u793A\uFF09`, T.space.l, shopCardRect(0).y + 600);
       } else {
         for (const [i, row] of SETTINGS_ROWS.entries()) {
           const r = settingsRowRect(i);
