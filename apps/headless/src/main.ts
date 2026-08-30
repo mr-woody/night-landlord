@@ -10,7 +10,7 @@ import { createDayRng, createRngStreams, hash32, canonicalJson } from '@rn/core'
 import { createFormula, loadConstants, levelForU, type Quality } from '@rn/formula'
 import {
   createGameState, serialize, deserialize, checkInvariants, applyEffects,
-  settleDawn, runNight, canteenCap, type GameState, type Tables, type BattleSession, type EffectOp
+  settleDawn, runNight, canteenCap, defensePower, type GameState, type Tables, type BattleSession, type EffectOp
 } from '@rn/systems'
 import { resolve, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -220,6 +220,7 @@ interface DayRecord {
   day: number; population: number; gold: number; income: number; power: number
   rAvg: number; deaths: number; wounds: number; sessionHash: string; invariantErrors: string[]
   events: number; checkpoints: number; avgLevel: number; targetLevel: number
+  panicSum: number; spend: number; wealth: number
 }
 
 /** 招募池权重求解：在 {N:1,R:1.5,SR:2.5,SSR:5} 上两两混合出期望品质 E（确定性）。 */
@@ -250,6 +251,7 @@ export function runSimulation(
   const findings: string[] = []
   const distinctFired = new Set<string>()
   let eventsFired = 0
+  let spent = 0
   let checkpoints = 0
 
   for (let d = 1; d <= options.days; d++) {
@@ -272,11 +274,25 @@ export function runSimulation(
       state.resources.gold -= constants.M1_ROOM_GOLD
       state.roomsBuilt++
     }
-    // 防御投资（优先级 1：目标 fReq(d)）
-    const need = Math.max(0, formula.fReq(d) - state.defense.power)
+    // 守卫岗位（M2 功能点4：watchtower 槽位 = 岗位数，岗位空缺=战力折扣）
+    const wt = [...tables.buildingDef.entries].filter(b => b.type === 'watchtower').sort((a, b) => b.level - a.level)[0]
+    const guardSlots = wt?.capacity ?? 1
+    let guards = state.tenants.filter(t => t.job === 'guard').length
+    while (guards < guardSlots && state.tenants.length > guards + 2 && state.resources.gold >= 50) {
+      const t = state.tenants.find(x => x.job !== 'guard')
+      if (!t) break
+      t.job = 'guard'
+      guards++
+      state.resources.gold -= 50
+      spent += 50
+    }
+    // 防御投资（优先级 1：目标 fReq(d)，守卫贡献抵扣）
+    const effPower = defensePower(state, constants)
+    const need = Math.max(0, formula.fReq(d) - effPower)
     const invest = Math.min(Math.ceil(need * constants.CFG_K_POWER), state.resources.gold)
     state.resources.gold -= invest
     state.defense.power += Math.floor(invest / constants.CFG_K_POWER)
+    spent += invest
     // 招募补位至人口目标（优先级 2；品质池权重按“存量品质缺口”求解，使结构平均跟踪 q(d)）
     const stockQ = state.tenants.reduce((a, x) => a + constants.CFG_QUALITY_MUL_N * 0 + ({ N: 1, R: 1.5, SR: 2.5, SSR: 5 } as Record<Quality, number>)[x.quality], 0)
     const popTarget2 = target(d, tables)
@@ -344,8 +360,11 @@ export function runSimulation(
       income: settle.income, power: state.defense.power, rAvg: Math.round(rAvg * 1000) / 1000,
       deaths: session.deaths, wounds: session.wounds, sessionHash: session.settlementHash,
       invariantErrors, events, checkpoints: 3,
-      avgLevel: state.tenants.length ? Math.round(state.tenants.reduce((a, t) => a + t.level, 0) / state.tenants.length * 10) / 10 : 0, targetLevel
+      avgLevel: state.tenants.length ? Math.round(state.tenants.reduce((a, t) => a + t.level, 0) / state.tenants.length * 10) / 10 : 0, targetLevel,
+      panicSum: state.tenants.reduce((a, t) => a + t.panic, 0),
+      spend: spent, wealth: state.resources.gold + state.resources.food + state.resources.material
     })
+    spent = 0
     void checkpoints
   }
   const finalHash = hash32(canonicalJson(records))

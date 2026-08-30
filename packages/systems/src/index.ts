@@ -31,6 +31,7 @@ export interface GameState {
   floors: number
   canteenLevel: number
   warehouseLevel: number
+  clinicLevel: number
   defense: { power: number; alloc: number[] }
   flags: Record<string, number>
   stats: { deathsTotal: number; deathsToday: number; goldEarnedTotal: number; breachesLastNight: number }
@@ -69,6 +70,7 @@ export function createGameState(seed: number): GameState {
     floors: 1,
     canteenLevel: 1,
     warehouseLevel: 1,
+    clinicLevel: 1,
     defense: { power: 0, alloc: [] },
     flags: {},
     stats: { deathsTotal: 0, deathsToday: 0, goldEarnedTotal: 0, breachesLastNight: 0 }
@@ -96,6 +98,12 @@ export function canteenCap(state: GameState, buildingDef: Tables['buildingDef'])
 export function warehouseCap(state: GameState, buildingDef: Tables['buildingDef']): number {
   const row = buildingDef.entries.find(b => b.type === 'warehouse' && b.level === state.warehouseLevel)
   return row?.capacity ?? 0
+}
+
+/** 有效防御力 = 投资战力 + 守卫岗位贡献（岗位空缺=战力折扣，M2 功能点4） */
+export function defensePower(state: GameState, constants: Record<string, number>): number {
+  const guards = state.tenants.filter(t => t.job === 'guard').length
+  return state.defense.power + guards * (constants.GUARD_POWER ?? 15)
 }
 
 export function checkInvariants(state: GameState, caps: { canteenCap: number; warehouseCap: number }): string[] {
@@ -216,7 +224,11 @@ export function settleDawn(state: GameState, deps: { formula: Formula; constants
   state.resources.gold += income
   state.stats.goldEarnedTotal += income
 
-  for (const t of state.tenants) t.panic = Math.max(0, t.panic - C.PANIC_DECAY)
+  const decay = C.PANIC_DECAY + (state.flags.curfew ? C.CURFEW_DECAY_BONUS : 0)
+  for (const t of state.tenants) {
+    t.panic = Math.max(0, t.panic - decay)
+    if (t.hp < 100) t.hp = Math.min(100, t.hp + C.CLINIC_HEAL_HP * (state.clinicLevel ?? 1)) // 医务室治疗
+  }
   if (state.stats.breachesLastNight > 0) {
     for (const t of state.tenants) {
       t.panic = Math.min(C.PANIC_MAX, t.panic + C.PANIC_PROP_FLOOR)
@@ -265,7 +277,7 @@ export function runNight(state: GameState, plan: NightPlan, deps: { formula: For
   }
   const silent = plan.modifiers.includes('SILENT')
   const W = plan.routes.length
-  const F = state.defense.power
+  const F = defensePower(state, deps.constants)
   const per = W > 0 ? F / W : 0
   const routes: RouteResult[] = plan.routes.map(rt => {
     const f = per
