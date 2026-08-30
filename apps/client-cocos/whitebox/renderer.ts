@@ -741,7 +741,7 @@ export class WhiteboxRenderer {
           const mon = pb.monsterNames[rv.route.monsterId ?? ''] ?? '怪物'
           ctx.fillStyle = rv.state === 0 ? col('alert_blood') : col('text_primary')
           ctx.font = font(T.typography.body)
-          ctx.fillText(`${mon} ${Math.round(rv.route.r * 100)}%${rv.state === 0 ? ' ‼' : rv.state === 1 ? ' ⚠' : ''}`, barX + barW + T.space.s, r.y + r.h / 2)
+          ctx.fillText(`${this.roomLabel(rv.route.roomId)} ${mon} ${Math.round(rv.route.r * 100)}%${rv.state === 0 ? ' ‼' : rv.state === 1 ? ' ⚠' : ''}`, barX + barW + T.space.s, r.y + r.h / 2)
         } else {
           ctx.fillStyle = col('text_secondary')
           ctx.font = this.numFont(T.typography.body)
@@ -789,7 +789,7 @@ export class WhiteboxRenderer {
       const waves = nightWaves(pb.session.routes, pb.nightStart, now)
       waves.revealed.forEach((rv, i) => {
         const mon = pb.monsterNames[rv.route.monsterId ?? ''] ?? '怪物'
-        lines.push(`第${i + 1}波 路${WAVE_LETTERS[i]} · ${rv.route.roomId} · ${mon} · r=${rv.route.r.toFixed(2)} → ${OUTCOME_LABEL[rv.route.outcome]}`)
+        lines.push(`第${i + 1}波 路${WAVE_LETTERS[i]} · ${this.roomLabel(rv.route.roomId)} · ${mon} · r=${rv.route.r.toFixed(2)} → ${OUTCOME_LABEL[rv.route.outcome]}`)
       })
     }
     lines.push(...pb.logs)
@@ -1064,6 +1064,12 @@ export class WhiteboxRenderer {
         ctx.strokeStyle = withAlpha(col('success'), 0.5 + pulse * 0.4); ctx.lineWidth = 3; ctx.stroke()
       }
     }
+  }
+
+  /** 夜战目标房间标签：F{n}-R{m} → A栋 n 层 m 号（M0 数值窗口内目标恒在默认栋 A） */
+  private roomLabel(roomId: string): string {
+    const m = /F(\d+)-R(\d+)/.exec(roomId)
+    return m ? `A栋${m[1]}层${m[2]}号` : roomId
   }
 
   private drawIsoGate(cx: number, cy: number): void {

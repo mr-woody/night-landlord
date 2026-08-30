@@ -1688,215 +1688,3572 @@
     sourceDoc: "docs/M0-\u4E8B\u4EF6\u6587\u6848\u5E9350\u6761.md",
     scope: "M2\uFF1A50 \u6761\u5168\u91CF\uFF08scripted 8 / choice 24 / mission 10 / ord 8\uFF09",
     entries: [
-      { id: "evt_tut_fortify", ver: 1, type: "scripted", triggerDay: 0, title: "\u95E8\u53E3\u7684\u6293\u75D5", weight: 0, cooldownDays: 0, maxPerRun: 0, text: "\u95E8\u677F\u4E0A\u6709\u65B0\u9C9C\u7684\u6293\u75D5\u2026\u2026\u8D81\u5929\u8FD8\u6CA1\u9ED1\uFF0C\u52A0\u56FA\u5B83\u3002", options: [{ label: "\u52A0\u56FA\u95E8\uFF08\u6559\u5B66\u5F15\u5BFC\uFF09", outcomes: [{ p: 1, text: "\u95E8\u677F\u5431\u5440\u4F5C\u54CD\uFF0C\u4F46\u7ED3\u5B9E\u4E86\u3002", effects: [] }] }] },
-      { id: "evt_tut_firstnight", ver: 1, type: "scripted", triggerDay: 0, title: "\u7B2C 1 \u591C\u52A8\u5458", weight: 0, cooldownDays: 0, maxPerRun: 0, text: "\u5165\u591C\u524D\uFF0C\u628A\u6709\u9650\u7684\u4EBA\u624B\u5E03\u5230\u6700\u53EF\u80FD\u6709\u95EE\u9898\u7684\u4F4D\u7F6E\u3002", options: [{ label: "\u5E03\u9632\u5F15\u5BFC", outcomes: [{ p: 1, text: "\u591C\u8272\u538B\u4E0B\u6765\uFF0C\u697C\u91CC\u5B89\u9759\u5F97\u80FD\u542C\u89C1\u5FC3\u8DF3\u3002", effects: [] }] }] },
-      { id: "evt_tut_rescue", ver: 1, type: "scripted", triggerDay: 1, title: "\u9694\u58C1\u7684\u547C\u6551", weight: 0, cooldownDays: 0, maxPerRun: 0, text: "\u300C\u6551\u547D\u2014\u2014\u8FD8\u6709\u4EBA\u5417\uFF01\u300D", options: [{ label: "\u6D3E\u4E3B\u89D2\u53BB\u6551", outcomes: [{ p: 1, text: "\u62D6\u56DE\u6765\u4E00\u4E2A\u6D51\u8EAB\u53D1\u6296\u7684\u5E78\u5B58\u8005\u3002", effects: [{ op: "SPAWN_TENANT", quality: "N" }] }] }] },
-      { id: "evt_tut_referral", ver: 1, type: "scripted", triggerDay: 2, title: "\u8001\u5F20\u8BF4\uFF1A\u6211\u8FD8\u6709\u4FE9\u90BB\u5C45", weight: 0, cooldownDays: 0, maxPerRun: 0, text: "\u300C\u4ED6\u4EEC\u4EBA\u4E0D\u9519\uFF0C\u5C31\u5728\u4E0B\u4E00\u6761\u8857\u3002\u300D", options: [{ label: "\u63A5\u5F15", outcomes: [{ p: 1, text: "\u4E00\u8001\u4E00\u5C11\uFF0C\u884C\u674E\u90FD\u6CA1\u4E22\u3002", effects: [{ op: "SPAWN_TENANT", quality: "N" }, { op: "SPAWN_TENANT", quality: "N" }] }] }] },
-      { id: "evt_tut_broadcast", ver: 1, type: "scripted", triggerDay: 2, title: "\u5E7F\u64AD\u7AD9\u7B2C\u4E00\u901A\u5E7F\u64AD", weight: 0, cooldownDays: 0, maxPerRun: 0, text: "\u300C\u8FD9\u91CC\u662F 7 \u53F7\u697C\uFF0C\u6211\u4EEC\u6536\u7559\u6D3B\u4EBA\u3002\u300D", options: [{ label: "\u62DB\u52DF", outcomes: [{ p: 1, text: "\u5F53\u5929\u4E0B\u5348\uFF0C\u95E8\u53E3\u6392\u8D77\u4E86\u961F\u3002", effects: [{ op: "ADD_RES", res: "food", n: -100 }, { op: "SPAWN_TENANT", quality: "N" }, { op: "SPAWN_TENANT", quality: "N" }] }] }] },
-      { id: "evt_tut_bills", ver: 1, type: "scripted", triggerDay: 3, title: "\u7B2C\u4E00\u7B14\u300C\u7269\u4E1A\u8D39\u300D", weight: 0, cooldownDays: 0, maxPerRun: 0, text: "\u4F4F\u8FDB\u6765\u53EF\u4EE5\uFF0C\u4F46\u89C4\u77E9\u5F97\u7ACB\uFF1A\u6309\u5929\u4EA4\u79DF\u3002", options: [{ label: "\u6536\u79DF", outcomes: [{ p: 1, text: "\u91D1\u5E01\u5165\u888B\u7684\u58F0\u97F3\uFF0C\u6BD4\u67AA\u58F0\u597D\u542C\u3002", effects: [{ op: "ADD_GOLD", n: 300 }] }] }] },
-      { id: "evt_tut_panic", ver: 1, type: "scripted", triggerDay: 5, title: "\u6709\u4EBA\u534A\u591C\u5077\u54ED", weight: 0, cooldownDays: 0, maxPerRun: 0, text: "\u6050\u614C\u50CF\u9709\u6591\uFF0C\u4F1A\u987A\u7740\u697C\u677F\u8513\u5EF6\u3002", options: [{ label: "\u9010\u6237\u5B89\u629A", outcomes: [{ p: 1, text: "\u54ED\u58F0\u505C\u4E86\u3002\u4EBA\u5FC3\uFF0C\u4E5F\u662F\u8981\u4FEE\u7684\u3002", effects: [{ op: "ADD_PANIC", n: -10 }, { op: "SET_FLAG", key: "orderIntro", v: 1 }] }] }] },
-      { id: "evt_tut_omen", ver: 1, type: "scripted", triggerDay: 6, title: "\u98CE\u5411\u4E0D\u5BF9", weight: 0, cooldownDays: 0, maxPerRun: 0, text: "\u72D7\u4E0D\u53EB\u4E86\u3002\u98CE\u91CC\u6709\u94C1\u9508\u5473\u3002", options: [{ label: "\u767B\u9AD8\u89C2\u661F", outcomes: [{ p: 1, text: "\u6708\u4EAE\u662F\u7EA2\u7684\u3002\u660E\u5929\uFF0C\u662F\u8840\u6708\u3002", effects: [{ op: "SET_FLAG", key: "bloodmoonForetold", v: 1 }] }] }] },
-      { id: "evt_knock_001", ver: 1, type: "choice", title: "\u6DF1\u591C\u6572\u95E8\u4EBA", weight: 100, cooldownDays: 5, maxPerRun: 2, prereq: { dayMin: 3 }, text: "\u300C\u549A\u3001\u549A\u3001\u549A\u3002\u300D\u6DF1\u591C\u7684\u6572\u95E8\u58F0\u6BD4\u602A\u7269\u7684\u568E\u53EB\u66F4\u7606\u4EBA\u3002", options: [
-        { label: "\u5F00\u95E8", outcomes: [{ p: 0.7, text: "\u662F\u4E00\u5BB6\u4E09\u53E3\uFF0C\u5F53\u5BB6\u7684\u8FD8\u61C2\u6C34\u7535\u3002", effects: [{ op: "SPAWN_TENANT", quality: "R" }] }, { p: 0.3, text: "\u5B83\u7684\u76AE\u80A4\u5728\u6708\u5149\u4E0B\u5265\u843D\u4E86\u2026\u2026", effects: [{ op: "NIGHT_MOD", mod: "SILENT" }] }] },
-        { label: "\u9694\u95E8\u8BE2\u95EE", outcomes: [{ p: 1, text: "\u5BF9\u8BDD\u51E0\u53E5\u540E\u811A\u6B65\u58F0\u8FDC\u53BB\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: 1 }] }] },
-        { label: "\u65E0\u89C6", outcomes: [{ p: 1, text: "\u6572\u95E8\u58F0\u505C\u4E86\u3002\u4F60\u6709\u70B9\u540E\u6094\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: -1 }] }] }
-      ] },
-      { id: "evt_grain_002", ver: 1, type: "choice", title: "\u90BB\u5C45\u5077\u7CAE", weight: 90, cooldownDays: 7, maxPerRun: 2, prereq: { dayMin: 3 }, text: "\u4ED3\u5E93\u5C11\u4E86\u4E24\u7BB1\u7F50\u5934\uFF0C\u6709\u4EBA\u770B\u89C1\u4E09\u697C\u7684\u738B\u78CA\u6628\u665A\u9B3C\u9B3C\u795F\u795F\u3002", options: [
-        { label: "\u516C\u5BA1", outcomes: [{ p: 1, text: "\u79E9\u5E8F\u7ACB\u4F4F\u4E86\uFF0C\u4F46\u4EBA\u5FC3\u60F6\u60F6\u3002", effects: [{ op: "ADD_PANIC", n: 8 }, { op: "SET_FLAG", key: "order", v: 1 }] }] },
-        { label: "\u79C1\u4E86", outcomes: [{ p: 1, text: "\u4ED6\u4EA4\u56DE\u4E86\u4E00\u90E8\u5206\uFF0C\u8FD9\u4E8B\u7FFB\u7BC7\u3002", effects: [{ op: "ADD_RES", res: "food", n: 100 }] }] },
-        { label: "\u653E\u4EFB", outcomes: [{ p: 1, text: "\u4ED3\u5E93\u7684\u9501\u5F62\u540C\u865A\u8BBE\u3002", effects: [{ op: "ADD_PANIC", n: 5 }, { op: "SET_FLAG", key: "order", v: -1 }] }] }
-      ] },
-      { id: "evt_box_003", ver: 1, type: "choice", title: "\u9633\u53F0\u7269\u8D44\u7BB1", weight: 85, cooldownDays: 5, maxPerRun: 2, prereq: {}, text: "\u516D\u697C\u9633\u53F0\u540A\u4E0B\u6765\u4E00\u4E2A\u5BC6\u5C01\u7BB1\uFF0C\u7EF3\u5B50\u4E0A\u7CFB\u7740\u5B57\u6761\uFF1A\u300C\u7ED9\u6709\u7F18\u4EBA\u300D\u3002", options: [
-        { label: "\u72EC\u5360", outcomes: [{ p: 1, text: "\u7F50\u5934\u4E0E\u51C0\u6C34\uFF0C\u5168\u6536\u3002", effects: [{ op: "ADD_RES", res: "food", n: 300 }, { op: "SET_FLAG", key: "reputation", v: -1 }] }] },
-        { label: "\u5E73\u5206", outcomes: [{ p: 1, text: "\u6309\u6237\u5206\u53D1\uFF0C\u697C\u91CC\u591A\u4E86\u4E9B\u6696\u610F\u3002", effects: [{ op: "ADD_PANIC", n: -5 }, { op: "SET_FLAG", key: "reputation", v: 1 }] }] },
-        { label: "\u6362\u60C5\u62A5", outcomes: [{ p: 1, text: "\u5BF9\u9762\u697C\u7684\u773C\u7EBF\u7ED9\u4E86\u4EFD\u5DE1\u903B\u56FE\u3002", effects: [{ op: "SET_FLAG", key: "intel", v: 1 }] }] }
-      ] },
-      { id: "evt_rent_004", ver: 1, type: "choice", title: "\u8001\u5468\u6B20\u79DF", weight: 80, cooldownDays: 7, maxPerRun: 2, prereq: { dayMin: 5 }, text: "\u8001\u5468\u8E72\u5728\u95E8\u53E3\u62BD\u70DF\uFF1A\u300C\u5AB3\u5987\u75C5\u7740\uFF0C\u8FD9\u4E2A\u6708\u2026\u2026\u5BBD\u9650\u51E0\u5929\uFF1F\u300D", options: [
-        { label: "\u514D\u79DF", outcomes: [{ p: 1, text: "\u8001\u5468\u7EA2\u7740\u773C\u7736\u8FDE\u58F0\u9053\u8C22\u3002", effects: [{ op: "SET_FLAG", key: "mood", v: 1 }, { op: "SET_FLAG", key: "reputation", v: 1 }] }] },
-        { label: "\u7167\u6536", outcomes: [{ p: 1, text: "\u89C4\u77E9\u5C31\u662F\u89C4\u77E9\u3002", effects: [{ op: "ADD_GOLD", n: 500 }] }] },
-        { label: "\u9A71\u8D76", outcomes: [{ p: 1, text: "\u884C\u674E\u88AB\u6254\u4E0B\u697C\uFF0C\u697C\u91CC\u6CA1\u4EBA\u8BF4\u8BDD\u3002", effects: [{ op: "ADD_GOLD", n: 200 }, { op: "SET_FLAG", key: "reputation", v: -1 }] }] }
-      ] },
-      { id: "evt_hoard_005", ver: 1, type: "choice", title: "\u56E4\u79EF\u8005\u8001\u674E", weight: 70, cooldownDays: 10, maxPerRun: 2, prereq: { dayMin: 6 }, text: "\u8001\u674E\u5C4B\u91CC\u5806\u6EE1\u4E86\u7269\u8D44\uFF0C\u697C\u4E0B\u5374\u6709\u4EBA\u5728\u6328\u997F\u3002", options: [
-        { label: "\u5F81\u7528", outcomes: [{ p: 1, text: "\u7269\u8D44\u5145\u516C\uFF0C\u8001\u674E\u7EDD\u98DF\u6297\u8BAE\u3002", effects: [{ op: "ADD_RES", res: "food", n: 400 }, { op: "ADD_PANIC", n: 8 }] }] },
-        { label: "\u5206\u6210", outcomes: [{ p: 1, text: "\u5404\u8BA9\u4E00\u6B65\uFF0C\u4ED3\u5E93\u8FDB\u8D26\u4E00\u534A\u3002", effects: [{ op: "ADD_RES", res: "food", n: 200 }] }] },
-        { label: "\u653E\u4EFB", outcomes: [{ p: 1, text: "\u79E9\u5E8F\u54E8\u58F0\u5728\u8D70\u5ECA\u56DE\u8361\u3002", effects: [{ op: "SET_FLAG", key: "order", v: -1 }] }] }
-      ] },
-      { id: "evt_dog_006", ver: 1, type: "choice", title: "\u51CC\u6668\u7684\u72D7\u5420", weight: 65, cooldownDays: 7, maxPerRun: 2, prereq: {}, text: "\u5DF7\u5B50\u91CC\u6709\u6761\u571F\u72D7\uFF0C\u53EB\u6CD5\u5F88\u6709\u89C4\u5F8B\u2014\u2014\u50CF\u5728\u62A5\u4FE1\u3002", options: [
-        { label: "\u6536\u7559", outcomes: [{ p: 1, text: "\u72D7\u62F4\u5728\u4E00\u5C42\u5927\u5385\uFF0C\u591C\u91CC\u8033\u6735\u6BD4\u4EBA\u7075\u3002", effects: [{ op: "GRANT_BUFF", buff: "warnDog", days: 3 }] }] },
-        { label: "\u9A71\u8D76", outcomes: [{ p: 1, text: "\u72D7\u8DD1\u4E86\uFF0C\u591C\u91CC\u9759\u5F97\u53D1\u614C\u3002", effects: [{ op: "ADD_PANIC", n: 5 }] }] },
-        { label: "\u65E0\u89C6", outcomes: [{ p: 1, text: "\u72D7\u53EB\u4E86\u4E00\u6574\u591C\u3002", effects: [{ op: "ADD_PANIC", n: 3 }] }] }
-      ] },
-      { id: "evt_generator_007", ver: 1, type: "choice", title: "\u67F4\u6CB9\u53D1\u7535\u673A", weight: 70, cooldownDays: 10, maxPerRun: 2, prereq: { dayMin: 5 }, text: "\u9694\u58C1\u697C\u6361\u6765\u4E00\u53F0\u67F4\u6CB9\u53D1\u7535\u673A\uFF0C\u5F00\u53E3\u5C31\u8981\u5206\u7740\u7528\u3002", options: [
-        { label: "\u5C0F\u533A\u5171\u7528", outcomes: [{ p: 1, text: "\u5168\u697C\u706F\u706B\u901A\u660E\uFF0C\u6050\u614C\u6D88\u6563\u4E0D\u5C11\u3002", effects: [{ op: "ADD_GOLD", n: -300 }, { op: "ADD_PANIC", n: -8 }] }] },
-        { label: "\u81EA\u5BB6\u5907\u7528", outcomes: [{ p: 1, text: "\u53D1\u7535\u673A\u9501\u8FDB\u4E86\u4F60\u5BB6\u50A8\u7269\u95F4\u3002", effects: [{ op: "GRANT_BUFF", buff: "power", days: 2 }] }] },
-        { label: "\u51FA\u79DF", outcomes: [{ p: 1, text: "\u6309\u5C0F\u65F6\u8BA1\u8D39\uFF0C\u751F\u610F\u5174\u9686\u3002", effects: [{ op: "ADD_GOLD", n: 400 }] }] }
-      ] },
-      { id: "evt_divorce_008", ver: 1, type: "choice", title: "\u4E8C\u697C\u592B\u59BB\u5435\u67B6", weight: 60, cooldownDays: 10, maxPerRun: 2, prereq: {}, text: "\u6454\u7897\u58F0\u9694\u7740\u697C\u677F\u90FD\u80FD\u542C\u89C1\u3002", options: [
-        { label: "\u4E0A\u95E8\u8C03\u89E3", outcomes: [{ p: 1, text: "\u4E24\u53E3\u5B50\u548C\u597D\uFF0C\u8FD8\u786C\u585E\u4E86\u4E24\u6761\u70DF\u3002", effects: [{ op: "ADD_PANIC", n: -5 }, { op: "SET_FLAG", key: "reputation", v: 1 }] }] },
-        { label: "\u4E0D\u63BA\u548C", outcomes: [{ p: 1, text: "\u5435\u5427\uFF0C\u65E5\u5B50\u8FD8\u957F\u3002", effects: [{ op: "ADD_PANIC", n: 3 }] }] },
-        { label: "\u8D81\u673A\u6536\u623F", outcomes: [{ p: 1, text: "\u623F\u5B50\u5230\u624B\uFF0C\u4F46\u4F60\u6210\u4E86\u697C\u91CC\u7684\u8C08\u8D44\u3002", effects: [{ op: "ADD_GOLD", n: 600 }, { op: "SET_FLAG", key: "reputation", v: -1 }] }] }
-      ] },
-      { id: "evt_slingshot_009", ver: 1, type: "choice", title: "\u5B69\u5B50\u7684\u5F39\u5F13", weight: 55, cooldownDays: 10, maxPerRun: 2, prereq: {}, text: "\u4E94\u697C\u7684\u5B69\u5B50\u62FF\u5F39\u5F13\u6253\u8DEF\u706F\uFF0C\u788E\u77F3\u4E71\u98DE\u3002", options: [
-        { label: "\u6CA1\u6536", outcomes: [{ p: 1, text: "\u5B69\u5B50\u54ED\u4E86\u534A\u5929\uFF0C\u5BB6\u957F\u8138\u8272\u96BE\u770B\u3002", effects: [{ op: "SET_FLAG", key: "mood", v: -1 }] }] },
-        { label: "\u6559\u5BFC", outcomes: [{ p: 1, text: "\u5B69\u5B50\u6210\u4E86\u697C\u9876\u7684\u77AD\u671B\u54E8\u3002", effects: [{ op: "GRANT_BUFF", buff: "sentryKid", days: 3 }] }] },
-        { label: "\u653E\u4EFB", outcomes: [{ p: 1, text: "\u73BB\u7483\u53C8\u788E\u4E86\u4E00\u5757\u3002", effects: [{ op: "ADD_PANIC", n: 5 }] }] }
-      ] },
-      { id: "evt_medicine_010", ver: 1, type: "choice", title: "\u6700\u540E\u4E00\u6279\u6297\u751F\u7D20", weight: 75, cooldownDays: 10, maxPerRun: 2, prereq: { dayMin: 6 }, text: "\u533B\u52A1\u5BA4\u53EA\u5269\u6700\u540E\u4E00\u677F\u6297\u751F\u7D20\uFF0C\u4E09\u4E2A\u4EBA\u5728\u6392\u961F\u3002", options: [
-        { label: "\u91CD\u60A3\u5148\u5F97", outcomes: [{ p: 1, text: "\u8BE5\u6551\u7684\u6551\u4E86\uFF0C\u4EBA\u5FC3\u5B89\u7A33\u3002", effects: [{ op: "ADD_PANIC", n: -5 }] }] },
-        { label: "\u8D21\u732E\u8005\u5148\u5F97", outcomes: [{ p: 1, text: "\u591A\u52B3\u591A\u5F97\uFF0C\u7AD9\u5C97\u7684\u52B2\u5934\u66F4\u8DB3\u4E86\u3002", effects: [{ op: "GRANT_BUFF", buff: "contrib", days: 3 }] }] },
-        { label: "\u62BD\u7B7E", outcomes: [{ p: 1, text: "\u547D\u8FD0\u9762\u524D\u4EBA\u4EBA\u5E73\u7B49\uFF0C\u60C5\u7EEA\u610F\u5916\u5E73\u7A33\u3002", effects: [{ op: "SET_FLAG", key: "mood", v: 1 }] }] }
-      ] },
-      { id: "evt_rumor_011", ver: 1, type: "choice", title: "\u300C\u660E\u5929\u602A\u4E0D\u6765\u4E86\u300D", weight: 70, cooldownDays: 7, maxPerRun: 2, prereq: {}, text: "\u4E0D\u77E5\u9053\u8C01\u4F20\u7684\uFF1A\u6C38\u591C\u8981\u7ED3\u675F\u4E86\uFF0C\u602A\u7269\u660E\u5929\u5C31\u4E0D\u6765\u4E86\u3002", options: [
-        { label: "\u8F9F\u8C23", outcomes: [{ p: 1, text: "\u5927\u5587\u53ED\u5E7F\u64AD\u4E86\u4E09\u904D\uFF0C\u8C23\u8A00\u6B62\u4F4F\u3002", effects: [{ op: "ADD_PANIC", n: -6 }] }] },
-        { label: "\u5229\u7528", outcomes: [{ p: 1, text: "\u300C\u672B\u65E5\u4FDD\u9669\u300D\u5356\u5F97\u98DE\u8D77\u3002", effects: [{ op: "ADD_GOLD", n: 300 }, { op: "SET_FLAG", key: "trust", v: -1 }] }] },
-        { label: "\u65E0\u89C6", outcomes: [{ p: 1, text: "\u6709\u4EBA\u771F\u7684\u4E0D\u8BBE\u9632\u4E86\u3002", effects: [{ op: "ADD_PANIC", n: 4 }] }] }
-      ] },
-      { id: "evt_note_012", ver: 1, type: "choice", title: "\u95E8\u7F1D\u91CC\u7684\u7EB8\u6761", weight: 65, cooldownDays: 7, maxPerRun: 2, prereq: { dayMin: 4 }, text: "\u7EB8\u6761\u4E0A\u753B\u7740\u4E00\u4E2A\u7BAD\u5934\uFF0C\u6307\u5411\u5730\u4E0B\u5BA4\u7684\u901A\u98CE\u4E95\u3002", options: [
-        { label: "\u6309\u7EB8\u6761\u8D74\u7EA6", outcomes: [{ p: 0.5, text: "\u662F\u4E2A\u8EB2\u4E86\u534A\u6708\u7684\u59D1\u5A18\uFF0C\u624B\u4E0A\u529F\u592B\u4E0D\u9519\u3002", effects: [{ op: "SPAWN_TENANT", quality: "N" }] }, { p: 0.5, text: "\u901A\u98CE\u4E95\u91CC\u53EA\u6709\u6293\u75D5\u548C\u8840\u8FF9\u3002", effects: [{ op: "WOUND_TENANT", tenantId: -1 }] }] },
-        { label: "\u7F6E\u4E4B\u4E0D\u7406", outcomes: [{ p: 1, text: "\u7EB8\u6761\u5728\u95E8\u7F1D\u91CC\u53D1\u9EC4\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: 0 }] }] },
-        { label: "\u70E7\u6389", outcomes: [{ p: 1, text: "\u7701\u5F97\u591C\u91CC\u80E1\u601D\u4E71\u60F3\u3002", effects: [{ op: "ADD_PANIC", n: 2 }] }] }
-      ] },
-      { id: "evt_birthday_013", ver: 1, type: "choice", title: "\u697C\u91CC\u7B2C\u4E00\u4E2A\u751F\u65E5", weight: 60, cooldownDays: 14, maxPerRun: 2, prereq: {}, text: "\u4ECA\u5929\u662F\u5C0F\u96E8\u7684\u516B\u5C81\u751F\u65E5\uFF0C\u86CB\u7CD5\u662F\u4E0D\u53EF\u80FD\u7684\u3002", options: [
-        { label: "\u529E\u6D3E\u5BF9", outcomes: [{ p: 1, text: "\u642A\u74F7\u7F38\u78B0\u5728\u4E00\u8D77\uFF0C\u50CF\u8FC7\u5E74\u7684\u58F0\u97F3\u3002", effects: [{ op: "ADD_RES", res: "food", n: -200 }, { op: "SET_FLAG", key: "mood", v: 1 }] }] },
-        { label: "\u53D6\u6D88", outcomes: [{ p: 1, text: "\u5B69\u5B50\u6CA1\u54ED\uFF0C\u5927\u4EBA\u5FC3\u91CC\u4E0D\u662F\u6ECB\u5473\u3002", effects: [{ op: "ADD_PANIC", n: 3 }] }] },
-        { label: "\u53CC\u4EFD\u53E3\u7CAE", outcomes: [{ p: 1, text: "\u5168\u697C\u90FD\u8DDF\u7740\u6CBE\u4E86\u5149\u3002", effects: [{ op: "ADD_RES", res: "food", n: -300 }, { op: "ADD_PANIC", n: -5 }] }] }
-      ] },
-      { id: "evt_thief_014", ver: 1, type: "choice", title: "\u5916\u697C\u7684\u7A83\u8D3C", weight: 65, cooldownDays: 10, maxPerRun: 2, prereq: { dayMin: 5 }, text: "\u5DE1\u903B\u961F\u902E\u4E86\u4E2A\u73B0\u5F62\uFF0C\u4EBA\u8D43\u5E76\u83B7\u3002", options: [
-        { label: "\u516C\u5BA1", outcomes: [{ p: 1, text: "\u79E9\u5E8F\u7ACB\u5A01\uFF0C\u56F4\u89C2\u8005\u5664\u58F0\u3002", effects: [{ op: "SET_FLAG", key: "order", v: 1 }, { op: "ADD_PANIC", n: 4 }] }] },
-        { label: "\u6536\u7F16", outcomes: [{ p: 0.4, text: "\u5F00\u9501\u7684\u624B\u827A\u786E\u5B9E\u6709\u7528\u3002", effects: [{ op: "SPAWN_TENANT", quality: "N" }] }, { p: 0.6, text: "\u7B2C\u4E8C\u665A\uFF0C\u4ED3\u5E93\u7684\u9501\u88AB\u4ECE\u91CC\u9762\u6253\u5F00\u4E86\u3002", effects: [{ op: "ADD_RES", res: "food", n: -200 }] }] },
-        { label: "\u653E\u8D70\u6362\u60C5\u62A5", outcomes: [{ p: 1, text: "\u4ED6\u753B\u4E86\u5F20\u602A\u7269\u7684\u6D3B\u52A8\u56FE\u3002", effects: [{ op: "SET_FLAG", key: "intel", v: 1 }] }] }
-      ] },
-      { id: "evt_rat_015", ver: 1, type: "choice", title: "\u4ED3\u5E93\u9F20\u60A3", weight: 60, cooldownDays: 10, maxPerRun: 2, prereq: {}, text: "\u9EBB\u888B\u4E0A\u5168\u662F\u9F7F\u5370\uFF0C\u7CAE\u4ED3\u6210\u4E86\u9F20\u7A9D\u3002", options: [
-        { label: "\u517B\u732B", outcomes: [{ p: 1, text: "\u5DF7\u5B50\u91CC\u8BA8\u6765\u4E00\u53EA\u72F8\u82B1\uFF0C\u9F20\u60A3\u6E10\u6D88\u3002", effects: [{ op: "ADD_RES", res: "food", n: -100 }, { op: "GRANT_BUFF", buff: "cat", days: 7 }] }] },
-        { label: "\u6295\u836F", outcomes: [{ p: 1, text: "\u6B7B\u8001\u9F20\u6E05\u7406\u4E86\u4E00\u7C38\u7B95\uFF0C\u4E5F\u8BEF\u4F24\u4E86\u4E24\u888B\u7C73\u3002", effects: [{ op: "ADD_RES", res: "food", n: -300 }] }] },
-        { label: "\u6539\u9020\u8D27\u67B6", outcomes: [{ p: 1, text: "\u5EFA\u6750\u53C8\u82B1\u4E86\u4E00\u7B14\uFF0C\u4F46\u4E00\u52B3\u6C38\u9038\u3002", effects: [{ op: "ADD_RES", res: "material", n: -250 }] }] }
-      ] },
-      { id: "evt_radio_016", ver: 1, type: "choice", title: "\u5916\u754C\u7684\u5E7F\u64AD", weight: 60, cooldownDays: 14, maxPerRun: 2, prereq: { dayMin: 7 }, text: "\u7535\u53F0\u91CC\u5FAA\u73AF\u64AD\u653E\u7740\u64A4\u79BB\u70B9\u7684\u5750\u6807\uFF0C\u771F\u5047\u96BE\u8FA8\u3002", options: [
-        { label: "\u56DE\u5E94", outcomes: [{ p: 1, text: "Morse \u7801\u56DE\u4E86\u4E09\u77ED\u4E09\u957F\uFF0C\u697C\u91CC\u58EB\u6C14\u4E00\u632F\u3002", effects: [{ op: "SET_FLAG", key: "mood", v: 1 }] }] },
-        { label: "\u4FDD\u6301\u9759\u9ED8", outcomes: [{ p: 1, text: "\u67AA\u6253\u51FA\u5934\u9E1F\u3002", effects: [{ op: "SET_FLAG", key: "order", v: 1 }] }] },
-        { label: "\u4F2A\u9020\u56DE\u5E94", outcomes: [{ p: 1, text: "\u9A97\u5230\u4E86\u4E00\u6279\u7A7A\u6295\u7269\u8D44\uFF0C\u4F46\u6709\u4EBA\u8D77\u4E86\u7591\u5FC3\u3002", effects: [{ op: "ADD_GOLD", n: 500 }, { op: "SET_FLAG", key: "trust", v: -1 }] }] }
-      ] },
-      { id: "evt_deadbeat_017", ver: 1, type: "choice", title: "\u62D2\u79DF\u7684\u523A\u5934", weight: 70, cooldownDays: 10, maxPerRun: 2, prereq: { dayMin: 6 }, text: "\u56DB\u697C\u7684\u523A\u5934\u628A\u623F\u79DF\u62CD\u5728\u5730\u4E0A\uFF1A\u300C\u7231\u8981\u4E0D\u8981\u3002\u300D", options: [
-        { label: "\u5BBD\u9650", outcomes: [{ p: 1, text: "\u4ED6\u53CD\u800C\u4E0D\u597D\u610F\u601D\u4E86\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: 1 }] }] },
-        { label: "\u65AD\u4F9B", outcomes: [{ p: 1, text: "\u7B2C\u4E09\u5929\uFF0C\u91D1\u5E01\u548C\u9053\u6B49\u4E00\u8D77\u9001\u6765\u3002", effects: [{ op: "ADD_GOLD", n: 800 }, { op: "ADD_PANIC", n: 8 }] }] },
-        { label: "\u9A71\u9010", outcomes: [{ p: 1, text: "\u884C\u674E\u6EDA\u4E0B\u697C\u68AF\uFF0C\u697C\u91CC\u4E00\u7247\u8083\u9759\u3002", effects: [{ op: "ADD_GOLD", n: 400 }, { op: "SET_FLAG", key: "reputation", v: -1 }] }] }
-      ] },
-      { id: "evt_deed_018", ver: 1, type: "choice", title: "\u5F52\u6765\u7684\u300C\u623F\u4E1C\u300D", weight: 50, cooldownDays: 14, maxPerRun: 2, prereq: { dayMin: 8 }, text: "\u4E00\u4E2A\u897F\u88C5\u9769\u5C65\u7684\u7537\u4EBA\u4E3E\u7740\u623F\u4EA7\u8BC1\uFF1A\u300C\u8FD9\u680B\u697C\uFF0C\u662F\u6211\u7684\u3002\u300D", options: [
-        { label: "\u5171\u6CBB\u5206\u6210", outcomes: [{ p: 1, text: "\u4ED6\u5165\u4F19\u4E86\uFF0C\u5E26\u6765\u4E00\u7B14\u542F\u52A8\u91D1\u3002", effects: [{ op: "ADD_GOLD", n: 1e3 }, { op: "SET_FLAG", key: "mood", v: -1 }] }] },
-        { label: "\u6233\u7A7F\u4F2A\u9020", outcomes: [{ p: 0.6, text: "\u516C\u7AE0\u662F\u841D\u535C\u523B\u7684\uFF0C\u4EBA\u7FA4\u54C4\u7B11\u3002", effects: [{ op: "ADD_GOLD", n: 1500 }] }, { p: 0.4, text: "\u4ED6\u6897\u7740\u8116\u5B50\u8D70\u4E86\uFF0C\u58F0\u8A89\u53D7\u635F\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: -1 }] }] },
-        { label: "\u8BA4\u683D\u8865\u507F", outcomes: [{ p: 1, text: "\u7834\u8D22\u514D\u707E\u3002", effects: [{ op: "ADD_GOLD", n: -500 }] }] }
-      ] },
-      { id: "evt_nightshift_019", ver: 1, type: "choice", title: "\u8C01\u503C\u591C\u73ED", weight: 65, cooldownDays: 7, maxPerRun: 2, prereq: {}, text: "\u5B88\u591C\u8868\u8D34\u51FA\u6765\u4E09\u5929\uFF0C\u540D\u5B57\u680F\u8FD8\u662F\u7A7A\u767D\u3002", options: [
-        { label: "\u8F6E\u73ED", outcomes: [{ p: 1, text: "\u516C\u5E73\uFF0C\u4F46\u6BCF\u4E2A\u4EBA\u90FD\u9876\u7740\u9ED1\u773C\u5708\u3002", effects: [{ op: "SET_FLAG", key: "order", v: 1 }] }] },
-        { label: "\u52A0\u85AA\u5FD7\u613F", outcomes: [{ p: 1, text: "\u91CD\u8D4F\u4E4B\u4E0B\uFF0C\u5C97\u54E8\u6EE1\u4E86\u3002", effects: [{ op: "ADD_GOLD", n: -400 }, { op: "GRANT_BUFF", buff: "paidwatch", days: 3 }] }] },
-        { label: "\u4E3B\u89D2\u9876\u73ED", outcomes: [{ p: 1, text: "\u4F60\u6253\u7740\u54C8\u6B20\u5B88\u5230\u5929\u4EAE\uFF0C\u5A01\u671B\u6DA8\u4E86\u3002", effects: [{ op: "SET_FLAG", key: "mood", v: 1 }] }] }
-      ] },
-      { id: "evt_pet_020", ver: 1, type: "choice", title: "\u5BA0\u7269\u533B\u9662", weight: 50, cooldownDays: 14, maxPerRun: 2, prereq: {}, text: "\u836F\u5E97\u7684\u91D1\u6BDB\u96BE\u4EA7\uFF0C\u4E3B\u4EBA\u8DEA\u5728\u5730\u4E0A\u6C42\u6551\u3002", options: [
-        { label: "\u6025\u6551", outcomes: [{ p: 1, text: "\u4E94\u53EA\u5D3D\u5B50\u6D3B\u4E86\u4E0B\u6765\uFF0C\u6BCD\u72AC\u6210\u4E86\u7F16\u5916\u4FDD\u5B89\u3002", effects: [{ op: "ADD_RES", res: "material", n: -150 }, { op: "SET_FLAG", key: "mood", v: 1 }] }] },
-        { label: "\u653E\u5F03", outcomes: [{ p: 1, text: "\u54C0\u568E\u4E86\u4E00\u6574\u591C\u3002", effects: [{ op: "ADD_PANIC", n: 4 }] }] }
-      ] },
-      { id: "evt_yoga_021", ver: 1, type: "choice", title: "\u5929\u53F0\u7684\u5BCC\u5A46", weight: 60, cooldownDays: 14, maxPerRun: 2, prereq: { dayMin: 7 }, text: "\u5929\u53F0\u4E0A\u6709\u4EBA\u5728\u505A\u745C\u4F3D\uFF0C\u745C\u4F3D\u57AB\u662F\u7231\u9A6C\u4ED5\u7684\u3002", options: [
-        { label: "\u6536\u9AD8\u989D\u79DF", outcomes: [{ p: 1, text: "\u5979\u773C\u90FD\u6CA1\u7728\u5C31\u4ED8\u4E86\u3002", effects: [{ op: "ADD_GOLD", n: 1500 }] }] },
-        { label: "\u8BF7\u5979\u6559\u7406\u8D22", outcomes: [{ p: 1, text: "\u5979\u7B11\uFF1A\u300C\u6709\u70B9\u610F\u601D\u3002\u300D", effects: [{ op: "SET_FLAG", key: "laiScore", v: 1 }] }] },
-        { label: "\u65E0\u89C6", outcomes: [{ p: 1, text: "\u5979\u505A\u5B8C\u4E00\u7EC4\u62DC\u65E5\u5F0F\u5C31\u8D70\u4E86\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: 0 }] }] }
-      ] },
-      { id: "evt_blackout_022", ver: 1, type: "choice", title: "\u505C\u7535\u591C", weight: 65, cooldownDays: 10, maxPerRun: 2, prereq: {}, text: "\u6574\u680B\u697C\u9677\u5165\u9ED1\u6697\uFF0C\u8D70\u5ECA\u91CC\u5168\u662F\u6478\u7D22\u7684\u58F0\u97F3\u3002", options: [
-        { label: "\u70B9\u8721\u70DB", outcomes: [{ p: 1, text: "\u70DB\u5149\u6447\u66F3\uFF0C\u4EBA\u5FC3\u4E5F\u8DDF\u7740\u6643\u3002", effects: [{ op: "ADD_GOLD", n: -100 }, { op: "ADD_PANIC", n: 3 }] }] },
-        { label: "\u53D1\u7535\u673A\u5168\u5F00", outcomes: [{ p: 1, text: "\u8F70\u9E23\u58F0\u91CC\uFF0C\u706F\u5168\u4EAE\u4E86\u3002", effects: [{ op: "ADD_RES", res: "material", n: -100 }, { op: "ADD_PANIC", n: -6 }] }] },
-        { label: "\u6478\u9ED1", outcomes: [{ p: 0.4, text: "\u9ED1\u6697\u4E2D\u4F20\u6765\u51E0\u58F0\u60CA\u53EB\u3002", effects: [{ op: "ADD_PANIC", n: 8 }] }, { p: 0.6, text: "\u5C45\u7136\u4E5F\u6CA1\u51FA\u4EC0\u4E48\u4E8B\u3002", effects: [{ op: "SET_FLAG", key: "order", v: 1 }] }] }
-      ] },
-      { id: "evt_love_023", ver: 1, type: "choice", title: "\u5730\u4E0B\u5BA4\u7684\u5A5A\u793C", weight: 55, cooldownDays: 14, maxPerRun: 2, prereq: {}, text: "\u5730\u4E0B\u5BA4\u4E00\u5BF9\u5E74\u8F7B\u4EBA\u8981\u6210\u5A5A\uFF0C\u60F3\u501F\u4E00\u697C\u529E\u4EEA\u5F0F\u3002", options: [
-        { label: "\u6210\u5168", outcomes: [{ p: 1, text: "\u7CD6\u679C\u662F\u7CD6\u7EB8\u6298\u7684\uFF0C\u638C\u58F0\u662F\u771F\u7684\u3002", effects: [{ op: "SET_FLAG", key: "mood", v: 1 }, { op: "SET_FLAG", key: "reputation", v: 1 }] }] },
-        { label: "\u68D2\u6253\u9E33\u9E2F", outcomes: [{ p: 1, text: "\u59D1\u5A18\u54ED\u4E86\u4E00\u591C\uFF0C\u697C\u91CC\u6307\u6307\u70B9\u70B9\u3002", effects: [{ op: "ADD_PANIC", n: 8 }] }] },
-        { label: "\u6536\u793C\u91D1", outcomes: [{ p: 1, text: "\u573A\u5730\u8D39\u7167\u6536\uFF0C\u9A82\u58F0\u7167\u6765\u3002", effects: [{ op: "ADD_GOLD", n: 300 }, { op: "SET_FLAG", key: "reputation", v: -1 }] }] }
-      ] },
-      { id: "evt_tycoon_024", ver: 1, type: "choice", title: "\u5BCC\u5546\u6C42\u5E87\u62A4", weight: 65, cooldownDays: 14, maxPerRun: 2, prereq: { dayMin: 8 }, text: "\u897F\u88C5\u7537\u4EBA\u5E26\u7740\u4E24\u4E2A\u884C\u674E\u7BB1\uFF1A\u300C\u6211\u80FD\u4ED8\u3002\u300D", options: [
-        { label: "\u6536\u5341\u91D1\u5165\u4F19", outcomes: [{ p: 1, text: "\u884C\u674E\u7BB1\u91CC\u662F\u91D1\u6761\u548C\u7F50\u5934\u3002", effects: [{ op: "ADD_GOLD", n: 1e3 }] }] },
-        { label: "\u514D\u8D39\u5E87\u62A4", outcomes: [{ p: 1, text: "\u300C\u597D\u4EBA\u5450\uFF01\u300D\u5168\u697C\u4F20\u9882\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: 2 }] }] },
-        { label: "\u62D2\u7EDD", outcomes: [{ p: 1, text: "\u4ED6\u6D88\u5931\u5728\u591C\u8272\u91CC\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: 0 }] }] }
-      ] },
-      { id: "evt_mis_101", ver: 1, type: "mission", title: "7 \u697C\u8001\u592A\u88AB\u56F0", weight: 100, cooldownDays: 7, maxPerRun: 2, prereq: { dayMin: 3 }, text: "7 \u697C\u4F20\u6765\u8BF4\u4E0D\u6E05\u662F\u4EBA\u662F\u7269\u7684\u649E\u51FB\u58F0\u2014\u2014\u88AB\u56F0\u7684\u8001\u592A\u592A\u8FD8\u5728\u91CC\u9762\u3002", options: [
-        { label: "\u6D3E\u4EBA\u6551", outcomes: [{ p: 0.7, text: "\u8001\u592A\u592A\u88AB\u80CC\u4E0B\u697C\uFF0C\u585E\u7ED9\u961F\u5458\u4E00\u628A\u7CD6\u679C\u548C\u4E00\u5F20\u623F\u5361\u3002", effects: [{ op: "SPAWN_TENANT", quality: "R" }] }, { p: 0.3, text: "\u4EBA\u6551\u51FA\u6765\u4E86\uFF0C\u961F\u5458\u6302\u4E86\u5F69\u3002", effects: [{ op: "WOUND_TENANT", tenantId: -1 }] }] },
-        { label: "\u9065\u63A7\u6307\u6325", outcomes: [{ p: 0.5, text: "\u7535\u8BDD\u91CC\u6307\u70B9\u8DEF\u7EBF\uFF0C\u8001\u592A\u592A\u81EA\u5DF1\u6478\u4E86\u4E0B\u6765\u3002", effects: [{ op: "SPAWN_TENANT", quality: "N" }] }, { p: 0.5, text: "\u4FE1\u53F7\u65AD\u4E86\uFF0C\u518D\u65E0\u56DE\u97F3\u3002", effects: [{ op: "ADD_PANIC", n: 6 }] }] },
-        { label: "\u653E\u5F03", outcomes: [{ p: 1, text: "\u649E\u51FB\u58F0\u505C\u4E86\u3002\u6574\u680B\u697C\u5B89\u9759\u5F97\u53EF\u6015\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: -1 }] }] }
-      ] },
-      { id: "evt_mis_102", ver: 1, type: "mission", title: "\u836F\u623F\u7A81\u88AD", weight: 70, cooldownDays: 10, maxPerRun: 2, prereq: { dayMin: 4 }, text: "\u8857\u89D2\u836F\u623F\u7684\u5377\u5E18\u95E8\u534A\u5F00\uFF0C\u91CC\u9762\u5E94\u8BE5\u8FD8\u6709\u5B58\u8D27\u3002", options: [
-        { label: "\u4EB2\u81EA\u5E26\u961F", outcomes: [{ p: 1, text: "\u836F\u54C1\u548C\u5F39\u836F\u88C5\u4E86\u4E24\u5927\u5305\uFF0C\u6709\u4EBA\u6302\u5F69\u3002", effects: [{ op: "ADD_RES", res: "material", n: 200 }, { op: "ADD_RES", res: "ammo", n: 100 }, { op: "WOUND_TENANT", tenantId: -1 }] }] },
-        { label: "\u6D3E\u5B88\u536B\u53BB", outcomes: [{ p: 1, text: "\u7A33\u5B57\u5F53\u5934\uFF0C\u6536\u83B7\u6253\u4E86\u6298\u3002", effects: [{ op: "ADD_RES", res: "material", n: 100 }] }] },
-        { label: "\u653E\u5F03", outcomes: [{ p: 1, text: "\u673A\u4F1A\u53EA\u6709\u4E00\u6B21\u3002", effects: [{ op: "SET_FLAG", key: "intel", v: -1 }] }] }
-      ] },
-      { id: "evt_mis_103", ver: 1, type: "mission", title: "\u8D85\u5E02\u6E05\u573A", weight: 70, cooldownDays: 10, maxPerRun: 2, prereq: {}, text: "\u8FDE\u9501\u8D85\u5E02\u7684\u5377\u5E18\u95E8\u91CC\u4F20\u6765\u6B64\u8D77\u5F7C\u4F0F\u7684\u4F4E\u543C\u3002", options: [
-        { label: "\u641C\u522E", outcomes: [{ p: 1, text: "\u98DF\u54C1\u548C\u74F6\u88C5\u6C34\u642C\u7A7A\u4E86\u4E24\u6392\u8D27\u67B6\uFF0C\u6709\u4EBA\u88AB\u5212\u4F24\u3002", effects: [{ op: "ADD_RES", res: "food", n: 300 }, { op: "ADD_RES", res: "water", n: 200 }, { op: "WOUND_TENANT", tenantId: -1 }] }] },
-        { label: "\u4FDD\u5B88\u6E05\u70B9", outcomes: [{ p: 1, text: "\u53EA\u62FF\u4E86\u95E8\u53E3\u987A\u624B\u7684\u3002", effects: [{ op: "ADD_RES", res: "food", n: 120 }] }] }
-      ] },
-      { id: "evt_mis_104", ver: 1, type: "mission", title: "\u4E94\u91D1\u5E97\u5EFA\u6750", weight: 60, cooldownDays: 10, maxPerRun: 2, prereq: { dayMin: 5 }, text: "\u4E94\u91D1\u5E97\u8001\u677F\u8DD1\u4E86\uFF0C\u8D27\u67B6\u4E0A\u4E00\u6392\u6392\u89D2\u94A2\u8FD8\u5728\u3002", options: [
-        { label: "\u6EE1\u8F7D\u800C\u5F52", outcomes: [{ p: 1, text: "\u89D2\u94A2\u3001\u87BA\u4E1D\u3001\u95E8\u94F0\u94FE\uFF0C\u5168\u662F\u786C\u8D27\u3002", effects: [{ op: "ADD_RES", res: "material", n: 400 }] }] },
-        { label: "\u5FEB\u64A4", outcomes: [{ p: 1, text: "\u53EA\u62A2\u4E86\u624B\u8FB9\u7684\u3002", effects: [{ op: "ADD_RES", res: "material", n: 150 }] }] }
-      ] },
-      { id: "evt_mis_105", ver: 1, type: "mission", title: "\u52A0\u6CB9\u7AD9\u53D6\u6CB9", weight: 60, cooldownDays: 12, maxPerRun: 2, prereq: { dayMin: 6 }, text: "\u52A0\u6CB9\u7AD9\u7684\u50A8\u6CB9\u7F50\u8FD8\u6709\u4F59\u6CB9\uFF0C\u5C31\u662F\u5B88\u7740\u5B83\u7684\u4E1C\u897F\u4E0D\u592A\u53CB\u597D\u3002", options: [
-        { label: "\u53D6\u6CB9", outcomes: [{ p: 1, text: "\u4E09\u5927\u6876\u67F4\u6CB9\uFF0C\u987A\u4FBF\u62C6\u4E86\u4E24\u4E2A\u71C3\u70E7\u74F6\uFF0C\u6709\u4EBA\u88AB\u70EB\u4F24\u3002", effects: [{ op: "ADD_RES", res: "ammo", n: 80 }, { op: "WOUND_TENANT", tenantId: -1 }] }] },
-        { label: "\u653E\u5F03", outcomes: [{ p: 1, text: "\u6CB9\u7F50\u7684\u547C\u5438\u5B54\u4F20\u6765\u522E\u64E6\u58F0\u3002", effects: [{ op: "ADD_PANIC", n: 3 }] }] }
-      ] },
-      { id: "evt_mis_106", ver: 1, type: "mission", title: "\u6536\u5BB9\u6D41\u6D6A\u8005", weight: 65, cooldownDays: 10, maxPerRun: 2, prereq: { dayMin: 4 }, text: "\u9AD8\u67B6\u6865\u4E0B\u8737\u7740\u51E0\u4E2A\u5E78\u5B58\u8005\uFF0C\u773C\u795E\u8B66\u60D5\u3002", options: [
-        { label: "\u6536\u5BB9\u961F", outcomes: [{ p: 1, text: "\u5E26\u56DE\u4E86\u51E0\u4E2A\u4EBA\uFF0C\u98DF\u5802\u538B\u529B\u5927\u4E86\u3002", effects: [{ op: "SPAWN_TENANT", quality: "N" }, { op: "SPAWN_TENANT", quality: "N" }] }] },
-        { label: "\u529D\u8D70", outcomes: [{ p: 1, text: "\u4ED6\u4EEC\u671D\u53E6\u4E00\u4E2A\u65B9\u5411\u53BB\u4E86\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: 0 }] }] }
-      ] },
-      { id: "evt_mis_107", ver: 1, type: "mission", title: "\u533B\u9662\u5E9F\u589F", weight: 50, cooldownDays: 14, maxPerRun: 2, prereq: { dayMin: 8 }, text: "\u5E02\u533B\u9662\u7684\u5E9F\u589F\u91CC\u636E\u8BF4\u8FD8\u6709\u4E00\u4F4D\u6CA1\u8D70\u7684\u62A4\u58EB\u957F\u3002", options: [
-        { label: "\u6DF1\u5165", outcomes: [{ p: 0.35, text: "\u62A4\u58EB\u957F SR \u7EA7\uFF0C\u5E26\u7740\u4E00\u7BB1\u836F\u54C1\u5F52\u961F\u3002", effects: [{ op: "SPAWN_TENANT", quality: "SR" }] }, { p: 0.3, text: "\u836F\u54C1\u5230\u624B\uFF0C\u4F46\u4E24\u540D\u961F\u5458\u8D1F\u4F24\u3002", effects: [{ op: "ADD_RES", res: "material", n: 150 }, { op: "WOUND_TENANT", tenantId: -1 }, { op: "WOUND_TENANT", tenantId: -1 }] }, { p: 0.35, text: "\u65E0\u529F\u800C\u8FD4\u3002", effects: [{ op: "ADD_PANIC", n: 3 }] }] },
-        { label: "\u5916\u56F4\u6361\u6F0F", outcomes: [{ p: 1, text: "\u8FB9\u7F18\u67DC\u53F0\u626B\u4E86\u4E00\u4E9B\u836F\u54C1\u3002", effects: [{ op: "ADD_RES", res: "material", n: 120 }] }] }
-      ] },
-      { id: "evt_mis_108", ver: 1, type: "mission", title: "\u5B66\u6821\u907F\u96BE\u6240", weight: 55, cooldownDays: 14, maxPerRun: 2, prereq: { dayMin: 8 }, text: "\u5C0F\u5B66\u4F53\u80B2\u9986\u91CC\u6709\u4E8C\u5341\u51E0\u4E2A\u5E78\u5B58\u8005\uFF0C\u53EA\u6536\u5F97\u4E0B\u51E0\u4E2A\u3002", options: [
-        { label: "\u63A5\u7EB3", outcomes: [{ p: 1, text: "\u6765\u4E86\u8001\u5E08\u5E26\u7740\u4E24\u4E2A\u5B69\u5B50\uFF0C\u697C\u91CC\u591A\u4E86\u4EBA\u6C14\u4E5F\u591A\u4E86\u5634\u3002", effects: [{ op: "SPAWN_TENANT", quality: "N" }, { op: "SPAWN_TENANT", quality: "N" }, { op: "SET_FLAG", key: "reputation", v: 1 }] }] },
-        { label: "\u62D2\u6536", outcomes: [{ p: 1, text: "\u94C1\u95E8\u5728\u4ED6\u4EEC\u8EAB\u540E\u5173\u95ED\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: -1 }] }] }
-      ] },
-      { id: "evt_mis_109", ver: 1, type: "mission", title: "\u94F6\u884C\u91D1\u5E93", weight: 45, cooldownDays: 14, maxPerRun: 2, prereq: { dayMin: 10 }, text: "\u94F6\u884C\u5730\u4E0B\u91D1\u5E93\u7684\u7535\u5B50\u9501\u8FD8\u5269\u6700\u540E\u4E00\u9053\u2014\u2014\u91CC\u9762\u662F\u4F20\u8BF4\u4E2D\u7684\u91D1\u6761\u3002", options: [
-        { label: "\u64AC\u5E93", outcomes: [{ p: 1, text: "\u91D1\u6761\u5230\u624B\uFF01\u4F46\u52A8\u9759\u5F15\u6765\u4E86\u602A\u7269\u7684\u589E\u63F4\u6F6E\u3002", effects: [{ op: "ADD_GOLD", n: 2500 }, { op: "NIGHT_MOD", mod: "SILENT" }] }] },
-        { label: "\u653E\u5F03", outcomes: [{ p: 1, text: "\u91D1\u5E93\u7684\u95E8\u5728\u8EAB\u540E\u7F13\u7F13\u5408\u4E0A\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: 0 }] }] }
-      ] },
-      { id: "evt_mis_110", ver: 1, type: "mission", title: "\u9AD8\u901F\u8DEF\u64A4\u79BB\u8F66\u961F", weight: 60, cooldownDays: 14, maxPerRun: 2, prereq: { dayMin: 9 }, text: "\u64A4\u79BB\u8F66\u961F\u629B\u951A\u5728\u9AD8\u67B6\u4E0A\uFF0C\u4EBA\u613F\u610F\u4ED8\u94B1\u6362\u4E00\u4E2A\u94FA\u4F4D\u3002", options: [
-        { label: "\u63A5\u5E94\u6536\u4EBA", outcomes: [{ p: 1, text: "\u6BCF\u4EBA 200 \u91D1\u5E01\uFF0C\u6765\u4E86\u4E94\u4E2A\u4ED8\u8D39\u79DF\u5BA2\u3002", effects: [{ op: "ADD_GOLD", n: 1e3 }, { op: "SPAWN_TENANT", quality: "N" }, { op: "SPAWN_TENANT", quality: "N" }] }] },
-        { label: "\u9A71\u8D76", outcomes: [{ p: 1, text: "\u8F66\u961F\u7684\u706F\u5149\u5728\u591C\u91CC\u8FDC\u53BB\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: -1 }] }] }
-      ] },
-      { id: "evt_ord_201", ver: 1, type: "choice", title: "\u697C\u9053\u4E89\u5435", weight: 60, cooldownDays: 7, maxPerRun: 2, prereq: {}, text: "\u4E94\u697C\u4E24\u6237\u4E3A\u4E86\u697C\u9053\u5806\u7269\u5435\u5230\u4E86\u52A8\u624B\u7684\u8FB9\u7F18\u3002", options: [
-        { label: "\u8C03\u89E3", outcomes: [{ p: 1, text: "\u5404\u9000\u4E00\u6B65\uFF0C\u697C\u9053\u91CD\u65B0\u901A\u7545\u3002", effects: [{ op: "ADD_PANIC", n: -4 }] }] },
-        { label: "\u5404\u6253\u4E94\u5341\u5927\u677F", outcomes: [{ p: 1, text: "\u7F5A\u4E86\u4E24\u5BB6\u6E05\u626B\uFF0C\u79E9\u5E8F\u7ACB\u4E86\uFF0C\u6028\u6C14\u4E5F\u5B58\u4E86\u3002", effects: [{ op: "SET_FLAG", key: "order", v: 1 }, { op: "SET_FLAG", key: "mood", v: -1 }] }] },
-        { label: "\u51B7\u5904\u7406", outcomes: [{ p: 1, text: "\u4E89\u5435\u5347\u7EA7\u6210\u4E86\u5BF9\u9A82\u3002", effects: [{ op: "ADD_PANIC", n: 4 }] }] }
-      ] },
-      { id: "evt_ord_202", ver: 1, type: "choice", title: "\u85CF\u7CAE\u4E0E\u6328\u997F\u7684\u5B69\u5B50", weight: 70, cooldownDays: 12, maxPerRun: 2, prereq: { panicMin: 40 }, text: "\u6709\u4EBA\u56E4\u7CAE\uFF0C\u9694\u58C1\u7684\u5B69\u5B50\u5374\u997F\u5F97\u54ED\u4E0D\u51FA\u58F0\u3002", options: [
-        { label: "\u641C\u67E5", outcomes: [{ p: 1, text: "\u56E4\u7CAE\u5145\u516C\uFF0C\u56E4\u7CAE\u8005\u88AB\u626B\u5730\u51FA\u95E8\u3002", effects: [{ op: "ADD_RES", res: "food", n: 300 }, { op: "ADD_PANIC", n: 6 }, { op: "SET_FLAG", key: "order", v: 1 }] }] },
-        { label: "\u63A5\u6D4E", outcomes: [{ p: 1, text: "\u81EA\u5BB6\u7684\u7C73\u7F38\u89C1\u5E95\u4E86\uFF0C\u4F46\u5B69\u5B50\u5403\u9971\u4E86\u3002", effects: [{ op: "ADD_RES", res: "food", n: -200 }, { op: "ADD_PANIC", n: -6 }] }] },
-        { label: "\u4E0D\u7BA1", outcomes: [{ p: 1, text: "\u54ED\u58F0\u6301\u7EED\u5230\u540E\u534A\u591C\u3002", effects: [{ op: "ADD_PANIC", n: 10 }] }] }
-      ] },
-      { id: "evt_ord_203", ver: 1, type: "choice", title: "\u81EA\u53D1\u5DE1\u903B\u961F", weight: 60, cooldownDays: 12, maxPerRun: 2, prereq: { dayMin: 6 }, text: "\u51E0\u4E2A\u5E74\u8F7B\u4EBA\u81EA\u53D1\u7EC4\u7EC7\u4E86\u591C\u95F4\u5DE1\u903B\u3002", options: [
-        { label: "\u652F\u6301", outcomes: [{ p: 1, text: "\u5DE1\u903B\u961F\u7684\u81C2\u7AE0\u662F\u7528\u7EA2\u5E03\u6761\u505A\u7684\u3002", effects: [{ op: "GRANT_BUFF", buff: "patrol", days: 5 }] }] },
-        { label: "\u53D1\u5DE5\u8D44\u6536\u7F16", outcomes: [{ p: 1, text: "\u7ED9\u94B1\u624D\u6709\u6267\u884C\u529B\uFF0C\u4F46\u786E\u5B9E\u7BA1\u7528\u3002", effects: [{ op: "ADD_GOLD", n: -500 }, { op: "GRANT_BUFF", buff: "patrolPaid", days: 7 }] }] },
-        { label: "\u89E3\u6563", outcomes: [{ p: 1, text: "\u5DE1\u903B\u961F\u6563\u4E86\uFF0C\u591C\u91CC\u7684\u811A\u6B65\u58F0\u591A\u4E86\u3002", effects: [{ op: "ADD_PANIC", n: 5 }] }] }
-      ] },
-      { id: "evt_ord_204", ver: 1, type: "choice", title: "\u300C\u6536\u79DF\u9B3C\u300D\u6D82\u9E26", weight: 55, cooldownDays: 12, maxPerRun: 2, prereq: {}, text: "\u5916\u5899\u4E0A\u88AB\u4EBA\u55B7\u4E86\u4E09\u4E2A\u5927\u7EA2\u5B57\uFF1A\u6536\u79DF\u9B3C\u3002", options: [
-        { label: "\u6E05\u6D17", outcomes: [{ p: 1, text: "\u6F06\u6CA1\u6D17\u5E72\u51C0\uFF0C\u5B57\u8FD8\u5728\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: 0 }] }] },
-        { label: "\u9ED8\u8BB8", outcomes: [{ p: 1, text: "\u5E74\u8F7B\u4EBA\u89C9\u5F97\u8FD9\u79F0\u547C\u633A\u9177\u3002", effects: [{ op: "SET_FLAG", key: "mood", v: 1 }] }] },
-        { label: "\u53CD\u5411\u8425\u9500", outcomes: [{ p: 1, text: "\u300C\u6536\u79DF\u9B3C\u4FDD\u62A4\u8D39\u300D\u7684\u6BB5\u5B50\u4F20\u904D\u4E86\u907F\u96BE\u6240\u5708\u5B50\u3002", effects: [{ op: "ADD_GOLD", n: 200 }] }] }
-      ] },
-      { id: "evt_ord_205", ver: 1, type: "choice", title: "\u901D\u8005\u846C\u793C", weight: 65, cooldownDays: 14, maxPerRun: 2, prereq: { dayMin: 7 }, text: "\u6B7B\u8005\u7684\u5BB6\u5C5E\u60F3\u529E\u4E00\u573A\u50CF\u6837\u7684\u846C\u793C\u3002", options: [
-        { label: "\u529E\u4EEA\u5F0F", outcomes: [{ p: 1, text: "\u767D\u82B1\u662F\u7528\u7EB8\u5DFE\u6298\u7684\uFF0C\u54C0\u4E50\u662F\u53E3\u7434\u5439\u7684\u3002", effects: [{ op: "ADD_RES", res: "food", n: -150 }, { op: "SET_FLAG", key: "mood", v: 1 }] }] },
-        { label: "\u4ECE\u7B80", outcomes: [{ p: 1, text: "\u4E00\u4E2A\u5751\uFF0C\u4E00\u5757\u6728\u677F\u3002", effects: [{ op: "SET_FLAG", key: "mood", v: -1 }] }] },
-        { label: "\u7814\u7A76\u5C38\u4F53", outcomes: [{ p: 1, text: "\u4F24\u53E3\u7684\u9F7F\u75D5\u8BB0\u5F55\u8FDB\u4E86\u602A\u7269\u56FE\u9274\u3002", effects: [{ op: "SET_FLAG", key: "intel", v: 1 }, { op: "ADD_PANIC", n: 6 }] }] }
-      ] },
-      { id: "evt_ord_206", ver: 1, type: "choice", title: "\u516C\u7EA6\u6295\u7968\uFF1A\u5BB5\u7981", weight: 70, cooldownDays: 14, maxPerRun: 2, prereq: { dayMin: 5, flags: { orderIntro: 1 } }, text: "\u8BAE\u4E8B\u5385\u8D34\u51FA\u544A\u793A\uFF1A\u662F\u5426\u5B9E\u884C\u5BB5\u7981\uFF0C\u5168\u697C\u6295\u7968\u3002", options: [
-        { label: "\u901A\u8FC7", outcomes: [{ p: 1, text: "\u5BB5\u7981\u4EE4\u4E0B\uFF0C\u591C\u91CC\u518D\u65E0\u4EBA\u8D70\u52A8\u3002", effects: [{ op: "SET_FLAG", key: "curfew", v: 1 }, { op: "SET_FLAG", key: "mood", v: -1 }] }] },
-        { label: "\u5426\u51B3", outcomes: [{ p: 1, text: "\u81EA\u7531\u4E07\u5C81\u2014\u2014\u5FE7\u60A3\u6D3E\u6447\u4E86\u6447\u5934\u3002", effects: [{ op: "SET_FLAG", key: "mood", v: 1 }] }] },
-        { label: "\u6298\u4E2D", outcomes: [{ p: 1, text: "\u5BB5\u7981\u5230\u5341\u70B9\uFF0C\u5927\u5BB6\u90FD\u80FD\u63A5\u53D7\u3002", effects: [{ op: "SET_FLAG", key: "curfew", v: 2 }] }] }
-      ] },
-      { id: "evt_ord_207", ver: 1, type: "choice", title: "\u516C\u533A\u5927\u626B\u9664", weight: 55, cooldownDays: 12, maxPerRun: 2, prereq: {}, text: "\u697C\u9053\u79EF\u7070\uFF0C\u7535\u68AF\u53E3\u7684\u6742\u7269\u5806\u4E86\u534A\u4EBA\u9AD8\u3002", options: [
-        { label: "\u5168\u5458\u52A8\u5458", outcomes: [{ p: 1, text: "\u5927\u626B\u9664\u540E\u697C\u91CC\u4EAE\u5802\u4E86\uFF0C\u4EBA\u5FC3\u4E5F\u4EAE\u5802\u4E86\u3002", effects: [{ op: "ADD_PANIC", n: -6 }] }] },
-        { label: "\u96C7\u4EBA\u6253\u626B", outcomes: [{ p: 1, text: "\u82B1\u94B1\u4E70\u6E05\u51C0\u3002", effects: [{ op: "ADD_GOLD", n: -250 }, { op: "ADD_PANIC", n: -4 }] }] },
-        { label: "\u81EA\u5DF1\u4E0A", outcomes: [{ p: 1, text: "\u4F60\u626B\u4E86\u4E00\u4E0B\u5348\uFF0C\u8170\u90FD\u76F4\u4E0D\u8D77\u6765\u3002", effects: [{ op: "SET_FLAG", key: "mood", v: 1 }] }] }
-      ] },
-      { id: "evt_ord_208", ver: 1, type: "choice", title: "\u751F\u9762\u5B54\u6DF7\u5165", weight: 65, cooldownDays: 10, maxPerRun: 2, prereq: { dayMin: 5 }, text: "\u7535\u68AF\u91CC\u51FA\u73B0\u4E86\u6CA1\u89C1\u8FC7\u7684\u9762\u5B54\uFF0C\u8C01\u4E5F\u8BF4\u4E0D\u6E05\u6765\u5386\u3002", options: [
-        { label: "\u6392\u67E5", outcomes: [{ p: 0.6, text: "\u865A\u60CA\u4E00\u573A\uFF0C\u662F\u9694\u58C1\u697C\u4E32\u95E8\u7684\u3002", effects: [{ op: "SET_FLAG", key: "order", v: 1 }] }, { p: 0.4, text: "\u63EA\u51FA\u4E00\u4E2A\u53EF\u7591\u5206\u5B50\uFF0C\u9A71\u9010\u51FA\u5883\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: -1 }] }] },
-        { label: "\u653E\u884C", outcomes: [{ p: 1, text: "\u4E5F\u8BB8\u53EA\u662F\u4E2A\u501F\u5BBF\u7684\u3002", effects: [{ op: "SET_FLAG", key: "reputation", v: 1 }] }] },
-        { label: "\u6536\u7F16\u8003\u5BDF", outcomes: [{ p: 1, text: "\u7559\u7528\u5BDF\u770B\uFF0C\u5E72\u6D3B\u90FD\u591A\u4E86\u4E00\u4EFD\u5FC3\u773C\u3002", effects: [{ op: "SPAWN_TENANT", quality: "N" }] }] }
-      ] }
+      {
+        id: "evt_tut_fortify",
+        ver: 1,
+        type: "scripted",
+        triggerDay: 0,
+        title: "\u95E8\u53E3\u7684\u6293\u75D5",
+        weight: 0,
+        cooldownDays: 0,
+        maxPerRun: 0,
+        text: "\u95E8\u677F\u4E0A\u6709\u65B0\u9C9C\u7684\u6293\u75D5\u2026\u2026\u8D81\u5929\u8FD8\u6CA1\u9ED1\uFF0C\u52A0\u56FA\u5B83\u3002",
+        options: [
+          {
+            label: "\u52A0\u56FA\u95E8\uFF08\u6559\u5B66\u5F15\u5BFC\uFF09",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u95E8\u677F\u5431\u5440\u4F5C\u54CD\uFF0C\u4F46\u7ED3\u5B9E\u4E86\u3002",
+                effects: []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_tut_firstnight",
+        ver: 1,
+        type: "scripted",
+        triggerDay: 0,
+        title: "\u7B2C 1 \u591C\u52A8\u5458",
+        weight: 0,
+        cooldownDays: 0,
+        maxPerRun: 0,
+        text: "\u5165\u591C\u524D\uFF0C\u628A\u6709\u9650\u7684\u4EBA\u624B\u5E03\u5230\u6700\u53EF\u80FD\u6709\u95EE\u9898\u7684\u4F4D\u7F6E\u3002",
+        options: [
+          {
+            label: "\u5E03\u9632\u5F15\u5BFC",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u591C\u8272\u538B\u4E0B\u6765\uFF0C\u697C\u91CC\u5B89\u9759\u5F97\u80FD\u542C\u89C1\u5FC3\u8DF3\u3002",
+                effects: []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_tut_rescue",
+        ver: 1,
+        type: "scripted",
+        triggerDay: 1,
+        title: "\u9694\u58C1\u7684\u547C\u6551",
+        weight: 0,
+        cooldownDays: 0,
+        maxPerRun: 0,
+        text: "\u300C\u6551\u547D\u2014\u2014\u8FD8\u6709\u4EBA\u5417\uFF01\u300D",
+        options: [
+          {
+            label: "\u6D3E\u4E3B\u89D2\u53BB\u6551",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u62D6\u56DE\u6765\u4E00\u4E2A\u6D51\u8EAB\u53D1\u6296\u7684\u5E78\u5B58\u8005\u3002",
+                effects: [
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_tut_referral",
+        ver: 1,
+        type: "scripted",
+        triggerDay: 2,
+        title: "\u8001\u5F20\u8BF4\uFF1A\u6211\u8FD8\u6709\u4FE9\u90BB\u5C45",
+        weight: 0,
+        cooldownDays: 0,
+        maxPerRun: 0,
+        text: "\u300C\u4ED6\u4EEC\u4EBA\u4E0D\u9519\uFF0C\u5C31\u5728\u4E0B\u4E00\u6761\u8857\u3002\u300D",
+        options: [
+          {
+            label: "\u63A5\u5F15",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4E00\u8001\u4E00\u5C11\uFF0C\u884C\u674E\u90FD\u6CA1\u4E22\u3002",
+                effects: [
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  },
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_tut_broadcast",
+        ver: 1,
+        type: "scripted",
+        triggerDay: 2,
+        title: "\u5E7F\u64AD\u7AD9\u7B2C\u4E00\u901A\u5E7F\u64AD",
+        weight: 0,
+        cooldownDays: 0,
+        maxPerRun: 0,
+        text: "\u300C\u8FD9\u91CC\u662F 7 \u53F7\u697C\uFF0C\u6211\u4EEC\u6536\u7559\u6D3B\u4EBA\u3002\u300D",
+        options: [
+          {
+            label: "\u62DB\u52DF",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5F53\u5929\u4E0B\u5348\uFF0C\u95E8\u53E3\u6392\u8D77\u4E86\u961F\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: -100
+                  },
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  },
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_tut_bills",
+        ver: 1,
+        type: "scripted",
+        triggerDay: 3,
+        title: "\u7B2C\u4E00\u7B14\u300C\u7269\u4E1A\u8D39\u300D",
+        weight: 0,
+        cooldownDays: 0,
+        maxPerRun: 0,
+        text: "\u4F4F\u8FDB\u6765\u53EF\u4EE5\uFF0C\u4F46\u89C4\u77E9\u5F97\u7ACB\uFF1A\u6309\u5929\u4EA4\u79DF\u3002",
+        options: [
+          {
+            label: "\u6536\u79DF",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u91D1\u5E01\u5165\u888B\u7684\u58F0\u97F3\uFF0C\u6BD4\u67AA\u58F0\u597D\u542C\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 300
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_tut_panic",
+        ver: 1,
+        type: "scripted",
+        triggerDay: 5,
+        title: "\u6709\u4EBA\u534A\u591C\u5077\u54ED",
+        weight: 0,
+        cooldownDays: 0,
+        maxPerRun: 0,
+        text: "\u6050\u614C\u50CF\u9709\u6591\uFF0C\u4F1A\u987A\u7740\u697C\u677F\u8513\u5EF6\u3002",
+        options: [
+          {
+            label: "\u9010\u6237\u5B89\u629A",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u54ED\u58F0\u505C\u4E86\u3002\u4EBA\u5FC3\uFF0C\u4E5F\u662F\u8981\u4FEE\u7684\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: -10
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "orderIntro",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_tut_omen",
+        ver: 1,
+        type: "scripted",
+        triggerDay: 6,
+        title: "\u98CE\u5411\u4E0D\u5BF9",
+        weight: 0,
+        cooldownDays: 0,
+        maxPerRun: 0,
+        text: "\u72D7\u4E0D\u53EB\u4E86\u3002\u98CE\u91CC\u6709\u94C1\u9508\u5473\u3002",
+        options: [
+          {
+            label: "\u767B\u9AD8\u89C2\u661F",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u6708\u4EAE\u662F\u7EA2\u7684\u3002\u660E\u5929\uFF0C\u662F\u8840\u6708\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "bloodmoonForetold",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_knock_001",
+        ver: 1,
+        type: "choice",
+        title: "\u6DF1\u591C\u6572\u95E8\u4EBA",
+        weight: 100,
+        cooldownDays: 5,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 3
+        },
+        text: "\u300C\u549A\u3001\u549A\u3001\u549A\u3002\u300D\u6DF1\u591C\u7684\u6572\u95E8\u58F0\u6BD4\u602A\u7269\u7684\u568E\u53EB\u66F4\u7606\u4EBA\u3002",
+        options: [
+          {
+            label: "\u5F00\u95E8",
+            outcomes: [
+              {
+                p: 0.7,
+                text: "\u662F\u4E00\u5BB6\u4E09\u53E3\uFF0C\u5F53\u5BB6\u7684\u8FD8\u61C2\u6C34\u7535\u3002",
+                effects: [
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "R"
+                  }
+                ]
+              },
+              {
+                p: 0.3,
+                text: "\u5B83\u7684\u76AE\u80A4\u5728\u6708\u5149\u4E0B\u5265\u843D\u4E86\u2026\u2026",
+                effects: [
+                  {
+                    op: "NIGHT_MOD",
+                    mod: "SILENT"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u9694\u95E8\u8BE2\u95EE",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5BF9\u8BDD\u51E0\u53E5\u540E\u811A\u6B65\u58F0\u8FDC\u53BB\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u65E0\u89C6",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u6572\u95E8\u58F0\u505C\u4E86\u3002\u4F60\u6709\u70B9\u540E\u6094\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_grain_002",
+        ver: 1,
+        type: "choice",
+        title: "\u90BB\u5C45\u5077\u7CAE",
+        weight: 90,
+        cooldownDays: 7,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 3
+        },
+        text: "\u4ED3\u5E93\u5C11\u4E86\u4E24\u7BB1\u7F50\u5934\uFF0C\u6709\u4EBA\u770B\u89C1\u4E09\u697C\u7684\u738B\u78CA\u6628\u665A\u9B3C\u9B3C\u795F\u795F\u3002",
+        options: [
+          {
+            label: "\u516C\u5BA1",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u79E9\u5E8F\u7ACB\u4F4F\u4E86\uFF0C\u4F46\u4EBA\u5FC3\u60F6\u60F6\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 8
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "order",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u79C1\u4E86",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4ED6\u4EA4\u56DE\u4E86\u4E00\u90E8\u5206\uFF0C\u8FD9\u4E8B\u7FFB\u7BC7\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: 100
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u653E\u4EFB",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4ED3\u5E93\u7684\u9501\u5F62\u540C\u865A\u8BBE\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 5
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "order",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_box_003",
+        ver: 1,
+        type: "choice",
+        title: "\u9633\u53F0\u7269\u8D44\u7BB1",
+        weight: 85,
+        cooldownDays: 5,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u516D\u697C\u9633\u53F0\u540A\u4E0B\u6765\u4E00\u4E2A\u5BC6\u5C01\u7BB1\uFF0C\u7EF3\u5B50\u4E0A\u7CFB\u7740\u5B57\u6761\uFF1A\u300C\u7ED9\u6709\u7F18\u4EBA\u300D\u3002",
+        options: [
+          {
+            label: "\u72EC\u5360",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u7F50\u5934\u4E0E\u51C0\u6C34\uFF0C\u5168\u6536\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: 300
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u5E73\u5206",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u6309\u6237\u5206\u53D1\uFF0C\u697C\u91CC\u591A\u4E86\u4E9B\u6696\u610F\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: -5
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u6362\u60C5\u62A5",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5BF9\u9762\u697C\u7684\u773C\u7EBF\u7ED9\u4E86\u4EFD\u5DE1\u903B\u56FE\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "intel",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_rent_004",
+        ver: 1,
+        type: "choice",
+        title: "\u8001\u5468\u6B20\u79DF",
+        weight: 80,
+        cooldownDays: 7,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 5
+        },
+        text: "\u8001\u5468\u8E72\u5728\u95E8\u53E3\u62BD\u70DF\uFF1A\u300C\u5AB3\u5987\u75C5\u7740\uFF0C\u8FD9\u4E2A\u6708\u2026\u2026\u5BBD\u9650\u51E0\u5929\uFF1F\u300D",
+        options: [
+          {
+            label: "\u514D\u79DF",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u8001\u5468\u7EA2\u7740\u773C\u7736\u8FDE\u58F0\u9053\u8C22\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: 1
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u7167\u6536",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u89C4\u77E9\u5C31\u662F\u89C4\u77E9\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 500
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u9A71\u8D76",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u884C\u674E\u88AB\u6254\u4E0B\u697C\uFF0C\u697C\u91CC\u6CA1\u4EBA\u8BF4\u8BDD\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 200
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_hoard_005",
+        ver: 1,
+        type: "choice",
+        title: "\u56E4\u79EF\u8005\u8001\u674E",
+        weight: 70,
+        cooldownDays: 10,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 6
+        },
+        text: "\u8001\u674E\u5C4B\u91CC\u5806\u6EE1\u4E86\u7269\u8D44\uFF0C\u697C\u4E0B\u5374\u6709\u4EBA\u5728\u6328\u997F\u3002",
+        options: [
+          {
+            label: "\u5F81\u7528",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u7269\u8D44\u5145\u516C\uFF0C\u8001\u674E\u7EDD\u98DF\u6297\u8BAE\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: 400
+                  },
+                  {
+                    op: "ADD_PANIC",
+                    n: 8
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u5206\u6210",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5404\u8BA9\u4E00\u6B65\uFF0C\u4ED3\u5E93\u8FDB\u8D26\u4E00\u534A\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: 200
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u653E\u4EFB",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u79E9\u5E8F\u54E8\u58F0\u5728\u8D70\u5ECA\u56DE\u8361\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "order",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_dog_006",
+        ver: 1,
+        type: "choice",
+        title: "\u51CC\u6668\u7684\u72D7\u5420",
+        weight: 65,
+        cooldownDays: 7,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u5DF7\u5B50\u91CC\u6709\u6761\u571F\u72D7\uFF0C\u53EB\u6CD5\u5F88\u6709\u89C4\u5F8B\u2014\u2014\u50CF\u5728\u62A5\u4FE1\u3002",
+        options: [
+          {
+            label: "\u6536\u7559",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u72D7\u62F4\u5728\u4E00\u5C42\u5927\u5385\uFF0C\u591C\u91CC\u8033\u6735\u6BD4\u4EBA\u7075\u3002",
+                effects: [
+                  {
+                    op: "GRANT_BUFF",
+                    buff: "warnDog",
+                    days: 3
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u9A71\u8D76",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u72D7\u8DD1\u4E86\uFF0C\u591C\u91CC\u9759\u5F97\u53D1\u614C\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 5
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u65E0\u89C6",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u72D7\u53EB\u4E86\u4E00\u6574\u591C\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 3
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_generator_007",
+        ver: 1,
+        type: "choice",
+        title: "\u67F4\u6CB9\u53D1\u7535\u673A",
+        weight: 70,
+        cooldownDays: 10,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 5
+        },
+        text: "\u9694\u58C1\u697C\u6361\u6765\u4E00\u53F0\u67F4\u6CB9\u53D1\u7535\u673A\uFF0C\u5F00\u53E3\u5C31\u8981\u5206\u7740\u7528\u3002",
+        options: [
+          {
+            label: "\u5C0F\u533A\u5171\u7528",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5168\u697C\u706F\u706B\u901A\u660E\uFF0C\u6050\u614C\u6D88\u6563\u4E0D\u5C11\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: -300
+                  },
+                  {
+                    op: "ADD_PANIC",
+                    n: -8
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u81EA\u5BB6\u5907\u7528",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u53D1\u7535\u673A\u9501\u8FDB\u4E86\u4F60\u5BB6\u50A8\u7269\u95F4\u3002",
+                effects: [
+                  {
+                    op: "GRANT_BUFF",
+                    buff: "power",
+                    days: 2
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u51FA\u79DF",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u6309\u5C0F\u65F6\u8BA1\u8D39\uFF0C\u751F\u610F\u5174\u9686\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 400
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_divorce_008",
+        ver: 1,
+        type: "choice",
+        title: "\u4E8C\u697C\u592B\u59BB\u5435\u67B6",
+        weight: 60,
+        cooldownDays: 10,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u6454\u7897\u58F0\u9694\u7740\u697C\u677F\u90FD\u80FD\u542C\u89C1\u3002",
+        options: [
+          {
+            label: "\u4E0A\u95E8\u8C03\u89E3",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4E24\u53E3\u5B50\u548C\u597D\uFF0C\u8FD8\u786C\u585E\u4E86\u4E24\u6761\u70DF\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: -5
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u4E0D\u63BA\u548C",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5435\u5427\uFF0C\u65E5\u5B50\u8FD8\u957F\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 3
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u8D81\u673A\u6536\u623F",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u623F\u5B50\u5230\u624B\uFF0C\u4F46\u4F60\u6210\u4E86\u697C\u91CC\u7684\u8C08\u8D44\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 600
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_slingshot_009",
+        ver: 1,
+        type: "choice",
+        title: "\u5B69\u5B50\u7684\u5F39\u5F13",
+        weight: 55,
+        cooldownDays: 10,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u4E94\u697C\u7684\u5B69\u5B50\u62FF\u5F39\u5F13\u6253\u8DEF\u706F\uFF0C\u788E\u77F3\u4E71\u98DE\u3002",
+        options: [
+          {
+            label: "\u6CA1\u6536",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5B69\u5B50\u54ED\u4E86\u534A\u5929\uFF0C\u5BB6\u957F\u8138\u8272\u96BE\u770B\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u6559\u5BFC",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5B69\u5B50\u6210\u4E86\u697C\u9876\u7684\u77AD\u671B\u54E8\u3002",
+                effects: [
+                  {
+                    op: "GRANT_BUFF",
+                    buff: "sentryKid",
+                    days: 3
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u653E\u4EFB",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u73BB\u7483\u53C8\u788E\u4E86\u4E00\u5757\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 5
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_medicine_010",
+        ver: 1,
+        type: "choice",
+        title: "\u6700\u540E\u4E00\u6279\u6297\u751F\u7D20",
+        weight: 75,
+        cooldownDays: 10,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 6
+        },
+        text: "\u533B\u52A1\u5BA4\u53EA\u5269\u6700\u540E\u4E00\u677F\u6297\u751F\u7D20\uFF0C\u4E09\u4E2A\u4EBA\u5728\u6392\u961F\u3002",
+        options: [
+          {
+            label: "\u91CD\u60A3\u5148\u5F97",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u8BE5\u6551\u7684\u6551\u4E86\uFF0C\u4EBA\u5FC3\u5B89\u7A33\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: -5
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u8D21\u732E\u8005\u5148\u5F97",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u591A\u52B3\u591A\u5F97\uFF0C\u7AD9\u5C97\u7684\u52B2\u5934\u66F4\u8DB3\u4E86\u3002",
+                effects: [
+                  {
+                    op: "GRANT_BUFF",
+                    buff: "contrib",
+                    days: 3
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u62BD\u7B7E",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u547D\u8FD0\u9762\u524D\u4EBA\u4EBA\u5E73\u7B49\uFF0C\u60C5\u7EEA\u610F\u5916\u5E73\u7A33\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_rumor_011",
+        ver: 1,
+        type: "choice",
+        title: "\u300C\u660E\u5929\u602A\u4E0D\u6765\u4E86\u300D",
+        weight: 70,
+        cooldownDays: 7,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u4E0D\u77E5\u9053\u8C01\u4F20\u7684\uFF1A\u6C38\u591C\u8981\u7ED3\u675F\u4E86\uFF0C\u602A\u7269\u660E\u5929\u5C31\u4E0D\u6765\u4E86\u3002",
+        options: [
+          {
+            label: "\u8F9F\u8C23",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5927\u5587\u53ED\u5E7F\u64AD\u4E86\u4E09\u904D\uFF0C\u8C23\u8A00\u6B62\u4F4F\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: -6
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u5229\u7528",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u300C\u672B\u65E5\u4FDD\u9669\u300D\u5356\u5F97\u98DE\u8D77\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 300
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "trust",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u65E0\u89C6",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u6709\u4EBA\u771F\u7684\u4E0D\u8BBE\u9632\u4E86\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 4
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_note_012",
+        ver: 1,
+        type: "choice",
+        title: "\u95E8\u7F1D\u91CC\u7684\u7EB8\u6761",
+        weight: 65,
+        cooldownDays: 7,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 4
+        },
+        text: "\u7EB8\u6761\u4E0A\u753B\u7740\u4E00\u4E2A\u7BAD\u5934\uFF0C\u6307\u5411\u5730\u4E0B\u5BA4\u7684\u901A\u98CE\u4E95\u3002",
+        options: [
+          {
+            label: "\u6309\u7EB8\u6761\u8D74\u7EA6",
+            outcomes: [
+              {
+                p: 0.5,
+                text: "\u662F\u4E2A\u8EB2\u4E86\u534A\u6708\u7684\u59D1\u5A18\uFF0C\u624B\u4E0A\u529F\u592B\u4E0D\u9519\u3002",
+                effects: [
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  }
+                ]
+              },
+              {
+                p: 0.5,
+                text: "\u901A\u98CE\u4E95\u91CC\u53EA\u6709\u6293\u75D5\u548C\u8840\u8FF9\u3002",
+                effects: [
+                  {
+                    op: "WOUND_TENANT",
+                    tenantId: -1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u7F6E\u4E4B\u4E0D\u7406",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u7EB8\u6761\u5728\u95E8\u7F1D\u91CC\u53D1\u9EC4\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u70E7\u6389",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u7701\u5F97\u591C\u91CC\u80E1\u601D\u4E71\u60F3\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 2
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_birthday_013",
+        ver: 1,
+        type: "choice",
+        title: "\u697C\u91CC\u7B2C\u4E00\u4E2A\u751F\u65E5",
+        weight: 60,
+        cooldownDays: 14,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u4ECA\u5929\u662F\u5C0F\u96E8\u7684\u516B\u5C81\u751F\u65E5\uFF0C\u86CB\u7CD5\u662F\u4E0D\u53EF\u80FD\u7684\u3002",
+        options: [
+          {
+            label: "\u529E\u6D3E\u5BF9",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u642A\u74F7\u7F38\u78B0\u5728\u4E00\u8D77\uFF0C\u50CF\u8FC7\u5E74\u7684\u58F0\u97F3\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: -200
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u53D6\u6D88",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5B69\u5B50\u6CA1\u54ED\uFF0C\u5927\u4EBA\u5FC3\u91CC\u4E0D\u662F\u6ECB\u5473\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 3
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u53CC\u4EFD\u53E3\u7CAE",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5168\u697C\u90FD\u8DDF\u7740\u6CBE\u4E86\u5149\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: -300
+                  },
+                  {
+                    op: "ADD_PANIC",
+                    n: -5
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_thief_014",
+        ver: 1,
+        type: "choice",
+        title: "\u5916\u697C\u7684\u7A83\u8D3C",
+        weight: 65,
+        cooldownDays: 10,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 5
+        },
+        text: "\u5DE1\u903B\u961F\u902E\u4E86\u4E2A\u73B0\u5F62\uFF0C\u4EBA\u8D43\u5E76\u83B7\u3002",
+        options: [
+          {
+            label: "\u516C\u5BA1",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u79E9\u5E8F\u7ACB\u5A01\uFF0C\u56F4\u89C2\u8005\u5664\u58F0\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "order",
+                    v: 1
+                  },
+                  {
+                    op: "ADD_PANIC",
+                    n: 4
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u6536\u7F16",
+            outcomes: [
+              {
+                p: 0.4,
+                text: "\u5F00\u9501\u7684\u624B\u827A\u786E\u5B9E\u6709\u7528\u3002",
+                effects: [
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  }
+                ]
+              },
+              {
+                p: 0.6,
+                text: "\u7B2C\u4E8C\u665A\uFF0C\u4ED3\u5E93\u7684\u9501\u88AB\u4ECE\u91CC\u9762\u6253\u5F00\u4E86\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: -200
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u653E\u8D70\u6362\u60C5\u62A5",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4ED6\u753B\u4E86\u5F20\u602A\u7269\u7684\u6D3B\u52A8\u56FE\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "intel",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_rat_015",
+        ver: 1,
+        type: "choice",
+        title: "\u4ED3\u5E93\u9F20\u60A3",
+        weight: 60,
+        cooldownDays: 10,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u9EBB\u888B\u4E0A\u5168\u662F\u9F7F\u5370\uFF0C\u7CAE\u4ED3\u6210\u4E86\u9F20\u7A9D\u3002",
+        options: [
+          {
+            label: "\u517B\u732B",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5DF7\u5B50\u91CC\u8BA8\u6765\u4E00\u53EA\u72F8\u82B1\uFF0C\u9F20\u60A3\u6E10\u6D88\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: -100
+                  },
+                  {
+                    op: "GRANT_BUFF",
+                    buff: "cat",
+                    days: 7
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u6295\u836F",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u6B7B\u8001\u9F20\u6E05\u7406\u4E86\u4E00\u7C38\u7B95\uFF0C\u4E5F\u8BEF\u4F24\u4E86\u4E24\u888B\u7C73\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: -300
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u6539\u9020\u8D27\u67B6",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5EFA\u6750\u53C8\u82B1\u4E86\u4E00\u7B14\uFF0C\u4F46\u4E00\u52B3\u6C38\u9038\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "material",
+                    n: -250
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_radio_016",
+        ver: 1,
+        type: "choice",
+        title: "\u5916\u754C\u7684\u5E7F\u64AD",
+        weight: 60,
+        cooldownDays: 14,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 7
+        },
+        text: "\u7535\u53F0\u91CC\u5FAA\u73AF\u64AD\u653E\u7740\u64A4\u79BB\u70B9\u7684\u5750\u6807\uFF0C\u771F\u5047\u96BE\u8FA8\u3002",
+        options: [
+          {
+            label: "\u56DE\u5E94",
+            outcomes: [
+              {
+                p: 1,
+                text: "Morse \u7801\u56DE\u4E86\u4E09\u77ED\u4E09\u957F\uFF0C\u697C\u91CC\u58EB\u6C14\u4E00\u632F\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u4FDD\u6301\u9759\u9ED8",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u67AA\u6253\u51FA\u5934\u9E1F\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "order",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u4F2A\u9020\u56DE\u5E94",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u9A97\u5230\u4E86\u4E00\u6279\u7A7A\u6295\u7269\u8D44\uFF0C\u4F46\u6709\u4EBA\u8D77\u4E86\u7591\u5FC3\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 500
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "trust",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_deadbeat_017",
+        ver: 1,
+        type: "choice",
+        title: "\u62D2\u79DF\u7684\u523A\u5934",
+        weight: 70,
+        cooldownDays: 10,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 6
+        },
+        text: "\u56DB\u697C\u7684\u523A\u5934\u628A\u623F\u79DF\u62CD\u5728\u5730\u4E0A\uFF1A\u300C\u7231\u8981\u4E0D\u8981\u3002\u300D",
+        options: [
+          {
+            label: "\u5BBD\u9650",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4ED6\u53CD\u800C\u4E0D\u597D\u610F\u601D\u4E86\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u65AD\u4F9B",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u7B2C\u4E09\u5929\uFF0C\u91D1\u5E01\u548C\u9053\u6B49\u4E00\u8D77\u9001\u6765\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 800
+                  },
+                  {
+                    op: "ADD_PANIC",
+                    n: 8
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u9A71\u9010",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u884C\u674E\u6EDA\u4E0B\u697C\u68AF\uFF0C\u697C\u91CC\u4E00\u7247\u8083\u9759\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 400
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_deed_018",
+        ver: 1,
+        type: "choice",
+        title: "\u5F52\u6765\u7684\u300C\u623F\u4E1C\u300D",
+        weight: 50,
+        cooldownDays: 14,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 8
+        },
+        text: "\u4E00\u4E2A\u897F\u88C5\u9769\u5C65\u7684\u7537\u4EBA\u4E3E\u7740\u623F\u4EA7\u8BC1\uFF1A\u300C\u8FD9\u680B\u697C\uFF0C\u662F\u6211\u7684\u3002\u300D",
+        options: [
+          {
+            label: "\u5171\u6CBB\u5206\u6210",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4ED6\u5165\u4F19\u4E86\uFF0C\u5E26\u6765\u4E00\u7B14\u542F\u52A8\u91D1\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 1e3
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u6233\u7A7F\u4F2A\u9020",
+            outcomes: [
+              {
+                p: 0.6,
+                text: "\u516C\u7AE0\u662F\u841D\u535C\u523B\u7684\uFF0C\u4EBA\u7FA4\u54C4\u7B11\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 1500
+                  }
+                ]
+              },
+              {
+                p: 0.4,
+                text: "\u4ED6\u6897\u7740\u8116\u5B50\u8D70\u4E86\uFF0C\u58F0\u8A89\u53D7\u635F\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u8BA4\u683D\u8865\u507F",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u7834\u8D22\u514D\u707E\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: -500
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_nightshift_019",
+        ver: 1,
+        type: "choice",
+        title: "\u8C01\u503C\u591C\u73ED",
+        weight: 65,
+        cooldownDays: 7,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u5B88\u591C\u8868\u8D34\u51FA\u6765\u4E09\u5929\uFF0C\u540D\u5B57\u680F\u8FD8\u662F\u7A7A\u767D\u3002",
+        options: [
+          {
+            label: "\u8F6E\u73ED",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u516C\u5E73\uFF0C\u4F46\u6BCF\u4E2A\u4EBA\u90FD\u9876\u7740\u9ED1\u773C\u5708\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "order",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u52A0\u85AA\u5FD7\u613F",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u91CD\u8D4F\u4E4B\u4E0B\uFF0C\u5C97\u54E8\u6EE1\u4E86\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: -400
+                  },
+                  {
+                    op: "GRANT_BUFF",
+                    buff: "paidwatch",
+                    days: 3
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u4E3B\u89D2\u9876\u73ED",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4F60\u6253\u7740\u54C8\u6B20\u5B88\u5230\u5929\u4EAE\uFF0C\u5A01\u671B\u6DA8\u4E86\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_pet_020",
+        ver: 1,
+        type: "choice",
+        title: "\u5BA0\u7269\u533B\u9662",
+        weight: 50,
+        cooldownDays: 14,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u836F\u5E97\u7684\u91D1\u6BDB\u96BE\u4EA7\uFF0C\u4E3B\u4EBA\u8DEA\u5728\u5730\u4E0A\u6C42\u6551\u3002",
+        options: [
+          {
+            label: "\u6025\u6551",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4E94\u53EA\u5D3D\u5B50\u6D3B\u4E86\u4E0B\u6765\uFF0C\u6BCD\u72AC\u6210\u4E86\u7F16\u5916\u4FDD\u5B89\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "material",
+                    n: -150
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u653E\u5F03",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u54C0\u568E\u4E86\u4E00\u6574\u591C\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 4
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_yoga_021",
+        ver: 1,
+        type: "choice",
+        title: "\u5929\u53F0\u7684\u5BCC\u5A46",
+        weight: 60,
+        cooldownDays: 14,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 7
+        },
+        text: "\u5929\u53F0\u4E0A\u6709\u4EBA\u5728\u505A\u745C\u4F3D\uFF0C\u745C\u4F3D\u57AB\u662F\u7231\u9A6C\u4ED5\u7684\u3002",
+        options: [
+          {
+            label: "\u6536\u9AD8\u989D\u79DF",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5979\u773C\u90FD\u6CA1\u7728\u5C31\u4ED8\u4E86\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 1500
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u8BF7\u5979\u6559\u7406\u8D22",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5979\u7B11\uFF1A\u300C\u6709\u70B9\u610F\u601D\u3002\u300D",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "laiScore",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u65E0\u89C6",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5979\u505A\u5B8C\u4E00\u7EC4\u62DC\u65E5\u5F0F\u5C31\u8D70\u4E86\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_blackout_022",
+        ver: 1,
+        type: "choice",
+        title: "\u505C\u7535\u591C",
+        weight: 65,
+        cooldownDays: 10,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u6574\u680B\u697C\u9677\u5165\u9ED1\u6697\uFF0C\u8D70\u5ECA\u91CC\u5168\u662F\u6478\u7D22\u7684\u58F0\u97F3\u3002",
+        options: [
+          {
+            label: "\u70B9\u8721\u70DB",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u70DB\u5149\u6447\u66F3\uFF0C\u4EBA\u5FC3\u4E5F\u8DDF\u7740\u6643\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: -100
+                  },
+                  {
+                    op: "ADD_PANIC",
+                    n: 3
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u53D1\u7535\u673A\u5168\u5F00",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u8F70\u9E23\u58F0\u91CC\uFF0C\u706F\u5168\u4EAE\u4E86\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "material",
+                    n: -100
+                  },
+                  {
+                    op: "ADD_PANIC",
+                    n: -6
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u6478\u9ED1",
+            outcomes: [
+              {
+                p: 0.4,
+                text: "\u9ED1\u6697\u4E2D\u4F20\u6765\u51E0\u58F0\u60CA\u53EB\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 8
+                  }
+                ]
+              },
+              {
+                p: 0.6,
+                text: "\u5C45\u7136\u4E5F\u6CA1\u51FA\u4EC0\u4E48\u4E8B\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "order",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_love_023",
+        ver: 1,
+        type: "choice",
+        title: "\u5730\u4E0B\u5BA4\u7684\u5A5A\u793C",
+        weight: 55,
+        cooldownDays: 14,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u5730\u4E0B\u5BA4\u4E00\u5BF9\u5E74\u8F7B\u4EBA\u8981\u6210\u5A5A\uFF0C\u60F3\u501F\u4E00\u697C\u529E\u4EEA\u5F0F\u3002",
+        options: [
+          {
+            label: "\u6210\u5168",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u7CD6\u679C\u662F\u7CD6\u7EB8\u6298\u7684\uFF0C\u638C\u58F0\u662F\u771F\u7684\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: 1
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u68D2\u6253\u9E33\u9E2F",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u59D1\u5A18\u54ED\u4E86\u4E00\u591C\uFF0C\u697C\u91CC\u6307\u6307\u70B9\u70B9\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 8
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u6536\u793C\u91D1",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u573A\u5730\u8D39\u7167\u6536\uFF0C\u9A82\u58F0\u7167\u6765\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 300
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_tycoon_024",
+        ver: 1,
+        type: "choice",
+        title: "\u5BCC\u5546\u6C42\u5E87\u62A4",
+        weight: 65,
+        cooldownDays: 14,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 8
+        },
+        text: "\u897F\u88C5\u7537\u4EBA\u5E26\u7740\u4E24\u4E2A\u884C\u674E\u7BB1\uFF1A\u300C\u6211\u80FD\u4ED8\u3002\u300D",
+        options: [
+          {
+            label: "\u6536\u5341\u91D1\u5165\u4F19",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u884C\u674E\u7BB1\u91CC\u662F\u91D1\u6761\u548C\u7F50\u5934\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 1e3
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u514D\u8D39\u5E87\u62A4",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u300C\u597D\u4EBA\u5450\uFF01\u300D\u5168\u697C\u4F20\u9882\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 2
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u62D2\u7EDD",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4ED6\u6D88\u5931\u5728\u591C\u8272\u91CC\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_mis_101",
+        ver: 1,
+        type: "mission",
+        title: "7 \u697C\u8001\u592A\u88AB\u56F0",
+        weight: 100,
+        cooldownDays: 7,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 3
+        },
+        text: "7 \u697C\u4F20\u6765\u8BF4\u4E0D\u6E05\u662F\u4EBA\u662F\u7269\u7684\u649E\u51FB\u58F0\u2014\u2014\u88AB\u56F0\u7684\u8001\u592A\u592A\u8FD8\u5728\u91CC\u9762\u3002",
+        options: [
+          {
+            label: "\u6D3E\u4EBA\u6551",
+            outcomes: [
+              {
+                p: 0.7,
+                text: "\u8001\u592A\u592A\u88AB\u80CC\u4E0B\u697C\uFF0C\u585E\u7ED9\u961F\u5458\u4E00\u628A\u7CD6\u679C\u548C\u4E00\u5F20\u623F\u5361\u3002",
+                effects: [
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "R"
+                  }
+                ]
+              },
+              {
+                p: 0.3,
+                text: "\u4EBA\u6551\u51FA\u6765\u4E86\uFF0C\u961F\u5458\u6302\u4E86\u5F69\u3002",
+                effects: [
+                  {
+                    op: "WOUND_TENANT",
+                    tenantId: -1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u9065\u63A7\u6307\u6325",
+            outcomes: [
+              {
+                p: 0.5,
+                text: "\u7535\u8BDD\u91CC\u6307\u70B9\u8DEF\u7EBF\uFF0C\u8001\u592A\u592A\u81EA\u5DF1\u6478\u4E86\u4E0B\u6765\u3002",
+                effects: [
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  }
+                ]
+              },
+              {
+                p: 0.5,
+                text: "\u4FE1\u53F7\u65AD\u4E86\uFF0C\u518D\u65E0\u56DE\u97F3\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 6
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u653E\u5F03",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u649E\u51FB\u58F0\u505C\u4E86\u3002\u6574\u680B\u697C\u5B89\u9759\u5F97\u53EF\u6015\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_mis_102",
+        ver: 1,
+        type: "mission",
+        title: "\u836F\u623F\u7A81\u88AD",
+        weight: 70,
+        cooldownDays: 10,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 4
+        },
+        text: "\u8857\u89D2\u836F\u623F\u7684\u5377\u5E18\u95E8\u534A\u5F00\uFF0C\u91CC\u9762\u5E94\u8BE5\u8FD8\u6709\u5B58\u8D27\u3002",
+        options: [
+          {
+            label: "\u4EB2\u81EA\u5E26\u961F",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u836F\u54C1\u548C\u5F39\u836F\u88C5\u4E86\u4E24\u5927\u5305\uFF0C\u6709\u4EBA\u6302\u5F69\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "material",
+                    n: 200
+                  },
+                  {
+                    op: "ADD_RES",
+                    res: "ammo",
+                    n: 100
+                  },
+                  {
+                    op: "WOUND_TENANT",
+                    tenantId: -1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u6D3E\u5B88\u536B\u53BB",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u7A33\u5B57\u5F53\u5934\uFF0C\u6536\u83B7\u6253\u4E86\u6298\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "material",
+                    n: 100
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u653E\u5F03",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u673A\u4F1A\u53EA\u6709\u4E00\u6B21\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "intel",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_mis_103",
+        ver: 1,
+        type: "mission",
+        title: "\u8D85\u5E02\u6E05\u573A",
+        weight: 70,
+        cooldownDays: 10,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u8FDE\u9501\u8D85\u5E02\u7684\u5377\u5E18\u95E8\u91CC\u4F20\u6765\u6B64\u8D77\u5F7C\u4F0F\u7684\u4F4E\u543C\u3002",
+        options: [
+          {
+            label: "\u641C\u522E",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u98DF\u54C1\u548C\u74F6\u88C5\u6C34\u642C\u7A7A\u4E86\u4E24\u6392\u8D27\u67B6\uFF0C\u6709\u4EBA\u88AB\u5212\u4F24\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: 300
+                  },
+                  {
+                    op: "ADD_RES",
+                    res: "water",
+                    n: 200
+                  },
+                  {
+                    op: "WOUND_TENANT",
+                    tenantId: -1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u4FDD\u5B88\u6E05\u70B9",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u53EA\u62FF\u4E86\u95E8\u53E3\u987A\u624B\u7684\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: 120
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_mis_104",
+        ver: 1,
+        type: "mission",
+        title: "\u4E94\u91D1\u5E97\u5EFA\u6750",
+        weight: 60,
+        cooldownDays: 10,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 5
+        },
+        text: "\u4E94\u91D1\u5E97\u8001\u677F\u8DD1\u4E86\uFF0C\u8D27\u67B6\u4E0A\u4E00\u6392\u6392\u89D2\u94A2\u8FD8\u5728\u3002",
+        options: [
+          {
+            label: "\u6EE1\u8F7D\u800C\u5F52",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u89D2\u94A2\u3001\u87BA\u4E1D\u3001\u95E8\u94F0\u94FE\uFF0C\u5168\u662F\u786C\u8D27\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "material",
+                    n: 400
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u5FEB\u64A4",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u53EA\u62A2\u4E86\u624B\u8FB9\u7684\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "material",
+                    n: 150
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_mis_105",
+        ver: 1,
+        type: "mission",
+        title: "\u52A0\u6CB9\u7AD9\u53D6\u6CB9",
+        weight: 60,
+        cooldownDays: 12,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 6
+        },
+        text: "\u52A0\u6CB9\u7AD9\u7684\u50A8\u6CB9\u7F50\u8FD8\u6709\u4F59\u6CB9\uFF0C\u5C31\u662F\u5B88\u7740\u5B83\u7684\u4E1C\u897F\u4E0D\u592A\u53CB\u597D\u3002",
+        options: [
+          {
+            label: "\u53D6\u6CB9",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4E09\u5927\u6876\u67F4\u6CB9\uFF0C\u987A\u4FBF\u62C6\u4E86\u4E24\u4E2A\u71C3\u70E7\u74F6\uFF0C\u6709\u4EBA\u88AB\u70EB\u4F24\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "ammo",
+                    n: 80
+                  },
+                  {
+                    op: "WOUND_TENANT",
+                    tenantId: -1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u653E\u5F03",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u6CB9\u7F50\u7684\u547C\u5438\u5B54\u4F20\u6765\u522E\u64E6\u58F0\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 3
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_mis_106",
+        ver: 1,
+        type: "mission",
+        title: "\u6536\u5BB9\u6D41\u6D6A\u8005",
+        weight: 65,
+        cooldownDays: 10,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 4
+        },
+        text: "\u9AD8\u67B6\u6865\u4E0B\u8737\u7740\u51E0\u4E2A\u5E78\u5B58\u8005\uFF0C\u773C\u795E\u8B66\u60D5\u3002",
+        options: [
+          {
+            label: "\u6536\u5BB9\u961F",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5E26\u56DE\u4E86\u51E0\u4E2A\u4EBA\uFF0C\u98DF\u5802\u538B\u529B\u5927\u4E86\u3002",
+                effects: [
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  },
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u529D\u8D70",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4ED6\u4EEC\u671D\u53E6\u4E00\u4E2A\u65B9\u5411\u53BB\u4E86\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_mis_107",
+        ver: 1,
+        type: "mission",
+        title: "\u533B\u9662\u5E9F\u589F",
+        weight: 50,
+        cooldownDays: 14,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 8
+        },
+        text: "\u5E02\u533B\u9662\u7684\u5E9F\u589F\u91CC\u636E\u8BF4\u8FD8\u6709\u4E00\u4F4D\u6CA1\u8D70\u7684\u62A4\u58EB\u957F\u3002",
+        options: [
+          {
+            label: "\u6DF1\u5165",
+            outcomes: [
+              {
+                p: 0.35,
+                text: "\u62A4\u58EB\u957F SR \u7EA7\uFF0C\u5E26\u7740\u4E00\u7BB1\u836F\u54C1\u5F52\u961F\u3002",
+                effects: [
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "SR"
+                  }
+                ]
+              },
+              {
+                p: 0.3,
+                text: "\u836F\u54C1\u5230\u624B\uFF0C\u4F46\u4E24\u540D\u961F\u5458\u8D1F\u4F24\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "material",
+                    n: 150
+                  },
+                  {
+                    op: "WOUND_TENANT",
+                    tenantId: -1
+                  },
+                  {
+                    op: "WOUND_TENANT",
+                    tenantId: -1
+                  }
+                ]
+              },
+              {
+                p: 0.35,
+                text: "\u65E0\u529F\u800C\u8FD4\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 3
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u5916\u56F4\u6361\u6F0F",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u8FB9\u7F18\u67DC\u53F0\u626B\u4E86\u4E00\u4E9B\u836F\u54C1\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "material",
+                    n: 120
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_mis_108",
+        ver: 1,
+        type: "mission",
+        title: "\u5B66\u6821\u907F\u96BE\u6240",
+        weight: 55,
+        cooldownDays: 14,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 8
+        },
+        text: "\u5C0F\u5B66\u4F53\u80B2\u9986\u91CC\u6709\u4E8C\u5341\u51E0\u4E2A\u5E78\u5B58\u8005\uFF0C\u53EA\u6536\u5F97\u4E0B\u51E0\u4E2A\u3002",
+        options: [
+          {
+            label: "\u63A5\u7EB3",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u6765\u4E86\u8001\u5E08\u5E26\u7740\u4E24\u4E2A\u5B69\u5B50\uFF0C\u697C\u91CC\u591A\u4E86\u4EBA\u6C14\u4E5F\u591A\u4E86\u5634\u3002",
+                effects: [
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  },
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u62D2\u6536",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u94C1\u95E8\u5728\u4ED6\u4EEC\u8EAB\u540E\u5173\u95ED\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_mis_109",
+        ver: 1,
+        type: "mission",
+        title: "\u94F6\u884C\u91D1\u5E93",
+        weight: 45,
+        cooldownDays: 14,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 10
+        },
+        text: "\u94F6\u884C\u5730\u4E0B\u91D1\u5E93\u7684\u7535\u5B50\u9501\u8FD8\u5269\u6700\u540E\u4E00\u9053\u2014\u2014\u91CC\u9762\u662F\u4F20\u8BF4\u4E2D\u7684\u91D1\u6761\u3002",
+        options: [
+          {
+            label: "\u64AC\u5E93",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u91D1\u6761\u5230\u624B\uFF01\u4F46\u52A8\u9759\u5F15\u6765\u4E86\u602A\u7269\u7684\u589E\u63F4\u6F6E\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 2500
+                  },
+                  {
+                    op: "NIGHT_MOD",
+                    mod: "SILENT"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u653E\u5F03",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u91D1\u5E93\u7684\u95E8\u5728\u8EAB\u540E\u7F13\u7F13\u5408\u4E0A\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_mis_110",
+        ver: 1,
+        type: "mission",
+        title: "\u9AD8\u901F\u8DEF\u64A4\u79BB\u8F66\u961F",
+        weight: 60,
+        cooldownDays: 14,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 9
+        },
+        text: "\u64A4\u79BB\u8F66\u961F\u629B\u951A\u5728\u9AD8\u67B6\u4E0A\uFF0C\u4EBA\u613F\u610F\u4ED8\u94B1\u6362\u4E00\u4E2A\u94FA\u4F4D\u3002",
+        options: [
+          {
+            label: "\u63A5\u5E94\u6536\u4EBA",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u6BCF\u4EBA 200 \u91D1\u5E01\uFF0C\u6765\u4E86\u4E94\u4E2A\u4ED8\u8D39\u79DF\u5BA2\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 1e3
+                  },
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  },
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u9A71\u8D76",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u8F66\u961F\u7684\u706F\u5149\u5728\u591C\u91CC\u8FDC\u53BB\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_ord_201",
+        ver: 1,
+        type: "choice",
+        title: "\u697C\u9053\u4E89\u5435",
+        weight: 60,
+        cooldownDays: 7,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u4E94\u697C\u4E24\u6237\u4E3A\u4E86\u697C\u9053\u5806\u7269\u5435\u5230\u4E86\u52A8\u624B\u7684\u8FB9\u7F18\u3002",
+        options: [
+          {
+            label: "\u8C03\u89E3",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5404\u9000\u4E00\u6B65\uFF0C\u697C\u9053\u91CD\u65B0\u901A\u7545\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: -4
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u5404\u6253\u4E94\u5341\u5927\u677F",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u7F5A\u4E86\u4E24\u5BB6\u6E05\u626B\uFF0C\u79E9\u5E8F\u7ACB\u4E86\uFF0C\u6028\u6C14\u4E5F\u5B58\u4E86\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "order",
+                    v: 1
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u51B7\u5904\u7406",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4E89\u5435\u5347\u7EA7\u6210\u4E86\u5BF9\u9A82\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 4
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_ord_202",
+        ver: 1,
+        type: "choice",
+        title: "\u85CF\u7CAE\u4E0E\u6328\u997F\u7684\u5B69\u5B50",
+        weight: 70,
+        cooldownDays: 12,
+        maxPerRun: 2,
+        prereq: {
+          panicMin: 40
+        },
+        text: "\u6709\u4EBA\u56E4\u7CAE\uFF0C\u9694\u58C1\u7684\u5B69\u5B50\u5374\u997F\u5F97\u54ED\u4E0D\u51FA\u58F0\u3002",
+        options: [
+          {
+            label: "\u641C\u67E5",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u56E4\u7CAE\u5145\u516C\uFF0C\u56E4\u7CAE\u8005\u88AB\u626B\u5730\u51FA\u95E8\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: 300
+                  },
+                  {
+                    op: "ADD_PANIC",
+                    n: 6
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "order",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u63A5\u6D4E",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u81EA\u5BB6\u7684\u7C73\u7F38\u89C1\u5E95\u4E86\uFF0C\u4F46\u5B69\u5B50\u5403\u9971\u4E86\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: -200
+                  },
+                  {
+                    op: "ADD_PANIC",
+                    n: -6
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u4E0D\u7BA1",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u54ED\u58F0\u6301\u7EED\u5230\u540E\u534A\u591C\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 10
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_ord_203",
+        ver: 1,
+        type: "choice",
+        title: "\u81EA\u53D1\u5DE1\u903B\u961F",
+        weight: 60,
+        cooldownDays: 12,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 6
+        },
+        text: "\u51E0\u4E2A\u5E74\u8F7B\u4EBA\u81EA\u53D1\u7EC4\u7EC7\u4E86\u591C\u95F4\u5DE1\u903B\u3002",
+        options: [
+          {
+            label: "\u652F\u6301",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5DE1\u903B\u961F\u7684\u81C2\u7AE0\u662F\u7528\u7EA2\u5E03\u6761\u505A\u7684\u3002",
+                effects: [
+                  {
+                    op: "GRANT_BUFF",
+                    buff: "patrol",
+                    days: 5
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u53D1\u5DE5\u8D44\u6536\u7F16",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u7ED9\u94B1\u624D\u6709\u6267\u884C\u529B\uFF0C\u4F46\u786E\u5B9E\u7BA1\u7528\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: -500
+                  },
+                  {
+                    op: "GRANT_BUFF",
+                    buff: "patrolPaid",
+                    days: 7
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u89E3\u6563",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5DE1\u903B\u961F\u6563\u4E86\uFF0C\u591C\u91CC\u7684\u811A\u6B65\u58F0\u591A\u4E86\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 5
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_ord_204",
+        ver: 1,
+        type: "choice",
+        title: "\u300C\u6536\u79DF\u9B3C\u300D\u6D82\u9E26",
+        weight: 55,
+        cooldownDays: 12,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u5916\u5899\u4E0A\u88AB\u4EBA\u55B7\u4E86\u4E09\u4E2A\u5927\u7EA2\u5B57\uFF1A\u6536\u79DF\u9B3C\u3002",
+        options: [
+          {
+            label: "\u6E05\u6D17",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u6F06\u6CA1\u6D17\u5E72\u51C0\uFF0C\u5B57\u8FD8\u5728\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u9ED8\u8BB8",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5E74\u8F7B\u4EBA\u89C9\u5F97\u8FD9\u79F0\u547C\u633A\u9177\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u53CD\u5411\u8425\u9500",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u300C\u6536\u79DF\u9B3C\u4FDD\u62A4\u8D39\u300D\u7684\u6BB5\u5B50\u4F20\u904D\u4E86\u907F\u96BE\u6240\u5708\u5B50\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 200
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_ord_205",
+        ver: 1,
+        type: "choice",
+        title: "\u901D\u8005\u846C\u793C",
+        weight: 65,
+        cooldownDays: 14,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 7
+        },
+        text: "\u6B7B\u8005\u7684\u5BB6\u5C5E\u60F3\u529E\u4E00\u573A\u50CF\u6837\u7684\u846C\u793C\u3002",
+        options: [
+          {
+            label: "\u529E\u4EEA\u5F0F",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u767D\u82B1\u662F\u7528\u7EB8\u5DFE\u6298\u7684\uFF0C\u54C0\u4E50\u662F\u53E3\u7434\u5439\u7684\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: -150
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u4ECE\u7B80",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4E00\u4E2A\u5751\uFF0C\u4E00\u5757\u6728\u677F\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u7814\u7A76\u5C38\u4F53",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4F24\u53E3\u7684\u9F7F\u75D5\u8BB0\u5F55\u8FDB\u4E86\u602A\u7269\u56FE\u9274\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "intel",
+                    v: 1
+                  },
+                  {
+                    op: "ADD_PANIC",
+                    n: 6
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_ord_206",
+        ver: 1,
+        type: "choice",
+        title: "\u516C\u7EA6\u6295\u7968\uFF1A\u5BB5\u7981",
+        weight: 70,
+        cooldownDays: 14,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 5,
+          flags: {
+            orderIntro: 1
+          }
+        },
+        text: "\u8BAE\u4E8B\u5385\u8D34\u51FA\u544A\u793A\uFF1A\u662F\u5426\u5B9E\u884C\u5BB5\u7981\uFF0C\u5168\u697C\u6295\u7968\u3002",
+        options: [
+          {
+            label: "\u901A\u8FC7",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5BB5\u7981\u4EE4\u4E0B\uFF0C\u591C\u91CC\u518D\u65E0\u4EBA\u8D70\u52A8\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "curfew",
+                    v: 1
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u5426\u51B3",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u81EA\u7531\u4E07\u5C81\u2014\u2014\u5FE7\u60A3\u6D3E\u6447\u4E86\u6447\u5934\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u6298\u4E2D",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5BB5\u7981\u5230\u5341\u70B9\uFF0C\u5927\u5BB6\u90FD\u80FD\u63A5\u53D7\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "curfew",
+                    v: 2
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_ord_207",
+        ver: 1,
+        type: "choice",
+        title: "\u516C\u533A\u5927\u626B\u9664",
+        weight: 55,
+        cooldownDays: 12,
+        maxPerRun: 2,
+        prereq: {},
+        text: "\u697C\u9053\u79EF\u7070\uFF0C\u7535\u68AF\u53E3\u7684\u6742\u7269\u5806\u4E86\u534A\u4EBA\u9AD8\u3002",
+        options: [
+          {
+            label: "\u5168\u5458\u52A8\u5458",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u5927\u626B\u9664\u540E\u697C\u91CC\u4EAE\u5802\u4E86\uFF0C\u4EBA\u5FC3\u4E5F\u4EAE\u5802\u4E86\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: -6
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u96C7\u4EBA\u6253\u626B",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u82B1\u94B1\u4E70\u6E05\u51C0\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: -250
+                  },
+                  {
+                    op: "ADD_PANIC",
+                    n: -4
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u81EA\u5DF1\u4E0A",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4F60\u626B\u4E86\u4E00\u4E0B\u5348\uFF0C\u8170\u90FD\u76F4\u4E0D\u8D77\u6765\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "mood",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_ord_208",
+        ver: 1,
+        type: "choice",
+        title: "\u751F\u9762\u5B54\u6DF7\u5165",
+        weight: 65,
+        cooldownDays: 10,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 5
+        },
+        text: "\u7535\u68AF\u91CC\u51FA\u73B0\u4E86\u6CA1\u89C1\u8FC7\u7684\u9762\u5B54\uFF0C\u8C01\u4E5F\u8BF4\u4E0D\u6E05\u6765\u5386\u3002",
+        options: [
+          {
+            label: "\u6392\u67E5",
+            outcomes: [
+              {
+                p: 0.6,
+                text: "\u865A\u60CA\u4E00\u573A\uFF0C\u662F\u9694\u58C1\u697C\u4E32\u95E8\u7684\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "order",
+                    v: 1
+                  }
+                ]
+              },
+              {
+                p: 0.4,
+                text: "\u63EA\u51FA\u4E00\u4E2A\u53EF\u7591\u5206\u5B50\uFF0C\u9A71\u9010\u51FA\u5883\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: -1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u653E\u884C",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4E5F\u8BB8\u53EA\u662F\u4E2A\u501F\u5BBF\u7684\u3002",
+                effects: [
+                  {
+                    op: "SET_FLAG",
+                    key: "reputation",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u6536\u7F16\u8003\u5BDF",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u7559\u7528\u5BDF\u770B\uFF0C\u5E72\u6D3B\u90FD\u591A\u4E86\u4E00\u4EFD\u5FC3\u773C\u3002",
+                effects: [
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_wd_001",
+        ver: 1,
+        type: "choice",
+        title: "\u8702\u7FA4\u60CA\u6270",
+        weight: 60,
+        cooldownDays: 4,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 3
+        },
+        text: "\u6797\u7F18\u7684\u91CE\u82B1\u4E1B\u91CC\u6345\u51FA\u4E86\u9A6C\u8702\u7A9D\uFF0C\u55E1\u9E23\u58F0\u8FFD\u7740\u4EBA\u8DD1\u3002",
+        options: [
+          {
+            label: "\u64A4\u9000",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u7CAE\u98DF\u6492\u4E86\u4E00\u8DEF\uFF0C\u4EBA\u6CA1\u4E8B\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: -20
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u9A71\u6563",
+            outcomes: [
+              {
+                p: 0.5,
+                text: "\u718F\u8D70\u4E86\u8702\u7FA4\uFF0C\u987A\u624B\u5272\u4E86\u871C\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: 45
+                  }
+                ]
+              },
+              {
+                p: 0.5,
+                text: "\u88AB\u8707\u5F97\u6EE1\u5934\u5305\uFF0C\u871C\u4E5F\u6CA1\u62FF\u5230\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 10
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_wd_002",
+        ver: 1,
+        type: "choice",
+        title: "\u730E\u6237\u5C0F\u5C4B",
+        weight: 40,
+        cooldownDays: 6,
+        maxPerRun: 1,
+        prereq: {
+          dayMin: 10
+        },
+        text: "\u6DF1\u6797\u91CC\u6709\u95F4\u4E0A\u9501\u7684\u730E\u6237\u5C0F\u5C4B\uFF0C\u70DF\u56F1\u5C45\u7136\u8FD8\u662F\u6E29\u7684\u3002",
+        options: [
+          {
+            label: "\u7834\u95E8\u641C\u522E",
+            outcomes: [
+              {
+                p: 0.6,
+                text: "\u814A\u8089\u548C\u517D\u76AE\u88C5\u4E86\u6EE1\u6EE1\u4E00\u7B50\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: 60
+                  },
+                  {
+                    op: "ADD_RES",
+                    res: "material",
+                    n: 30
+                  }
+                ]
+              },
+              {
+                p: 0.4,
+                text: "\u5C4B\u4E3B\u56DE\u6765\u4E86\uFF0C\u51B7\u7740\u8138\u628A\u4F60\u4EEC\u8F70\u4E86\u51FA\u53BB\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 8
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u6572\u95E8\u95EE\u8BE2",
+            outcomes: [
+              {
+                p: 0.8,
+                text: "\u8001\u730E\u6237\u6559\u4E86\u4F60\u4EEC\u8BBE\u9677\u9631\u7684\u624B\u827A\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: 35
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "wd_hunter",
+                    v: 1
+                  }
+                ]
+              },
+              {
+                p: 0.2,
+                text: "\u5C0F\u5C4B\u7A7A\u65E0\u4E00\u4EBA\uFF0C\u53EA\u6709\u4E00\u672C\u65E7\u7B14\u8BB0\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "material",
+                    n: 15
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_wd_003",
+        ver: 1,
+        type: "choice",
+        title: "\u6355\u517D\u9677\u9631",
+        weight: 50,
+        cooldownDays: 5,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 6
+        },
+        text: "\u53BB\u519C\u7530\u7684\u5C0F\u8DEF\u4E0A\u57CB\u7740\u6355\u517D\u5939\uFF0C\u9508\u8FF9\u6591\u6591\u4F46\u5F39\u7C27\u6709\u529B\u3002",
+        options: [
+          {
+            label: "\u5C0F\u5FC3\u62C6\u9664",
+            outcomes: [
+              {
+                p: 0.7,
+                text: "\u62C6\u4E0B\u7684\u5939\u5B50\u9001\u8FDB\u4E86\u5DE5\u574A\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "material",
+                    n: 25
+                  }
+                ]
+              },
+              {
+                p: 0.3,
+                text: "\u5939\u5B50\u7FFB\u4E86\uFF0C\u54AC\u5728\u624B\u4E0A\u3002",
+                effects: [
+                  {
+                    op: "WOUND_TENANT",
+                    tenantId: -1
+                  },
+                  {
+                    op: "ADD_PANIC",
+                    n: 6
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u505A\u6807\u8BB0\u7ED5\u884C",
+            outcomes: [
+              {
+                p: 1,
+                effects: []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_wd_004",
+        ver: 1,
+        type: "choice",
+        title: "\u96FE\u591C\u8FF7\u8DEF",
+        weight: 45,
+        cooldownDays: 6,
+        maxPerRun: 1,
+        prereq: {
+          dayMin: 10
+        },
+        text: "\u6DF1\u6797\u7684\u96FE\u8BF4\u6765\u5C31\u6765\uFF0C\u706B\u628A\u53EA\u80FD\u7167\u5230\u4E09\u6B65\u8FDC\u3002",
+        options: [
+          {
+            label: "\u539F\u5730\u5B88\u706B",
+            outcomes: [
+              {
+                p: 0.8,
+                effects: []
+              },
+              {
+                p: 0.2,
+                text: "\u5B88\u591C\u7684\u706B\u5806\u5F15\u6765\u597D\u5947\u7684\u91CE\u5154\uFF0C\u5012\u4E5F\u4E0D\u4E8F\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: 15
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u6478\u9ED1\u524D\u884C",
+            outcomes: [
+              {
+                p: 0.5,
+                text: "\u6123\u662F\u6478\u56DE\u4E86\u5C0F\u533A\uFF0C\u8FD8\u6361\u5230\u4E00\u7BB1\u7F50\u5934\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: 50
+                  }
+                ]
+              },
+              {
+                p: 0.5,
+                text: "\u6709\u4EBA\u6454\u8FDB\u4E86\u6C9F\u91CC\uFF0C\u7269\u8D44\u4E5F\u4E22\u4E86\u3002",
+                effects: [
+                  {
+                    op: "WOUND_TENANT",
+                    tenantId: -1
+                  },
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: -25
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_wd_005",
+        ver: 1,
+        type: "choice",
+        title: "\u6D41\u6D6A\u5E78\u5B58\u8005",
+        weight: 55,
+        cooldownDays: 5,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 12
+        },
+        text: "\u5E9F\u589F\u91CC\u6709\u4E2A\u6D41\u6D6A\u8005\u4E3E\u7740\u767D\u65D7\uFF0C\u55D3\u5B50\u54D1\u5F97\u8BF4\u4E0D\u51FA\u6574\u53E5\u8BDD\u3002",
+        options: [
+          {
+            label: "\u6536\u7559",
+            outcomes: [
+              {
+                p: 0.6,
+                text: "\u4ED6\u61C2\u53D1\u7535\u673A\u7684\u813E\u6C14\uFF0C\u662F\u4E2A\u4EBA\u624D\u3002",
+                effects: [
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  }
+                ]
+              },
+              {
+                p: 0.4,
+                text: "\u4EBA\u6536\u4E0B\u4E86\uFF0C\u80C3\u53E3\u5374\u4E0D\u5C0F\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: -30
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u7ED9\u7CAE\u9001\u884C",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u4ED6\u7559\u4E0B\u534A\u5305\u70DF\u4F5C\u8C22\u793C\uFF0C\u6D88\u5931\u5728\u8857\u89D2\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: -15
+                  },
+                  {
+                    op: "ADD_GOLD",
+                    n: 80
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_wd_006",
+        ver: 1,
+        type: "choice",
+        title: "\u72FC\u568E\u8FD1\u8425",
+        weight: 40,
+        cooldownDays: 5,
+        maxPerRun: 1,
+        prereq: {
+          dayMin: 9
+        },
+        text: "\u5165\u591C\u540E\u72FC\u568E\u7ED5\u7740\u8425\u5730\u8F6C\uFF0C\u706B\u5806\u7684\u706B\u82D7\u538B\u5F97\u5F88\u4F4E\u3002",
+        options: [
+          {
+            label: "\u52A0\u56FA\u706B\u5806\u6B7B\u5B88",
+            outcomes: [
+              {
+                p: 0.7,
+                text: "\u72FC\u7FA4\u8BD5\u63A2\u51E0\u8F6E\uFF0C\u6563\u4E86\u3002",
+                effects: []
+              },
+              {
+                p: 0.3,
+                text: "\u72FC\u6251\u8FDB\u8425\u5730\uFF0C\u53FC\u8D70\u4E86\u8089\u3001\u4F24\u4E86\u5BF9\u53CB\u3002",
+                effects: [
+                  {
+                    op: "WOUND_TENANT",
+                    tenantId: -1
+                  },
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: -30
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u8FDE\u591C\u64A4\u56DE",
+            outcomes: [
+              {
+                p: 1,
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 8
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_in_001",
+        ver: 1,
+        type: "choice",
+        title: "\u5899\u89D2\u5F02\u54CD",
+        weight: 60,
+        cooldownDays: 5,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 4
+        },
+        text: "\u623F\u95F4\u5899\u89D2\u4F20\u6765\u7AB8\u7AB8\u7AA3\u7AA3\u7684\u58F0\u54CD\uFF0C\u50CF\u662F\u6709\u4EC0\u4E48\u4E1C\u897F\u5728\u5899\u76AE\u540E\u9762\u3002",
+        options: [
+          {
+            label: "\u64AC\u5F00\u5899\u76AE",
+            outcomes: [
+              {
+                p: 0.6,
+                text: "\u524D\u4EFB\u623F\u4E3B\u85CF\u7684\u4E00\u888B\u9489\u5B50\u548C\u7EBF\u6750\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "material",
+                    n: 30
+                  }
+                ]
+              },
+              {
+                p: 0.4,
+                text: "\u4E00\u7A9D\u8001\u9F20\u70B8\u4E86\u7A9D\uFF0C\u7CAE\u98DF\u906D\u4E86\u6B83\u3002",
+                effects: [
+                  {
+                    op: "ADD_RES",
+                    res: "food",
+                    n: -18
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u4E0D\u7BA1\u5B83",
+            outcomes: [
+              {
+                p: 1,
+                effects: []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_in_002",
+        ver: 1,
+        type: "choice",
+        title: "\u5730\u677F\u4E0B\u7684\u94C1\u76D2",
+        weight: 35,
+        cooldownDays: 8,
+        maxPerRun: 1,
+        prereq: {
+          dayMin: 6
+        },
+        text: "\u5730\u677F\u677E\u52A8\uFF0C\u4E0B\u9762\u9489\u7740\u4E00\u53EA\u4E0A\u9501\u7684\u94C1\u76D2\u3002",
+        options: [
+          {
+            label: "\u4E0A\u7F34\u516C\u5E93",
+            outcomes: [
+              {
+                p: 1,
+                text: "\u76D2\u91CC\u6574\u6574\u9F50\u9F50\u7801\u7740\u91D1\u6761\uFF0C\u8D26\u672C\u4E0A\u8BB0\u7740'\u7ED9\u5B88\u697C\u4EBA'\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 500
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u79C1\u85CF",
+            outcomes: [
+              {
+                p: 0.5,
+                text: "\u6CA1\u4EBA\u53D1\u73B0\uFF0C\u591C\u91CC\u7761\u5F97\u6709\u70B9\u6D45\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 500
+                  },
+                  {
+                    op: "ADD_PANIC",
+                    n: 12
+                  }
+                ]
+              },
+              {
+                p: 0.5,
+                text: "\u88AB\u540C\u5C4B\u7684\u4F4F\u6237\u770B\u89C1\u4E86\uFF0C\u6D41\u8A00\u4F20\u5F00\u4E86\u3002",
+                effects: [
+                  {
+                    op: "ADD_GOLD",
+                    n: 500
+                  },
+                  {
+                    op: "ADD_PANIC",
+                    n: 20
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_in_003",
+        ver: 1,
+        type: "choice",
+        title: "\u7A97\u5916\u9ED1\u5F71",
+        weight: 50,
+        cooldownDays: 4,
+        maxPerRun: 2,
+        prereq: {
+          dayMin: 5
+        },
+        text: "\u534A\u591C\uFF0C\u7A97\u73BB\u7483\u4E0A\u6620\u51FA\u4E00\u4E2A\u4E00\u95EA\u800C\u8FC7\u7684\u9ED1\u5F71\u3002",
+        options: [
+          {
+            label: "\u5F00\u7A97\u67E5\u770B",
+            outcomes: [
+              {
+                p: 0.7,
+                text: "\u662F\u4EF6\u6302\u5728\u6811\u4E0A\u7684\u5927\u8863\u3002\u865A\u60CA\u4E00\u573A\u3002",
+                effects: []
+              },
+              {
+                p: 0.3,
+                text: "\u9ED1\u5F71\u6251\u9762\u800C\u8FC7\uFF0C\u4EC0\u4E48\u90FD\u6CA1\u770B\u6E05\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 15
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u62C9\u7D27\u7A97\u5E18",
+            outcomes: [
+              {
+                p: 1,
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 5
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "evt_in_004",
+        ver: 1,
+        type: "choice",
+        title: "\u90BB\u5C45\u501F\u5BBF",
+        weight: 45,
+        cooldownDays: 6,
+        maxPerRun: 1,
+        prereq: {
+          dayMin: 6
+        },
+        text: "\u9694\u58C1\u680B\u7684\u59D1\u5A18\u62CD\u7740\u95E8\uFF0C\u8BF4\u5979\u4EEC\u90A3\u5C42\u5DF2\u7ECF\u4E09\u5929\u6CA1\u6562\u5F00\u706F\u3002",
+        options: [
+          {
+            label: "\u6536\u7559",
+            outcomes: [
+              {
+                p: 0.7,
+                text: "\u59D1\u5A18\u624B\u811A\u9EBB\u5229\uFF0C\u628A\u623F\u95F4\u6536\u62FE\u51FA\u4E86\u751F\u6C14\u3002",
+                effects: [
+                  {
+                    op: "SPAWN_TENANT",
+                    quality: "N"
+                  }
+                ]
+              },
+              {
+                p: 0.3,
+                text: "\u5979\u5E26\u6765\u4E86\u9EBB\u70E6\uFF0C\u4E5F\u5E26\u6765\u4E86\u6D88\u606F\u3002",
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 6
+                  },
+                  {
+                    op: "SET_FLAG",
+                    key: "in_guest",
+                    v: 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            label: "\u5A49\u62D2",
+            outcomes: [
+              {
+                p: 1,
+                effects: [
+                  {
+                    op: "ADD_PANIC",
+                    n: 4
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
     ]
   };
 
@@ -3287,7 +6644,7 @@
             const mon = pb2.monsterNames[rv.route.monsterId ?? ""] ?? "\u602A\u7269";
             ctx.fillStyle = rv.state === 0 ? col("alert_blood") : col("text_primary");
             ctx.font = font(T.typography.body);
-            ctx.fillText(`${mon} ${Math.round(rv.route.r * 100)}%${rv.state === 0 ? " \u203C" : rv.state === 1 ? " \u26A0" : ""}`, barX + barW + T.space.s, r.y + r.h / 2);
+            ctx.fillText(`${this.roomLabel(rv.route.roomId)} ${mon} ${Math.round(rv.route.r * 100)}%${rv.state === 0 ? " \u203C" : rv.state === 1 ? " \u26A0" : ""}`, barX + barW + T.space.s, r.y + r.h / 2);
           } else {
             ctx.fillStyle = col("text_secondary");
             ctx.font = this.numFont(T.typography.body);
@@ -3343,7 +6700,7 @@
         const waves = nightWaves(pb2.session.routes, pb2.nightStart, now);
         waves.revealed.forEach((rv, i) => {
           const mon = pb2.monsterNames[rv.route.monsterId ?? ""] ?? "\u602A\u7269";
-          lines.push(`\u7B2C${i + 1}\u6CE2 \u8DEF${WAVE_LETTERS[i]} \xB7 ${rv.route.roomId} \xB7 ${mon} \xB7 r=${rv.route.r.toFixed(2)} \u2192 ${OUTCOME_LABEL[rv.route.outcome]}`);
+          lines.push(`\u7B2C${i + 1}\u6CE2 \u8DEF${WAVE_LETTERS[i]} \xB7 ${this.roomLabel(rv.route.roomId)} \xB7 ${mon} \xB7 r=${rv.route.r.toFixed(2)} \u2192 ${OUTCOME_LABEL[rv.route.outcome]}`);
         });
       }
       lines.push(...pb2.logs);
@@ -3657,6 +7014,11 @@
           ctx.stroke();
         }
       }
+    }
+    /** 夜战目标房间标签：F{n}-R{m} → A栋 n 层 m 号（M0 数值窗口内目标恒在默认栋 A） */
+    roomLabel(roomId) {
+      const m = /F(\d+)-R(\d+)/.exec(roomId);
+      return m ? `A\u680B${m[1]}\u5C42${m[2]}\u53F7` : roomId;
     }
     drawIsoGate(cx, cy) {
       const { ctx } = this;
