@@ -22,7 +22,10 @@ import {
   createUiState, openModal, closeModal, topModal, pushEvent, setPage,
   openBuilding, openInterior, type UiState
 } from './state.ts'
-import { DESIGN_W, DESIGN_H, hitTest } from './layout.ts'
+import { DESIGN_W, DESIGN_H, hitTest, dockRects, dockRect, modalCloseRect, modalConfirmRect, modalOptionRect,
+  duskConfirmRect, nightSkillRects, nightBackRect, settleContinueRect,
+  EXPLORE_ENTRY, wildZoneRect, wildDispatchRect, wildBackRect, wildMinusRect, wildPlusRect,
+  settingsRect, settingsRowRect, pageBackRect, houseHitRect, mapBackRect, SETTINGS_ROWS } from './layout.ts'
 import { settleDoneAt, nightWaves } from './anim.ts'
 import { WILD_ZONE_NAME } from './layout.ts'
 import { weatherOfDay } from '@rn/weather'
@@ -114,7 +117,7 @@ canvas.addEventListener('click', ev => {
   const y = (ev.clientY - rect.top) * (canvas.height / rect.height)
   const now = performance.now()
   const modalOpen = topModal(ui) !== undefined
-  const hit = hitTest(x, y, { modalOpen, page: ui.page })
+  const hit = hitTest(x, y, { modalOpen, page: ui.page, phase: ui.phase })
   switch (hit.kind) {
     case 'pageBack':
       Object.assign(ui, setPage(ui, 'main'))
@@ -317,6 +320,36 @@ boot.then(async () => {
   )
   ;(globalThis as unknown as { __fpsReport: () => ReturnType<typeof fpsReport> }).__fpsReport =
     () => fpsReport(renderer.getSamples())
+  // 白盒验收钩子（M4 E2E v3）：热区取自 layout.ts 单一来源，断言取自真实状态机
+  const g = globalThis as unknown as Record<string, unknown>
+  g.__nlRects = () => ({
+    dock: dockRects(), dockNight: dockRect('night'),
+    modalClose: modalCloseRect(), modalConfirm: modalConfirmRect(), modalOption: modalOptionRect(),
+    duskConfirm: duskConfirmRect(), nightSkills: nightSkillRects(), nightBack: nightBackRect(),
+    settleContinue: settleContinueRect(), explore: EXPLORE_ENTRY,
+    wildZones: [0, 1, 2, 3].map(wildZoneRect), wildDispatch: wildDispatchRect(),
+    wildBack: wildBackRect(), wildMinus: wildMinusRect(), wildPlus: wildPlusRect(),
+    settings: settingsRect(), settingsRows: SETTINGS_ROWS.map((_, i) => settingsRowRect(i)),
+    pageBack: pageBackRect(), house0: houseHitRect(0), mapBack: mapBackRect()
+  })
+  g.__nlState = () => {
+    const f = frames[idx]
+    const now = performance.now()
+    const top = topModal(ui)
+    const nw = pb.session && pb.nightStart !== null ? nightWaves(pb.session.routes, pb.nightStart, now) : null
+    return {
+      phase: ui.phase, page: ui.page, day: idx + 1,
+      modal: top ? { kind: top.kind, id: top.id, chosen: top.chosen } : null,
+      sel: { wildZone: ui.sel.wildZone ?? null, partySize: ui.sel.partySize ?? null },
+      gold: f?.gold ?? null, population: f?.population ?? null, roomsBuilt: f?.roomsBuilt ?? null,
+      weather: f?.weather ?? null, capacity: pb.capacity ?? null,
+      parties: pb.parties.length, wildReports: pb.wildReports.length,
+      houseLevels: { ...pb.houseLevels },
+      skills: pb.skills.map(s => ({ label: s.label, onCd: now < s.cdUntil, fx: now < s.fxUntil })),
+      waves: nw ? { waveNo: nw.waveNo, revealed: nw.revealed, done: nw.done } : null,
+      settleDone: pb.settleStart !== null ? now >= settleDoneAt(pb.settleStart, settleHouseholds()) : null
+    }
+  }
   if (want === 'dusk') { idx = 6; ui.phase = 'DUSK_FORECAST' }
   else if (want === 'night') { idx = 6; ui.phase = 'NIGHT'; pb.nightStart = performance.now(); pb.session = simSessions[7] ?? null }
   else if (want === 'dawn') { idx = 6; ui.phase = 'DAWN_SETTLE'; pb.settleStart = performance.now() }

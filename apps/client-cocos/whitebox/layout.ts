@@ -214,9 +214,10 @@ export type HitTarget =
   | { kind: 'house'; index: number }
   | { kind: 'none' }
 
-export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?: string } = {}): HitTarget {
+export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?: string; phase?: string } = {}): HitTarget {
   const modalOpen = opts.modalOpen ?? false
   const page = opts.page ?? 'main'
+  const phase = opts.phase ?? 'DAY'
   const inRect = (r: Rect): boolean => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h
   if (modalOpen) {
     // 模态打开：确认/关闭可点，其余点击不穿透
@@ -225,6 +226,14 @@ export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?
     if (inRect(modalOptionRect())) return { kind: 'modalOption' }
     return { kind: 'modal' }
   }
+  // 全屏接管相（DUSK/NIGHT/DAWN）：相位元素优先于页面元素（与渲染层序一致；
+  // 修复：M3.0 起 ui.page 恒为 'map'，相位元素此前在 map 分支 return 后不可达）
+  if (phase === 'DUSK_FORECAST' && inRect(duskConfirmRect())) return { kind: 'duskConfirm' }
+  if (phase === 'NIGHT') {
+    for (const [i, r] of nightSkillRects().entries()) if (inRect(r)) return { kind: 'skill', index: i }
+    if (inRect(nightBackRect())) return { kind: 'nightBack' }
+  }
+  if (phase === 'DAWN_SETTLE' && inRect(settleContinueRect())) return { kind: 'settleContinue' }
   // L2 小区地图：前景浮层（探索横幅）→ 小屋群落 → 等距地块 → dock → 设置
   // （渲染层序一致：横幅/小屋绘制在地块之上，命中优先级须与之同步）
   if (page === 'map') {
@@ -279,11 +288,8 @@ export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?
     }
     return { kind: 'none' }
   }
-  // 全屏接管面（DUSK 确认 / NIGHT 面板 / DAWN 结算）优先于主界面元素
-  if (inRect(duskConfirmRect())) return { kind: 'duskConfirm' }
-  for (const [i, r] of nightSkillRects().entries()) if (inRect(r)) return { kind: 'skill', index: i }
-  if (inRect(nightBackRect())) return { kind: 'nightBack' }
-  if (inRect(settleContinueRect())) return { kind: 'settleContinue' }
+  // 全屏接管相元素已在函数头部按相位路由（DAY 相不得拦截页面元素——
+  // 此前尾部无相位检查曾致 main 页招募/▶夜 dock 键被 settleContinue/nightBack 矩形吞掉）
   for (const [i, r] of dockRects().entries()) {
     if (inRect(r)) return { kind: 'dock', key: DOCK_KEYS[i].key }
   }

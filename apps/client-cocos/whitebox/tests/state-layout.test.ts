@@ -7,7 +7,8 @@ import {
 } from '../state.ts'
 import {
   dockRects, dockRect, settingsRect, roomRect, hitTest, HIT_MIN,
-  DESIGN_W, DESIGN_H, FLOORS, ROOMS_PER_FLOOR
+  DESIGN_W, DESIGN_H, FLOORS, ROOMS_PER_FLOOR,
+  duskConfirmRect, nightSkillRects, nightBackRect, settleContinueRect
 } from '../layout.ts'
 
 const card = (id: string) => ({ id, title: `事件${id}`, weight: 1, options: [{ label: '选项', ps: [1] }], resultText: '无直接状态变化' })
@@ -110,4 +111,15 @@ test('命中测试：小区地图上探索横幅与 30 栋小屋可达（M3.3 �
   // 地块/浮层层序：横幅与小屋命中优先于等距地块
   const lot = hitTest(DESIGN_W / 2 + 110, 540, { page: 'map' })
   assert.ok(['lot', 'house', 'explore'].includes(lot.kind), `地块区域命中应属 lot/house/explore，实得 ${lot.kind}`)
+})
+
+test('命中测试：相位接管面（DUSK/NIGHT/DAWN）在 map 页可达（M4 回归——此前相位分派断裂致无法入夜/天亮）', () => {
+  const dc = duskConfirmRect()
+  assert.deepEqual(hitTest(dc.x + 10, dc.y + 10, { page: 'map', phase: 'DUSK_FORECAST' }), { kind: 'duskConfirm' }, 'DUSK 确认钮在 map 页可命中')
+  const sk = nightSkillRects()[0]
+  assert.deepEqual(hitTest(sk.x + 10, sk.y + 10, { page: 'map', phase: 'NIGHT' }), { kind: 'skill', index: 0 }, '夜战技能一可命中')
+  const nb = nightBackRect()
+  assert.deepEqual(hitTest(nb.x + nb.w / 2, nb.y + 10, { page: 'map', phase: 'NIGHT' }), { kind: 'nightBack' }, '夜战「天亮了」可命中')
+  const sc = settleContinueRect()
+  assert.deepEqual(hitTest(sc.x + 10, sc.y + 10, { page: 'map', phase: 'DAWN_SETTLE' }), { kind: 'settleContinue' }, '结算「继续」可命中')
 })

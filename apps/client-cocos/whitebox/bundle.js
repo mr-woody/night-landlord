@@ -5905,6 +5905,9 @@
     const w = (DESIGN_W - M * 2 - T.space.s * (n - 1)) / n;
     return DOCK_KEYS.map((_, i) => ({ x: M + i * (w + T.space.s), y: DOCK_Y, w, h: DOCK_H }));
   }
+  function dockRect(key) {
+    return dockRects()[DOCK_KEYS.findIndex((k) => k.key === key)];
+  }
   var MODAL_H = 420;
   function modalRect() {
     return { x: M, y: DESIGN_H - T.space.m - MODAL_H, w: DESIGN_W - M * 2, h: MODAL_H };
@@ -5992,6 +5995,7 @@
   function hitTest(x, y, opts = {}) {
     const modalOpen = opts.modalOpen ?? false;
     const page = opts.page ?? "main";
+    const phase = opts.phase ?? "DAY";
     const inRect = (r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
     if (modalOpen) {
       if (inRect(modalCloseRect())) return { kind: "modalClose" };
@@ -5999,6 +6003,12 @@
       if (inRect(modalOptionRect())) return { kind: "modalOption" };
       return { kind: "modal" };
     }
+    if (phase === "DUSK_FORECAST" && inRect(duskConfirmRect())) return { kind: "duskConfirm" };
+    if (phase === "NIGHT") {
+      for (const [i, r] of nightSkillRects().entries()) if (inRect(r)) return { kind: "skill", index: i };
+      if (inRect(nightBackRect())) return { kind: "nightBack" };
+    }
+    if (phase === "DAWN_SETTLE" && inRect(settleContinueRect())) return { kind: "settleContinue" };
     if (page === "map") {
       const ex = EXPLORE_ENTRY;
       if (x >= ex.x && x < ex.x + ex.w && y >= ex.y && y < ex.y + ex.h) return { kind: "explore" };
@@ -6047,10 +6057,6 @@
       }
       return { kind: "none" };
     }
-    if (inRect(duskConfirmRect())) return { kind: "duskConfirm" };
-    for (const [i, r] of nightSkillRects().entries()) if (inRect(r)) return { kind: "skill", index: i };
-    if (inRect(nightBackRect())) return { kind: "nightBack" };
-    if (inRect(settleContinueRect())) return { kind: "settleContinue" };
     for (const [i, r] of dockRects().entries()) {
       if (inRect(r)) return { kind: "dock", key: DOCK_KEYS[i].key };
     }
@@ -8978,7 +8984,7 @@
     const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
     const now = performance.now();
     const modalOpen = topModal(ui) !== void 0;
-    const hit = hitTest(x, y, { modalOpen, page: ui.page });
+    const hit = hitTest(x, y, { modalOpen, page: ui.page, phase: ui.phase });
     switch (hit.kind) {
       case "pageBack":
         Object.assign(ui, setPage(ui, "main"));
@@ -9181,6 +9187,53 @@
       () => pb
     );
     globalThis.__fpsReport = () => fpsReport(renderer.getSamples());
+    const g = globalThis;
+    g.__nlRects = () => ({
+      dock: dockRects(),
+      dockNight: dockRect("night"),
+      modalClose: modalCloseRect(),
+      modalConfirm: modalConfirmRect(),
+      modalOption: modalOptionRect(),
+      duskConfirm: duskConfirmRect(),
+      nightSkills: nightSkillRects(),
+      nightBack: nightBackRect(),
+      settleContinue: settleContinueRect(),
+      explore: EXPLORE_ENTRY,
+      wildZones: [0, 1, 2, 3].map(wildZoneRect),
+      wildDispatch: wildDispatchRect(),
+      wildBack: wildBackRect(),
+      wildMinus: wildMinusRect(),
+      wildPlus: wildPlusRect(),
+      settings: settingsRect(),
+      settingsRows: SETTINGS_ROWS.map((_, i) => settingsRowRect(i)),
+      pageBack: pageBackRect(),
+      house0: houseHitRect(0),
+      mapBack: mapBackRect()
+    });
+    g.__nlState = () => {
+      const f = frames[idx];
+      const now = performance.now();
+      const top = topModal(ui);
+      const nw = pb.session && pb.nightStart !== null ? nightWaves(pb.session.routes, pb.nightStart, now) : null;
+      return {
+        phase: ui.phase,
+        page: ui.page,
+        day: idx + 1,
+        modal: top ? { kind: top.kind, id: top.id, chosen: top.chosen } : null,
+        sel: { wildZone: ui.sel.wildZone ?? null, partySize: ui.sel.partySize ?? null },
+        gold: f?.gold ?? null,
+        population: f?.population ?? null,
+        roomsBuilt: f?.roomsBuilt ?? null,
+        weather: f?.weather ?? null,
+        capacity: pb.capacity ?? null,
+        parties: pb.parties.length,
+        wildReports: pb.wildReports.length,
+        houseLevels: { ...pb.houseLevels },
+        skills: pb.skills.map((s) => ({ label: s.label, onCd: now < s.cdUntil, fx: now < s.fxUntil })),
+        waves: nw ? { waveNo: nw.waveNo, revealed: nw.revealed, done: nw.done } : null,
+        settleDone: pb.settleStart !== null ? now >= settleDoneAt(pb.settleStart, settleHouseholds()) : null
+      };
+    };
     if (want === "dusk") {
       idx = 6;
       ui.phase = "DUSK_FORECAST";
