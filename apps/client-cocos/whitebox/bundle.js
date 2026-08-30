@@ -6218,6 +6218,10 @@
     if (into < 0) return 0;
     return Math.min(1, into / (WAVE_MS * 0.7));
   }
+  function guardVisual(laneIdx) {
+    const cycle = ["club", "bow", "pot"];
+    return cycle[(laneIdx % 3 + 3) % 3];
+  }
 
   // config/weather.json
   var weather_default = {
@@ -7437,9 +7441,8 @@
           ctx.save();
           ctx.translate(gx, hy);
           ctx.scale(lane.scale, lane.scale);
-          this.iconPerson(0, 0, 26, col("text_primary"));
-          ctx.fillStyle = col("alert_blood");
-          ctx.fillRect(-3, -2, 8, 5);
+          const attacking = this.isCurrentLane(waves, i, now) && monsterProgress(i + 1, pb2.nightStart ?? 0, now) > 0.72;
+          this.drawGuard(0, 0, guardVisual(i), attacking, now);
           ctx.restore();
           ctx.fillStyle = col("text_secondary");
           ctx.font = this.numFont(T.typography.body);
@@ -7505,6 +7508,19 @@
             ctx.textAlign = "left";
           }
         });
+      }
+      const waveFx = pb2.skills.find((k) => k.fxKind === "wave");
+      if (waveFx && now < waveFx.fxUntil) {
+        const k = 1 - (waveFx.fxUntil - now) / 900;
+        for (const lane of laneDefs) {
+          ctx.beginPath();
+          ctx.moveTo(houseX - 280, lane.y + 10);
+          ctx.arc(houseX - 280, lane.y + 10, 130 + k * 430, -0.5, 0.5);
+          ctx.closePath();
+          ctx.strokeStyle = withAlpha(col("gold_primary"), 0.7 * (1 - k));
+          ctx.lineWidth = 6 * (1 - k) + 1;
+          ctx.stroke();
+        }
       }
       pb2.skills.forEach((sk) => {
         if (now >= sk.fxUntil) return;
@@ -7973,6 +7989,50 @@
       ctx.textAlign = "center";
       ctx.fillText("\u65B0\u5F00\u653E", cx, cy + 1);
       ctx.textAlign = "left";
+    }
+    /** 守卫绘制（职业差异：守卫棍棒横扫/猎人弓弩/平民顶锅；攻击节拍挥击） */
+    drawGuard(x, y, visual, attacking, now) {
+      this.iconPerson(x, y, 26, col("text_primary"));
+      const { ctx } = this;
+      ctx.fillStyle = col("alert_blood");
+      ctx.fillRect(x - 3, y - 2, 8, 5);
+      const swing = attacking ? Math.sin(now / 70) * 0.6 : 0;
+      ctx.strokeStyle = col("bg_night");
+      ctx.lineWidth = 3;
+      if (visual === "club") {
+        ctx.save();
+        ctx.translate(x + 10, y - 6);
+        ctx.rotate(-0.6 + swing);
+        ctx.strokeRect(0, -2, 18, 4);
+        ctx.fillStyle = col("panel_stroke");
+        ctx.fillRect(14, -5, 7, 7);
+        ctx.restore();
+      } else if (visual === "bow") {
+        ctx.beginPath();
+        ctx.arc(x + 12, y - 4, 9, -1.1, 1.1);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + 12 + Math.cos(-1.1) * 9, y - 4 + Math.sin(-1.1) * 9);
+        ctx.lineTo(x + 12 + Math.cos(1.1) * 9, y - 4 + Math.sin(1.1) * 9);
+        ctx.stroke();
+        if (attacking) {
+          ctx.strokeStyle = col("gold_primary");
+          ctx.lineWidth = 2;
+          const ax = x + 14 + (Math.sin(now / 70) + 1) * 8;
+          ctx.beginPath();
+          ctx.moveTo(ax, y - 4);
+          ctx.lineTo(ax + 14, y - 4);
+          ctx.stroke();
+        }
+      } else {
+        ctx.beginPath();
+        ctx.ellipse(x + 11, y - 16, 9, 5, 0, 0, Math.PI * 2);
+        ctx.fillStyle = col("panel_stroke");
+        ctx.fill();
+        ctx.strokeStyle = col("bg_night");
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
     }
     /** 怪物绘制（差异化：循声者爬行+声波圈/破窗者携梯/攀楼种挂钩/飞行种悬停/精英红眼尖刺） */
     drawMonster(visual, now) {
@@ -8781,7 +8841,8 @@
     houseLevels: {},
     skills: [
       { label: "\u7A7A\u6295\u7269\u8D44", glyph: "\u{1F48A}", cdUntil: 0, fxUntil: 0, fxKind: "supply" },
-      { label: "\u62A4\u76FE", glyph: "\u{1F6E1}", cdUntil: 0, fxUntil: 0, fxKind: "shield" }
+      { label: "\u62A4\u76FE", glyph: "\u{1F6E1}", cdUntil: 0, fxUntil: 0, fxKind: "shield" },
+      { label: "\u51B2\u51FB\u6CE2", glyph: "\u{1F4A5}", cdUntil: 0, fxUntil: 0, fxKind: "wave" }
     ]
   };
   function enterDay(d) {

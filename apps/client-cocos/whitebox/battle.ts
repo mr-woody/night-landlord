@@ -43,3 +43,10 @@ export function battleTimeline(session: BattleSession, start: number): { cues: B
   cues.sort((a, b) => a.t - b.t)
   return { cues, total: session.routes.length * WAVE_DURATION }
 }
+
+/** 守卫职业差异化视觉（设计 §10.4）：守卫棍棒/猎人弓弩/平民锅——按车道序号确定性轮换 */
+export type GuardVisual = 'club' | 'bow' | 'pot'
+export function guardVisual(laneIdx: number): GuardVisual {
+  const cycle: GuardVisual[] = ['club', 'bow', 'pot']
+  return cycle[((laneIdx % 3) + 3) % 3]
+}
