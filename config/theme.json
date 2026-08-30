@@ -30,6 +30,8 @@
     "normal": { "dur": 300, "ease": "easeOutCubic" },
     "rain": { "dur": 500, "ease": "easeOutBack" },
     "threat": { "dur": 300, "ease": "easeInQuad", "repeat": 2 },
-    "dissolve": { "dur": 800, "ease": "linear" }
+    "dissolve": { "dur": 800, "ease": "linear" },
+    "counter": { "dur": 800, "ease": "easeOutCubic" },
+    "stagger": { "dur": 60, "ease": "linear" }
   }
 }

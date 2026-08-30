@@ -95,6 +95,60 @@ export function modalCloseRect(): Rect {
   const r = modalRect()
   return { x: r.x + r.w - HIT_MIN - T.space.s, y: r.y + r.h - HIT_MIN - T.space.s, w: HIT_MIN, h: HIT_MIN }
 }
+/** 确认按钮（confirmNight 弹层的「入夜」主行动；与关闭钮同排左右分布） */
+export function modalConfirmRect(): Rect {
+  const r = modalRect()
+  return { x: r.x + T.space.s, y: r.y + r.h - HIT_MIN - T.space.s, w: HIT_MIN + T.space.l, h: HIT_MIN }
+}
+/** 事件卡选项按钮（§3.2；渲染与命中共用同一 rect） */
+export function modalOptionRect(): Rect {
+  const r = modalRect()
+  return { x: r.x + T.space.m, y: r.y + 170, w: r.w - T.space.m * 2, h: HIT_MIN + T.space.xs }
+}
+
+// ---- 夜战面板（§3.3：波次标记/路血条三态/主动技 CD 环 88px/战况日志）----
+export const NIGHT_ROUTE_H = 72
+export function nightRouteRect(i: number): Rect {
+  return { x: M, y: 220 + i * (NIGHT_ROUTE_H + T.space.s), w: DESIGN_W - M * 2, h: NIGHT_ROUTE_H }
+}
+export function nightSkillRects(): Rect[] {
+  // 主动技：空投物资 / 护盾（88px 热区，§3.3）
+  return [0, 1].map(i => ({ x: M + i * (HIT_MIN + T.space.s), y: 700, w: HIT_MIN, h: HIT_MIN }))
+}
+export function nightLogRect(): Rect {
+  return { x: M, y: 840, w: DESIGN_W - M * 2, h: 560 }
+}
+export function nightBackRect(): Rect {
+  return { x: (DESIGN_W - HIT_MIN * 2) / 2, y: DOCK_Y, w: HIT_MIN * 2, h: HIT_MIN }
+}
+
+// ---- DUSK 夜战预告横幅（SILENT 时替换为「?」，§四）----
+export function duskBannerRect(): Rect {
+  return { x: M, y: HUD_H + T.space.s, w: DESIGN_W - M * 2, h: 104 }
+}
+export function duskConfirmRect(): Rect {
+  const b = duskBannerRect()
+  return { x: b.x + b.w - HIT_MIN - T.space.s, y: b.y + (b.h - HIT_MIN) / 2, w: HIT_MIN, h: HIT_MIN }
+}
+
+// ---- 收租结算面板（DAWN 标志性瞬间：物资雨→计数器→逐户弹出，§3.4）----
+export const SETTLE_H = 560
+export function settlePanelRect(): Rect {
+  return { x: M, y: DESIGN_H - T.space.m - SETTLE_H, w: DESIGN_W - M * 2, h: SETTLE_H }
+}
+export function settleCounterRect(): Rect {
+  const r = settlePanelRect()
+  return { x: r.x, y: r.y + 96, w: r.w, h: 96 }
+}
+export const SETTLE_POP_MAX = 6
+export function settlePopRect(i: number): Rect {
+  const r = settlePanelRect()
+  return { x: r.x + T.space.m, y: r.y + 216 + i * 48, w: r.w - T.space.m * 2, h: 44 }
+}
+export function settleContinueRect(): Rect {
+  const r = settlePanelRect()
+  return { x: r.x + r.w - HIT_MIN - T.space.s, y: r.y + r.h - HIT_MIN - T.space.s, w: HIT_MIN + T.space.l, h: HIT_MIN }
+}
 
 // ---- 命中测试（点击 → 元素），自上而下优先（模态/dock 先于背景）----
 export type HitTarget =
@@ -103,16 +157,29 @@ export type HitTarget =
   | { kind: 'eventEntry' }
   | { kind: 'room'; floor: number; room: number }
   | { kind: 'modalClose' }
+  | { kind: 'modalConfirm' }
+  | { kind: 'modalOption' }
   | { kind: 'modal' }
+  | { kind: 'duskConfirm' }
+  | { kind: 'skill'; index: number }
+  | { kind: 'nightBack' }
+  | { kind: 'settleContinue' }
   | { kind: 'none' }
 
 export function hitTest(x: number, y: number, modalOpen = false): HitTarget {
   const inRect = (r: Rect): boolean => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h
   if (modalOpen) {
-    // 模态打开：只有关闭按钮可点，其余点击不穿透
+    // 模态打开：确认/关闭可点，其余点击不穿透
     if (inRect(modalCloseRect())) return { kind: 'modalClose' }
+    if (inRect(modalConfirmRect())) return { kind: 'modalConfirm' }
+    if (inRect(modalOptionRect())) return { kind: 'modalOption' }
     return { kind: 'modal' }
   }
+  // 全屏接管面（DUSK 确认 / NIGHT 面板 / DAWN 结算）优先于主界面元素
+  if (inRect(duskConfirmRect())) return { kind: 'duskConfirm' }
+  for (const [i, r] of nightSkillRects().entries()) if (inRect(r)) return { kind: 'skill', index: i }
+  if (inRect(nightBackRect())) return { kind: 'nightBack' }
+  if (inRect(settleContinueRect())) return { kind: 'settleContinue' }
   for (const [i, r] of dockRects().entries()) {
     if (inRect(r)) return { kind: 'dock', key: DOCK_KEYS[i].key }
   }

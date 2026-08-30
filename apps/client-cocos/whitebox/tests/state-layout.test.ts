@@ -10,7 +10,7 @@ import {
   DESIGN_W, DESIGN_H, FLOORS, ROOMS_PER_FLOOR
 } from '../layout.ts'
 
-const card = (id: string) => ({ id, title: `事件${id}`, weight: 1, options: [{ label: '选项', ps: [1] }] })
+const card = (id: string) => ({ id, title: `事件${id}`, weight: 1, options: [{ label: '选项', ps: [1] }], resultText: '无直接状态变化' })
 
 test('事件卡打断：常规模态之上事件卡优先展示，关闭后 LIFO 恢复原模态', () => {
   let s: UiState = createUiState()
