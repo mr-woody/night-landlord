@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "sourceDoc": "docs/世界观与空间结构设计.md §4 + docs/数据配置表结构设计.md §9.2",
+  "entries": [
+    {
+      "id": "exp_forest_edge",
+      "zone": "zn_forest_edge",
+      "staminaCost": 20,
+      "timeCost": 1,
+      "partyMax": 3,
+      "gatherSlots": 3,
+      "wildlifePool": ["w_rabbit", "w_deer"],
+      "eventPool": [],
+      "unlockDay": 1
+    },
+    {
+      "id": "exp_deep_forest",
+      "zone": "zn_deep_forest",
+      "staminaCost": 35,
+      "timeCost": 3,
+      "partyMax": 3,
+      "gatherSlots": 3,
+      "wildlifePool": ["w_deer", "w_boar", "w_wolf"],
+      "eventPool": [],
+      "unlockDay": 8
+    },
+    {
+      "id": "exp_ruins",
+      "zone": "zn_ruins",
+      "staminaCost": 30,
+      "timeCost": 2,
+      "partyMax": 3,
+      "gatherSlots": 3,
+      "wildlifePool": ["w_wolf"],
+      "eventPool": [],
+      "unlockDay": 12
+    },
+    {
+      "id": "exp_farm",
+      "zone": "zn_farm",
+      "staminaCost": 25,
+      "timeCost": 2,
+      "partyMax": 3,
+      "gatherSlots": 3,
+      "wildlifePool": ["w_rabbit"],
+      "eventPool": [],
+      "unlockDay": 5
+    }
+  ]
+}
