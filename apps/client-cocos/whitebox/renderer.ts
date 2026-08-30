@@ -67,7 +67,9 @@ const WAVE_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
 export class WhiteboxRenderer {
   private ctx: CanvasRenderingContext2D
   private frames = 0
-  private fpsSamples: number[] = []
+  private fpsSamples: number[] = []       // 预热期原始样本（透明保留）
+  private budgetSamples: number[] = []    // 预热后样本（预算判定源）
+  private warmupLeft = 2                  // 预热窗数：加载/首帧编译毛刺不计入预算
   private lastSample = 0
   private modalOpenAt: number | null = null
 
@@ -75,14 +77,17 @@ export class WhiteboxRenderer {
     this.ctx = canvas.getContext('2d')!
   }
 
-  /** rAF 主循环：帧率采样（预算 min ≥50fps）+ 重绘 */
+  /** rAF 主循环：帧率采样（预算 min ≥50fps，2 窗预热剔除加载毛刺）+ 重绘 */
   start(getFrame: () => DayFrame | null, getUi: () => UiState, getPb: () => Playback): void {
     const tick = (now: number) => {
       this.frames++
       if (now - this.lastSample >= 1000) {
         const fps = Math.round(this.frames * 1000 / (now - this.lastSample))
         this.fpsSamples.push(fps)
-        this.cb.onFps(fps, Math.min(...this.fpsSamples), Math.round(this.fpsSamples.reduce((a, b) => a + b, 0) / this.fpsSamples.length))
+        if (this.warmupLeft > 0) this.warmupLeft--
+        else this.budgetSamples.push(fps)
+        const src = this.budgetSamples.length ? this.budgetSamples : this.fpsSamples
+        this.cb.onFps(fps, Math.min(...src), Math.round(src.reduce((a, b) => a + b, 0) / src.length))
         this.frames = 0
         this.lastSample = now
       }
@@ -95,7 +100,7 @@ export class WhiteboxRenderer {
   }
 
   getSamples(): number[] {
-    return this.fpsSamples
+    return this.budgetSamples
   }
 
   // ---- 相位分发（门②：DAWN_SETTLE→DAY→DUSK_FORECAST→NIGHT 四相 UI 状态机）----

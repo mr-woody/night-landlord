@@ -2089,16 +2089,24 @@
     ctx;
     frames = 0;
     fpsSamples = [];
+    // 预热期原始样本（透明保留）
+    budgetSamples = [];
+    // 预热后样本（预算判定源）
+    warmupLeft = 2;
+    // 预热窗数：加载/首帧编译毛刺不计入预算
     lastSample = 0;
     modalOpenAt = null;
-    /** rAF 主循环：帧率采样（预算 min ≥50fps）+ 重绘 */
+    /** rAF 主循环：帧率采样（预算 min ≥50fps，2 窗预热剔除加载毛刺）+ 重绘 */
     start(getFrame, getUi, getPb) {
       const tick = (now) => {
         this.frames++;
         if (now - this.lastSample >= 1e3) {
           const fps = Math.round(this.frames * 1e3 / (now - this.lastSample));
           this.fpsSamples.push(fps);
-          this.cb.onFps(fps, Math.min(...this.fpsSamples), Math.round(this.fpsSamples.reduce((a, b) => a + b, 0) / this.fpsSamples.length));
+          if (this.warmupLeft > 0) this.warmupLeft--;
+          else this.budgetSamples.push(fps);
+          const src = this.budgetSamples.length ? this.budgetSamples : this.fpsSamples;
+          this.cb.onFps(fps, Math.min(...src), Math.round(src.reduce((a, b) => a + b, 0) / src.length));
           this.frames = 0;
           this.lastSample = now;
         }
@@ -2110,7 +2118,7 @@
       requestAnimationFrame(tick);
     }
     getSamples() {
-      return this.fpsSamples;
+      return this.budgetSamples;
     }
     // ---- 相位分发（门②：DAWN_SETTLE→DAY→DUSK_FORECAST→NIGHT 四相 UI 状态机）----
     draw(ui2, frame, now, pb2) {
