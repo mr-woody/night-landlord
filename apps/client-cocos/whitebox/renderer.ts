@@ -1,7 +1,9 @@
-// 白盒渲染器（M2.5 功能点2+3：主界面风格化 + 事件卡/夜战/收租结算 + §二 motion 表五曲线落地）。
-// 视觉参数全部从 theme.ts tokens 取，零硬编码色值/字号/动效时长（scripts/check-theme.mjs 断言）。
-// 纯 Canvas 2D，零引擎依赖；Creator 原生组件移植同一渲染协议（ADR-9 方案 a）。
-import { T, col, withAlpha, motion, font } from './theme.ts'
+// 白盒渲染器（M2.6 视觉升级：程序化质感——矢量图标/房间插画/面板立体感/氛围粒子/真字体）。
+// 零素材依赖：全部图形由 Canvas 路径程序化绘制；全部颜色由 theme.ts tokens 派生
+// （col/withAlpha/shade/mix），零硬编码色值/字号/动效时长（scripts/check-theme.mjs 断言）。
+// 字体：family tokens 对应 @font-face 子集（思源黑体 Bold / BebasNeue，见 scripts/build-fonts.mjs）。
+// 纯 Canvas 2D，零引擎依赖；Creator 侧经 whitebox-core 同步复用（scripts/sync-creator.mjs）。
+import { T, col, withAlpha, shade, mix, motion, font } from './theme.ts'
 import type { UiState, Modal } from './state.ts'
 import { topModal } from './state.ts'
 import type { EventCardMeta } from '../../../apps/headless/src/sim.ts'
@@ -35,20 +37,16 @@ export interface DayFrame {
   modifiers: string[]
   avgLevel: number
   panicSum: number
-  /** 表现层投影（entry 由 sim.sessions/ eventCards 计算的白盒渲染数据） */
   breachedRooms: string[]
   eventCards: EventCardMeta[]
 }
 
-/** 播放上下文（entry 持有并更新；renderer 只读） */
 export interface Playback {
   session: BattleSession | null
   monsterNames: Record<string, string>
   nightStart: number | null
   settleStart: number | null
-  /** 当前事件卡选定时刻（翻面→结果浮现→图标飞向资源栏的时间线起点） */
   chosenAt: number | null
-  /** 主动技战况日志（玩家点技能追加） */
   logs: string[]
   skills: { label: string; glyph: string; cdUntil: number }[]
 }
@@ -57,19 +55,22 @@ export interface RendererCallbacks {
   onFps(fps: number, min: number, avg: number): void
 }
 
-/** 千分位（BebasNeue 等宽观感的占位实现；字体子集化在 M3） */
+const WAVE_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
+
+/** 确定性伪随机（按种子稳定，重绘不闪烁） */
+const prand = (seed: number) => ((seed * 9301 + 49297) % 233280) / 233280
+
+/** 千分位 */
 function fmt(n: number): string {
   return n.toLocaleString('en-US')
 }
 
-const WAVE_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
-
 export class WhiteboxRenderer {
   private ctx: CanvasRenderingContext2D
   private frames = 0
-  private fpsSamples: number[] = []       // 预热期原始样本（透明保留）
-  private budgetSamples: number[] = []    // 预热后样本（预算判定源）
-  private warmupLeft = 2                  // 预热窗数：加载/首帧编译毛刺不计入预算
+  private fpsSamples: number[] = []
+  private budgetSamples: number[] = []
+  private warmupLeft = 2
   private lastSample = 0
   private modalOpenAt: number | null = null
 
@@ -77,7 +78,7 @@ export class WhiteboxRenderer {
     this.ctx = canvas.getContext('2d')!
   }
 
-  /** rAF 主循环：帧率采样（预算 min ≥50fps，2 窗预热剔除加载毛刺）+ 重绘 */
+  /** rAF 主循环：帧率采样（预热 2 窗 + 节流窗 <10fps 不计入预算）+ 重绘 */
   start(getFrame: () => DayFrame | null, getUi: () => UiState, getPb: () => Playback): void {
     const tick = (now: number) => {
       this.frames++
@@ -85,7 +86,7 @@ export class WhiteboxRenderer {
         const fps = Math.round(this.frames * 1000 / (now - this.lastSample))
         this.fpsSamples.push(fps)
         if (this.warmupLeft > 0) this.warmupLeft--
-        else this.budgetSamples.push(fps)
+        else if (fps >= 10) this.budgetSamples.push(fps)
         const src = this.budgetSamples.length ? this.budgetSamples : this.fpsSamples
         this.cb.onFps(fps, Math.min(...src), Math.round(src.reduce((a, b) => a + b, 0) / src.length))
         this.frames = 0
@@ -103,21 +104,178 @@ export class WhiteboxRenderer {
     return this.budgetSamples
   }
 
-  // ---- 相位分发（门②：DAWN_SETTLE→DAY→DUSK_FORECAST→NIGHT 四相 UI 状态机）----
+  // ════════ 基础绘制库 ════════
+
+  /** 立体面板：投影 + 底色 + 描边 + 顶部高光棱线（全部 tokens 派生） */
+  private panel(x: number, y: number, w: number, h: number, r = T.radius.panel, opts: { depth?: number } = {}): void {
+    const { ctx } = this
+    const depth = opts.depth ?? 6
+    ctx.beginPath(); ctx.roundRect(x, y + depth, w, h, r)
+    ctx.fillStyle = withAlpha(col('bg_night'), 0.45); ctx.fill() // 投影
+    const g = ctx.createLinearGradient(0, y, 0, y + h)
+    g.addColorStop(0, mix(col('panel'), col('text_primary'), 0.06))
+    g.addColorStop(1, col('panel'))
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, r)
+    ctx.fillStyle = g; ctx.fill()
+    ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 3; ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(x + r, y + 2); ctx.lineTo(x + w - r, y + 2)
+    ctx.strokeStyle = withAlpha(col('text_primary'), 0.14); ctx.lineWidth = 2; ctx.stroke() // 顶部高光棱线
+  }
+
+  /** 立体按钮：上亮下暗渐变 + 底沿厚度 */
+  private button(r: { x: number; y: number; w: number; h: number }, label: string, kind: 'primary' | 'normal' | 'ghost' = 'normal'): void {
+    const { ctx } = this
+    const top = kind === 'primary' ? mix(col('gold_primary'), col('gold_deep'), 0.25) : mix(col('panel'), col('text_primary'), 0.08)
+    const bot = kind === 'primary' ? col('gold_deep') : col('panel')
+    ctx.beginPath(); ctx.roundRect(r.x, r.y + 4, r.w, r.h, T.radius.btn)
+    ctx.fillStyle = withAlpha(col('bg_night'), 0.5); ctx.fill() // 投影
+    const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h)
+    g.addColorStop(0, top); g.addColorStop(1, bot)
+    ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn)
+    ctx.fillStyle = g; ctx.fill()
+    ctx.strokeStyle = kind === 'primary' ? col('gold_deep') : col('panel_stroke')
+    ctx.lineWidth = 3; ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(r.x + 10, r.y + r.h - 3); ctx.lineTo(r.x + r.w - 10, r.y + r.h - 3)
+    ctx.strokeStyle = withAlpha(col('bg_night'), 0.55); ctx.lineWidth = 4; ctx.stroke() // 底沿厚度
+    ctx.fillStyle = kind === 'primary' ? shade(col('gold_primary'), 0.35) : col('text_primary')
+    ctx.font = font(T.typography.body, { weight: 'bold' })
+    ctx.textAlign = 'center'
+    ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + (kind === 'primary' ? -2 : 0))
+    ctx.textAlign = 'left'
+  }
+
+  /** 圆形图标按钮（设置/关闭等） */
+  private circleButton(x: number, y: number, r: number, drawGlyph: () => void): void {
+    const { ctx } = this
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.fillStyle = col('panel'); ctx.fill()
+    ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 3; ctx.stroke()
+    ctx.beginPath(); ctx.arc(x, y, r - 5, Math.PI * 0.9, Math.PI * 1.9)
+    ctx.strokeStyle = withAlpha(col('text_primary'), 0.25); ctx.lineWidth = 2; ctx.stroke() // 内高光弧
+    drawGlyph()
+  }
+
+  /** 自动换行 */
+  private wrap(text: string, maxWidth: number): string[] {
+    const { ctx } = this
+    const lines: string[] = []
+    let line = ''
+    for (const ch of text) {
+      if (ctx.measureText(line + ch).width > maxWidth && line) { lines.push(line); line = ch }
+      else line += ch
+    }
+    if (line) lines.push(line)
+    return lines
+  }
+
+  private numFont(px: number, weight = 'bold'): string {
+    return font(px, { weight, family: T.typography.family_num })
+  }
+
+  // ---- 矢量图标（色板派生） ----
+  private iconCoin(x: number, y: number, r: number): void {
+    const { ctx } = this
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.fillStyle = col('gold_deep'); ctx.fill()
+    ctx.beginPath(); ctx.arc(x, y, r - r * 0.22, 0, Math.PI * 2)
+    ctx.fillStyle = col('gold_primary'); ctx.fill()
+    ctx.beginPath(); ctx.arc(x - r * 0.28, y - r * 0.28, r * 0.2, 0, Math.PI * 2)
+    ctx.fillStyle = withAlpha(col('text_primary'), 0.85); ctx.fill() // 高光
+    ctx.beginPath(); ctx.arc(x, y, r * 0.52, 0, Math.PI * 2)
+    ctx.strokeStyle = col('gold_deep'); ctx.lineWidth = 2.5; ctx.stroke() // 内环
+  }
+
+  private iconPerson(x: number, y: number, s: number, color: string): void {
+    const { ctx } = this
+    ctx.beginPath(); ctx.arc(x, y - s * 0.28, s * 0.32, 0, Math.PI * 2)
+    ctx.fillStyle = color; ctx.fill()
+    ctx.beginPath(); ctx.arc(x, y + s * 0.5, s * 0.52, Math.PI, 0)
+    ctx.lineTo(x + s * 0.52, y + s * 0.55); ctx.lineTo(x - s * 0.52, y + s * 0.55)
+    ctx.closePath(); ctx.fill()
+  }
+
+  private iconBolt(x: number, y: number, s: number, color: string): void {
+    const { ctx } = this
+    ctx.beginPath()
+    ctx.moveTo(x + s * 0.15, y - s * 0.55); ctx.lineTo(x - s * 0.4, y + s * 0.08)
+    ctx.lineTo(x - s * 0.05, y + s * 0.08); ctx.lineTo(x - s * 0.15, y + s * 0.55)
+    ctx.lineTo(x + s * 0.4, y - s * 0.08); ctx.lineTo(x + s * 0.05, y - s * 0.08)
+    ctx.closePath(); ctx.fillStyle = color; ctx.fill()
+  }
+
+  private iconPanic(x: number, y: number, s: number, color: string): void {
+    // 恐慌：惊愕尖刺爆发
+    const { ctx } = this
+    ctx.beginPath()
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 - Math.PI / 2
+      const rr = i % 2 === 0 ? s * 0.55 : s * 0.24
+      ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr)
+    }
+    ctx.closePath(); ctx.fillStyle = color; ctx.fill()
+    ctx.beginPath(); ctx.arc(x, y, s * 0.14, 0, Math.PI * 2)
+    ctx.fillStyle = col('bg_night'); ctx.fill()
+  }
+
+  private iconGear(x: number, y: number, r: number, color: string): void {
+    const { ctx } = this
+    ctx.beginPath()
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2
+      ctx.lineTo(x + Math.cos(a) * r * 1.25, y + Math.sin(a) * r * 1.25)
+      ctx.lineTo(x + Math.cos(a + Math.PI / 8) * r * 0.95, y + Math.sin(a + Math.PI / 8) * r * 0.95)
+    }
+    ctx.closePath()
+    ctx.fillStyle = color; ctx.fill()
+    ctx.beginPath(); ctx.arc(x, y, r * 0.42, 0, Math.PI * 2)
+    ctx.fillStyle = col('bg_night'); ctx.fill()
+  }
+
+  private iconMoon(x: number, y: number, r: number, blood: boolean): void {
+    const { ctx } = this
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.fillStyle = blood ? col('alert_blood') : mix(col('text_primary'), col('gold_primary'), 0.5); ctx.fill()
+    if (blood) {
+      for (const [dx, dy, cr] of [[-0.3, -0.2, 0.16], [0.25, 0.15, 0.12], [0.05, 0.38, 0.1]] as const) {
+        ctx.beginPath(); ctx.arc(x + dx * r, y + dy * r, cr * r, 0, Math.PI * 2)
+        ctx.fillStyle = shade(col('alert_blood'), 0.7); ctx.fill()
+      }
+    } else {
+      ctx.beginPath(); ctx.arc(x - r * 0.32, y - r * 0.3, r * 0.14, 0, Math.PI * 2)
+      ctx.fillStyle = withAlpha(col('bg_night'), 0.35); ctx.fill()
+    }
+  }
+
+  private iconWarn(x: number, y: number, s: number): void {
+    const { ctx } = this
+    ctx.beginPath()
+    ctx.moveTo(x, y - s * 0.55); ctx.lineTo(x + s * 0.55, y + s * 0.42); ctx.lineTo(x - s * 0.55, y + s * 0.42)
+    ctx.closePath()
+    ctx.fillStyle = col('alert_blood'); ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2; ctx.stroke()
+    ctx.fillStyle = col('text_primary')
+    ctx.font = this.numFont(s * 0.62)
+    ctx.textAlign = 'center'
+    ctx.fillText('!', x, y + s * 0.28)
+    ctx.textAlign = 'left'
+  }
+
+  // ════════ 相位分发 ════════
   draw(ui: UiState, frame: DayFrame, now: number, pb: Playback): void {
     const { ctx } = this
+    ctx.textAlign = 'left'
     switch (ui.phase) {
-      case 'DAWN_SETTLE':
-        // 夜→昼交叉溶解（dissolve 800ms linear）打底
+      case 'DAWN_SETTLE': {
         this.bgBase(col('bg_night'))
         ctx.fillStyle = withAlpha(col('bg_dawn'), dissolveAlpha(pb.settleStart, now))
         ctx.fillRect(0, 0, DESIGN_W, DESIGN_H)
+        this.drawStars(now, 0.4)
         this.drawSettle(frame, now, pb)
         this.drawModal(ui, frame, now, pb)
         break
+      }
       case 'DAY':
-        ctx.fillStyle = col('bg_dawn')
-        ctx.fillRect(0, 0, DESIGN_W, DESIGN_H)
+        this.drawDayBg(now)
         if (ui.page === 'main') {
           this.drawHud(frame, now)
           this.drawResources(frame)
@@ -131,8 +289,7 @@ export class WhiteboxRenderer {
         this.drawModal(ui, frame, now, pb)
         break
       case 'DUSK_FORECAST':
-        ctx.fillStyle = col('bg_dawn')
-        ctx.fillRect(0, 0, DESIGN_W, DESIGN_H)
+        this.drawDayBg(now)
         this.drawHud(frame, now)
         this.drawResources(frame)
         this.drawBuilding(frame, now)
@@ -149,255 +306,291 @@ export class WhiteboxRenderer {
     }
   }
 
-  /** 占位页（功能点4）：图鉴 3 列网格剪影 / 商店礼包横滑 / 设置列表 */
-  private drawPage(page: 'main' | 'codex' | 'shop' | 'settings', now: number): void {
-    const { ctx } = this
-    ctx.textBaseline = 'middle'
-    this.button(pageBackRect(), '◀ 返回', col('text_primary'), col('panel'), col('panel_stroke'))
-    const titles: Record<string, string> = { codex: '图鉴', shop: '商店', settings: '设置' }
-    ctx.fillStyle = col('text_primary')
-    ctx.font = font(T.typography.h1, { weight: 'bold' })
-    ctx.fillText(titles[page] ?? '', pageTitleRect().x, pageTitleRect().y + pageTitleRect().h / 2)
-    if (page === 'codex') {
-      // 3 列网格：首格解锁样例，其余未解锁剪影 + 锁图标（§3.5）
-      for (let row = 0; row < CODEX_ROWS; row++) {
-        for (let c = 0; c < CODEX_COLS; c++) {
-          const r = codexCellRect(c, row)
-          const unlocked = row === 0 && c === 0
-          ctx.beginPath()
-          ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel)
-          ctx.fillStyle = unlocked ? withAlpha(col('success'), 0.12) : withAlpha(col('bg_night'), 0.5)
-          ctx.fill()
-          ctx.strokeStyle = unlocked ? col('success') : col('panel_stroke')
-          ctx.stroke()
-          ctx.font = font(T.typography.h1)
-          ctx.fillStyle = unlocked ? col('text_primary') : col('text_secondary')
-          ctx.fillText(unlocked ? '🧟' : '🔒', r.x + r.w / 2 - 18, r.y + r.h / 2 - 16)
-          ctx.font = font(T.typography.caption)
-          ctx.fillText(unlocked ? '循声者' : '未解锁', r.x + r.w / 2 - 24, r.y + r.h - 40)
-        }
-      }
-      ctx.fillStyle = col('text_secondary')
-      ctx.font = font(T.typography.caption)
-      ctx.fillText('占位：M3 按怪物进化树/住户名册填充', T.space.l, codexCellRect(0, CODEX_ROWS - 1).y + 240 + 40)
-    } else if (page === 'shop') {
-      // 礼包卡横滑（§3.5）：首充双倍角标 alert_blood，价格锚点删除线对比
-      const names = ['首充双倍', '物资补给包', '天赋石礼包']
-      const prices = ['¥6', '¥30', '¥68']
-      const was = ['¥12', '¥45', '¥98']
-      for (let i = 0; i < SHOP_CARDS; i++) {
-        const r = shopCardRect(i)
-        ctx.beginPath()
-        ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel)
-        ctx.fillStyle = col('panel')
-        ctx.fill()
-        ctx.strokeStyle = i === 0 ? col('gold_deep') : col('panel_stroke')
-        ctx.stroke()
-        ctx.fillStyle = col('text_secondary')
-        ctx.font = font(T.typography.h1)
-        ctx.fillText('🎁', r.x + r.w / 2 - 20, r.y + 140)
-        ctx.fillStyle = col('text_primary')
-        ctx.font = font(T.typography.h2, { weight: 'bold' })
-        ctx.fillText(names[i], r.x + T.space.m, r.y + 280)
-        ctx.fillStyle = col('text_secondary')
-        ctx.font = font(T.typography.body)
-        ctx.fillText(was[i], r.x + T.space.m, r.y + 340)
-        const ww = ctx.measureText(was[i]).width
-        ctx.strokeStyle = col('danger')
-        ctx.beginPath(); ctx.moveTo(r.x + T.space.m, r.y + 340); ctx.lineTo(r.x + T.space.m + ww, r.y + 340); ctx.stroke()
-        ctx.fillStyle = col('gold_primary')
-        ctx.font = font(T.typography.h2, { weight: 'bold' })
-        ctx.fillText(prices[i], r.x + T.space.m + ww + T.space.s, r.y + 340)
-        if (i === 0) {
-          ctx.fillStyle = col('alert_blood')
-          ctx.font = font(T.typography.caption, { weight: 'bold' })
-          ctx.fillText('双倍', r.x + r.w - 96, r.y + 40)
-        }
-      }
-      ctx.fillStyle = col('text_secondary')
-      ctx.font = font(T.typography.caption)
-      ctx.fillText('占位：SKU 走 iap_sku.json，IAA/IAP 合规审查后接入', T.space.l, shopCardRect(0).y + 560 + 40)
-    } else {
-      // 设置列表：导航行 + 开关占位
-      for (const [i, row] of SETTINGS_ROWS.entries()) {
-        const r = settingsRowRect(i)
-        ctx.beginPath()
-        ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn)
-        ctx.fillStyle = col('panel')
-        ctx.fill()
-        ctx.strokeStyle = col('panel_stroke')
-        ctx.stroke()
-        ctx.fillStyle = col('text_primary')
-        ctx.font = font(T.typography.body)
-        ctx.fillText(row.label, r.x + T.space.m, r.y + r.h / 2)
-        if (row.key === 'codex' || row.key === 'shop') {
-          ctx.fillStyle = col('text_secondary')
-          ctx.fillText('▶', r.x + r.w - T.space.l, r.y + r.h / 2)
-        } else {
-          // 开关占位（on）
-          const tw = 96
-          ctx.beginPath()
-          ctx.roundRect(r.x + r.w - tw - T.space.m, r.y + r.h / 2 - 24, tw, 48, 24)
-          ctx.fillStyle = withAlpha(col('success'), 0.3)
-          ctx.fill()
-          ctx.beginPath()
-          ctx.arc(r.x + r.w - tw - T.space.m + tw - 24, r.y + r.h / 2, 18, 0, Math.PI * 2)
-          ctx.fillStyle = col('success')
-          ctx.fill()
-        }
-      }
-      ctx.fillStyle = col('text_secondary')
-      ctx.font = font(T.typography.caption)
-      ctx.fillText('存档三检查点：日间/黄昏/夜战（fail-safe 恢复）', T.space.l, settingsRowRect(SETTINGS_ROWS.length - 1).y + 88 + 40)
-    }
-    void now
-  }
-
   private bgBase(c: string): void {
     this.ctx.fillStyle = c
     this.ctx.fillRect(0, 0, DESIGN_W, DESIGN_H)
   }
 
-  private panel(x: number, y: number, w: number, h: number, r = T.radius.panel): void {
+  /** 白天背景：纵向渐变 + 缓浮尘埃 */
+  private drawDayBg(now: number): void {
     const { ctx } = this
-    ctx.beginPath()
-    ctx.roundRect(x, y, w, h, r)
-    ctx.fillStyle = col('panel')
-    ctx.fill()
-    ctx.strokeStyle = col('panel_stroke')
-    ctx.lineWidth = 2
-    ctx.stroke()
+    const g = ctx.createLinearGradient(0, 0, 0, DESIGN_H)
+    g.addColorStop(0, mix(col('bg_dawn'), col('text_primary'), 0.05))
+    g.addColorStop(1, col('bg_dawn'))
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, DESIGN_W, DESIGN_H)
+    for (let i = 0; i < 10; i++) {
+      const seed = prand(i * 7 + 3)
+      const x = prand(i * 13) * DESIGN_W
+      const y = (prand(i * 29) * DESIGN_H + now * 0.008 * (0.5 + seed)) % DESIGN_H
+      ctx.beginPath(); ctx.arc(x, y, 2 + seed * 2.5, 0, Math.PI * 2)
+      ctx.fillStyle = withAlpha(col('text_primary'), 0.05 + seed * 0.05); ctx.fill()
+    }
   }
 
+  /** 夜空星点（NIGHT/DAWN 过渡） */
+  private drawStars(now: number, alpha: number): void {
+    const { ctx } = this
+    for (let i = 0; i < 26; i++) {
+      const x = prand(i * 17) * DESIGN_W
+      const y = prand(i * 31) * DESIGN_H * 0.7
+      const tw = 0.4 + 0.6 * Math.abs(Math.sin(now / 900 + i))
+      ctx.beginPath(); ctx.arc(x, y, 1.2 + prand(i) * 1.6, 0, Math.PI * 2)
+      ctx.fillStyle = withAlpha(col('text_primary'), alpha * tw); ctx.fill()
+    }
+  }
+
+  // ---- HUD ----
   private drawHud(frame: DayFrame, now: number): void {
     const { ctx } = this
     const hud = hudRect()
-    ctx.fillStyle = col('panel')
-    ctx.fillRect(hud.x, hud.y, hud.w, hud.h)
-    ctx.strokeStyle = col('panel_stroke')
-    ctx.beginPath()
-    ctx.moveTo(0, hud.h)
-    ctx.lineTo(hud.w, hud.h)
-    ctx.stroke()
+    const g = ctx.createLinearGradient(0, 0, 0, hud.h)
+    g.addColorStop(0, mix(col('panel'), col('text_primary'), 0.07))
+    g.addColorStop(1, col('panel'))
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, hud.w, hud.h)
+    ctx.fillStyle = col('panel_stroke'); ctx.fillRect(0, hud.h - 3, hud.w, 3)
+    ctx.fillStyle = withAlpha(col('text_primary'), 0.12); ctx.fillRect(0, 2, hud.w, 2)
     ctx.textBaseline = 'middle'
-    ctx.fillStyle = col('text_primary')
-    ctx.font = font(T.typography.h2, { weight: 'bold' })
-    ctx.fillText(`日次 D${frame.day}`, T.space.l, hud.h / 2)
-    ctx.font = font(T.typography.body)
-    ctx.fillText(`🌙${Math.ceil(frame.day / 7)}/4`, T.space.l + 180, hud.h / 2)
-    const st = settingsRect()
+    // 日次徽章：BebasNeue 大数字 + 小标
+    ctx.fillStyle = withAlpha(col('bg_night'), 0.5)
+    ctx.beginPath(); ctx.roundRect(T.space.s, 8, 150, hud.h - 16, T.radius.chip); ctx.fill()
+    ctx.fillStyle = col('gold_primary')
+    ctx.font = this.numFont(T.typography.h2)
+    ctx.fillText(`D${frame.day}`, T.space.s + 16, hud.h / 2 + 1)
     ctx.fillStyle = col('text_secondary')
-    ctx.fillText('⚙', st.x + st.w / 2 - 14, st.y + st.h / 2)
+    ctx.font = font(T.typography.caption)
+    ctx.fillText('日次', T.space.s + 16 + ctx.measureText(`D${frame.day}`).width + ctx.measureText('日次').width / 2 + 26, hud.h / 2 + 1)
+    // 血月周期 4 pip：已过周期点亮，当前周期脉冲，血月周染红
+    const cycle = Math.ceil(frame.day / 7)
+    const isBMWeek = frame.modifiers.includes('BLOOD_MOON')
+    for (let i = 0; i < 4; i++) {
+      const mx = T.space.s + 176 + i * 30, my = hud.h / 2
+      const active = i < cycle
+      const current = i === cycle - 1
+      const pulse = current ? 0.75 + 0.25 * Math.sin(now / 500) : 1
+      ctx.beginPath(); ctx.arc(mx, my, 8, 0, Math.PI * 2)
+      ctx.fillStyle = active
+        ? withAlpha(isBMWeek ? col('alert_blood') : col('gold_primary'), pulse)
+        : withAlpha(col('panel_stroke'), 0.8)
+      ctx.fill()
+      ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 2; ctx.stroke()
+    }
+    // 设置入口（齿轮矢量）
+    const st = settingsRect()
+    this.circleButton(st.x + st.w / 2, hud.h / 2, 26, () => this.iconGear(st.x + st.w / 2, hud.h / 2, 13, col('text_secondary')))
+    // 特殊夜标签
     if (frame.modifiers.length) {
       const isBM = frame.modifiers.includes('BLOOD_MOON')
       ctx.fillStyle = isBM ? col('alert_blood') : col('danger')
-      ctx.font = font(T.typography.caption)
+      ctx.font = font(T.typography.caption, { weight: 'bold' })
       const label = frame.modifiers.join('/')
       const tw = ctx.measureText(label).width
       const threat = motion('threat')
-      const pulse = isBM ? 0.55 + 0.45 * Math.sin((now / (threat.dur * 2)) * Math.PI * 2) : 1
-      ctx.globalAlpha = pulse
-      ctx.fillText(label, st.x - tw - T.space.s, hud.h / 2)
+      ctx.globalAlpha = isBM ? 0.6 + 0.4 * Math.sin((now / (threat.dur * 2)) * Math.PI * 2) : 1
+      ctx.fillText(label, st.x - tw - T.space.l, hud.h / 2)
       ctx.globalAlpha = 1
     }
   }
 
+  // ---- 资源栏 ----
   private drawResources(frame: DayFrame): void {
     const { ctx } = this
     const r = resourceRect()
     ctx.textBaseline = 'middle'
-    ctx.font = font(T.typography.body)
-    const items: { glyph: string; text: string; color: string }[] = [
-      { glyph: '🪙', text: fmt(frame.gold), color: col('gold_primary') }, // 金色数字=货币（§二色彩角色）
-      { glyph: '👥', text: `${frame.population}/${frame.roomsBuilt}`, color: col('text_primary') },
-      { glyph: '⚔', text: fmt(frame.power), color: col('text_primary') },
-      { glyph: '😱', text: `${frame.panicSum}`, color: col('panic') } // 恐慌紫=恐慌系统视觉锚
+    const items: { draw: () => void; text: string; color: string }[] = [
+      { draw: () => this.iconCoin(r.x + colW * 0 + 26, r.y + r.h / 2, 15), text: fmt(frame.gold), color: col('gold_primary') },
+      { draw: () => this.iconPerson(r.x + colW * 1 + 26, r.y + r.h / 2, 30, col('text_secondary')), text: `${frame.population}/${frame.roomsBuilt}`, color: col('text_primary') },
+      { draw: () => this.iconBolt(r.x + colW * 2 + 26, r.y + r.h / 2, 24, col('success')), text: fmt(frame.power), color: col('text_primary') },
+      { draw: () => this.iconPanic(r.x + colW * 3 + 26, r.y + r.h / 2, 22, col('panic')), text: `${frame.panicSum}`, color: col('panic') }
     ]
     const colW = r.w / items.length
     items.forEach((it, i) => {
-      const x = r.x + colW * i + T.space.m
-      ctx.fillStyle = col('text_secondary')
-      ctx.fillText(it.glyph, x, r.y + r.h / 2)
+      const x = r.x + colW * i + T.space.xs
+      ctx.beginPath(); ctx.roundRect(x, r.y + 4, colW - T.space.xs * 2, r.h - 12, T.radius.chip)
+      ctx.fillStyle = withAlpha(col('panel'), 0.85); ctx.fill()
+      ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 2; ctx.stroke()
+      it.draw()
       ctx.fillStyle = it.color
-      ctx.fillText(it.text, x + 36, r.y + r.h / 2)
+      ctx.font = this.numFont(T.typography.h2)
+      ctx.fillText(it.text, x + 52, r.y + r.h / 2)
     })
   }
 
+  // ---- 剖面楼栋 ----
   private drawBuilding(frame: DayFrame, now: number): void {
     const { ctx } = this
     ctx.textBaseline = 'middle'
-    let occupied = frame.population
     const threat = motion('threat')
+    let occupied = frame.population
     for (let f = 0; f < FLOORS; f++) {
       const label = floorLabelRect(f)
-      ctx.fillStyle = col('text_secondary')
-      ctx.font = font(T.typography.caption)
-      ctx.fillText(`${FLOORS - f}F`, label.x, label.y + label.h / 2)
+      // 楼层标牌：BebasNeue 圆角小牌
+      ctx.beginPath(); ctx.roundRect(label.x + 4, label.y + label.h / 2 - 16, 40, 32, 8)
+      ctx.fillStyle = withAlpha(col('bg_night'), 0.55); ctx.fill()
+      ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 2; ctx.stroke()
+      ctx.fillStyle = f === 0 ? col('gold_primary') : col('text_secondary')
+      ctx.font = this.numFont(T.typography.body)
+      ctx.textAlign = 'center'
+      ctx.fillText(`${FLOORS - f}F`, label.x + 24, label.y + label.h / 2 + 1)
+      ctx.textAlign = 'left'
+      // 楼板横梁
+      const slab = roomRect(f, 0)
+      ctx.fillStyle = withAlpha(col('bg_night'), 0.5)
+      ctx.fillRect(slab.x - 6, slab.y + slab.h + 2, (roomRect(f, ROOMS_PER_FLOOR - 1).x + roomRect(f, ROOMS_PER_FLOOR - 1).w) - slab.x + 12, 5)
       for (let r = 0; r < ROOMS_PER_FLOOR; r++) {
         const rect = roomRect(f, r)
         const roomId = `F${FLOORS - f}-R${r + 1}`
         const breached = frame.breachedRooms.includes(roomId)
-        const isPublic = f === FLOORS - 1 && r < 3 // 1F：大厅/医务/仓（公共建筑占位）
-        const isTower = f === 0 && r === 0          // 6F：瞭望塔
+        const isPublic = f === FLOORS - 1 && r < 3
+        const isTower = f === 0 && r === 0
         const isOccupied = !isPublic && !isTower && occupied > 0
         if (isOccupied) occupied--
-        if (breached) {
-          const pulse = 0.5 + 0.5 * Math.sin((now / (threat.dur * 2)) * Math.PI * 2)
-          ctx.fillStyle = withAlpha(col('alert_blood'), 0.25 + 0.35 * pulse)
-          ctx.beginPath(); ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip); ctx.fill()
-          ctx.strokeStyle = col('alert_blood')
-          ctx.stroke()
-          ctx.fillStyle = col('text_primary')
-          ctx.font = font(T.typography.caption)
-          ctx.fillText('破防', rect.x + rect.w / 2 - 18, rect.y + rect.h / 2)
-        } else if (isPublic || isTower) {
-          ctx.strokeStyle = col('panel_stroke')
-          ctx.strokeRect(rect.x, rect.y, rect.w, rect.h)
-          ctx.fillStyle = withAlpha(col('gold_deep'), 0.2)
-          ctx.beginPath(); ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip); ctx.fill()
-          ctx.fillStyle = col('text_secondary')
-          ctx.font = font(T.typography.caption)
-          const name = isTower ? '瞭望塔' : ['大厅', '医务', '仓'][r]
-          ctx.fillText(name, rect.x + rect.w / 2 - name.length * 9, rect.y + rect.h / 2)
-        } else if (isOccupied) {
-          ctx.fillStyle = withAlpha(col('success'), 0.15)
-          ctx.beginPath(); ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip); ctx.fill()
-          ctx.strokeStyle = col('success')
-          ctx.beginPath(); ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip); ctx.stroke()
-          ctx.fillStyle = col('text_primary')
-          ctx.font = font(T.typography.caption)
-          ctx.fillText('🧑', rect.x + 12, rect.y + rect.h / 2)
-          ctx.fillText('🛏', rect.x + rect.w - 34, rect.y + rect.h / 2)
-        } else {
-          ctx.strokeStyle = col('panel_stroke')
-          ctx.beginPath(); ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip); ctx.stroke()
-        }
+        this.drawRoom(rect, { breached, isPublic, isTower, isOccupied, roomId, now, threatDur: threat.dur })
       }
     }
   }
 
+  private drawRoom(
+    rect: { x: number; y: number; w: number; h: number },
+    o: { breached: boolean; isPublic: boolean; isTower: boolean; isOccupied: boolean; roomId: string; now: number; threatDur: number }
+  ): void {
+    const { ctx } = this
+    const rr = T.radius.chip
+    ctx.beginPath(); ctx.roundRect(rect.x, rect.y, rect.w, rect.h, rr)
+    ctx.save(); ctx.clip()
+    if (o.breached) {
+      // 破防：血红内衬 + 裂纹 + 惊叹三角
+      const pulse = 0.5 + 0.5 * Math.sin((o.now / (o.threatDur * 2)) * Math.PI * 2)
+      ctx.fillStyle = withAlpha(col('alert_blood'), 0.3 + 0.3 * pulse); ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
+      ctx.strokeStyle = withAlpha(col('alert_blood'), 0.85); ctx.lineWidth = 2
+      for (const seed of [0, 1]) {
+        const bx = rect.x + rect.w * (0.3 + seed * 0.4), by = rect.y + 4
+        ctx.beginPath(); ctx.moveTo(bx, by)
+        ctx.lineTo(bx + (seed ? 7 : -6), by + rect.h * 0.3)
+        ctx.lineTo(bx + (seed ? -4 : 5), by + rect.h * 0.6)
+        ctx.lineTo(bx + (seed ? 6 : -7), by + rect.h - 6)
+        ctx.stroke()
+      }
+      this.iconWarn(rect.x + rect.w / 2, rect.y + rect.h / 2, 20)
+    } else if (o.isTower) {
+      // 瞭望塔：塔身 + 扫描光锥
+      ctx.fillStyle = withAlpha(col('bg_night'), 0.5); ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
+      const cx = rect.x + rect.w / 2, top = rect.y + 10
+      ctx.beginPath()
+      ctx.moveTo(cx - 14, rect.y + rect.h - 8); ctx.lineTo(cx - 9, top + 14)
+      ctx.lineTo(cx + 9, top + 14); ctx.lineTo(cx + 14, rect.y + rect.h - 8)
+      ctx.closePath()
+      ctx.fillStyle = mix(col('panel_stroke'), col('gold_deep'), 0.4); ctx.fill()
+      ctx.strokeStyle = col('gold_deep'); ctx.lineWidth = 2; ctx.stroke()
+      const sweep = Math.sin(o.now / 1400) * 0.9
+      ctx.beginPath()
+      ctx.moveTo(cx, top + 16)
+      ctx.lineTo(cx + Math.sin(sweep - 0.22) * rect.h, top + 16 - Math.cos(sweep - 0.22) * rect.h)
+      ctx.lineTo(cx + Math.sin(sweep + 0.22) * rect.h, top + 16 - Math.cos(sweep + 0.22) * rect.h)
+      ctx.closePath()
+      ctx.fillStyle = withAlpha(col('gold_primary'), 0.22); ctx.fill()
+      ctx.beginPath(); ctx.arc(cx, top + 16, 5, 0, Math.PI * 2)
+      ctx.fillStyle = col('gold_primary'); ctx.fill()
+    } else if (o.isPublic) {
+      // 1F 公共建筑：暖底 + 职能图形
+      const g = ctx.createLinearGradient(0, rect.y, 0, rect.y + rect.h)
+      g.addColorStop(0, mix(col('gold_deep'), col('bg_night'), 0.55))
+      g.addColorStop(1, mix(col('gold_deep'), col('bg_night'), 0.75))
+      ctx.fillStyle = g; ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
+      const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2
+      ctx.strokeStyle = withAlpha(col('gold_primary'), 0.9); ctx.lineWidth = 3
+      if (o.roomId.endsWith('R1')) { // 大厅：门 + 雨棚
+        ctx.strokeRect(cx - 13, cy - 4, 26, 18)
+        ctx.beginPath(); ctx.moveTo(cx - 18, cy - 6); ctx.lineTo(cx, cy - 16); ctx.lineTo(cx + 18, cy - 6); ctx.stroke()
+      } else if (o.roomId.endsWith('R2')) { // 医务：十字
+        ctx.fillStyle = withAlpha(col('success'), 0.95)
+        ctx.fillRect(cx - 5, cy - 14, 10, 28); ctx.fillRect(cx - 14, cy - 5, 28, 10)
+      } else { // 仓：板条箱
+        ctx.fillStyle = withAlpha(col('gold_deep'), 0.9)
+        ctx.fillRect(cx - 16, cy - 2, 14, 14); ctx.fillRect(cx + 1, cy - 2, 14, 14); ctx.fillRect(cx - 8, cy - 16, 14, 14)
+        ctx.strokeStyle = shade(col('gold_deep'), 0.6); ctx.lineWidth = 2
+        ctx.strokeRect(cx - 16, cy - 2, 14, 14); ctx.strokeRect(cx + 1, cy - 2, 14, 14); ctx.strokeRect(cx - 8, cy - 16, 14, 14)
+      }
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.textAlign = 'center'
+      ctx.fillText(['大厅', '医务', '仓'][Number(o.roomId.slice(-1)) - 1], cx, rect.y + rect.h - 10)
+      ctx.textAlign = 'left'
+    } else if (o.isOccupied) {
+      // 住户房：暖光渐变 + 窗 + 家具剪影 + 住户半身像（呼吸灯）
+      const breathe = 0.8 + 0.2 * Math.sin(o.now / 900 + (rect.x % 7))
+      const wg = ctx.createLinearGradient(0, rect.y, 0, rect.y + rect.h)
+      wg.addColorStop(0, withAlpha(col('gold_primary'), 0.28 * breathe))
+      wg.addColorStop(1, withAlpha(col('success'), 0.1))
+      ctx.fillStyle = wg; ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
+      // 窗（左）：暖光 + 窗棂
+      const wx = rect.x + 10, wy = rect.y + 8, ww = 22, wh = 26
+      ctx.fillStyle = withAlpha(col('gold_primary'), 0.75 * breathe); ctx.fillRect(wx, wy, ww, wh)
+      ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2
+      ctx.strokeRect(wx, wy, ww, wh)
+      ctx.beginPath(); ctx.moveTo(wx + ww / 2, wy); ctx.lineTo(wx + ww / 2, wy + wh)
+      ctx.moveTo(wx, wy + wh / 2); ctx.lineTo(wx + ww, wy + wh / 2); ctx.stroke()
+      // 家具（床，右）
+      ctx.fillStyle = withAlpha(col('bg_night'), 0.55)
+      ctx.fillRect(rect.x + rect.w - 34, rect.y + rect.h - 22, 26, 12)
+      ctx.fillRect(rect.x + rect.w - 34, rect.y + rect.h - 26, 8, 8)
+      // 住户半身像
+      this.iconPerson(rect.x + 34, rect.y + rect.h - 12, 26, col('text_primary'))
+      ctx.strokeStyle = withAlpha(col('success'), 0.9); ctx.lineWidth = 2.5
+      ctx.strokeRect(rect.x + 1.5, rect.y + 1.5, rect.w - 3, rect.h - 3)
+    } else {
+      // 空房：暗底 + 虚线 + 淡加号
+      ctx.fillStyle = withAlpha(col('bg_night'), 0.35); ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
+      ctx.setLineDash([6, 6])
+      ctx.strokeStyle = withAlpha(col('panel_stroke'), 0.9); ctx.lineWidth = 2
+      ctx.strokeRect(rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2)
+      ctx.setLineDash([])
+      const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2
+      ctx.strokeStyle = withAlpha(col('text_secondary'), 0.4); ctx.lineWidth = 3
+      ctx.beginPath(); ctx.moveTo(cx - 9, cy); ctx.lineTo(cx + 9, cy); ctx.moveTo(cx, cy - 9); ctx.lineTo(cx, cy + 9); ctx.stroke()
+    }
+    ctx.restore()
+  }
+
+  // ---- 事件卡入口（漫画卡样式） ----
   private drawEventEntry(frame: DayFrame): void {
     const { ctx } = this
     const r = eventEntryRect()
-    this.panel(r.x, r.y, r.w, r.h, T.radius.btn)
+    this.panel(r.x, r.y, r.w, r.h, T.radius.btn, { depth: 8 })
+    // 左侧金色书脊
+    ctx.fillStyle = col('gold_primary')
+    ctx.beginPath(); ctx.roundRect(r.x, r.y, 10, r.h, 5); ctx.fill()
     ctx.textBaseline = 'middle'
     const top = frame.eventCards[0]
     ctx.fillStyle = col('text_secondary')
     ctx.font = font(T.typography.caption)
-    ctx.fillText('今日事件', r.x + T.space.m, r.y + 30)
-    ctx.fillStyle = col('text_primary')
-    ctx.font = font(T.typography.body, { weight: 'bold' })
-    ctx.fillText(top ? top.title : '静谧 · 无事件', r.x + T.space.m, r.y + 72)
+    ctx.fillText('今日事件', r.x + T.space.m + 8, r.y + 30)
     if (frame.eventCards.length > 1) {
-      ctx.fillStyle = col('text_secondary')
-      ctx.font = font(T.typography.caption)
-      ctx.fillText(`+${frame.eventCards.length - 1}`, r.x + r.w - T.space.l - 40, r.y + 30)
+      ctx.fillStyle = col('gold_primary')
+      ctx.beginPath(); ctx.roundRect(r.x + r.w - 96, r.y + 14, 56, 32, T.radius.chip)
+      ctx.fillStyle = withAlpha(col('gold_primary'), 0.15); ctx.fill()
+      ctx.strokeStyle = col('gold_deep'); ctx.lineWidth = 2; ctx.stroke()
+      ctx.fillStyle = col('gold_primary'); ctx.font = this.numFont(T.typography.body)
+      ctx.textAlign = 'center'
+      ctx.fillText(`+${frame.eventCards.length - 1}`, r.x + r.w - 68, r.y + 31)
+      ctx.textAlign = 'left'
     }
-    ctx.fillStyle = col('gold_primary')
-    ctx.font = font(T.typography.h2)
-    ctx.fillText('▶', r.x + r.w - T.space.l - 28, r.y + 72)
+    ctx.fillStyle = col('text_primary')
+    ctx.font = font(T.typography.h2, { weight: 'bold' })
+    ctx.fillText(top ? top.title : '静谧 · 无事件', r.x + T.space.m + 8, r.y + 74)
+    // ▶ 圆钮
+    this.circleButton(r.x + r.w - T.space.l - 26, r.y + r.h / 2, 26, () => {
+      ctx.fillStyle = col('gold_primary')
+      ctx.beginPath()
+      ctx.moveTo(r.x + r.w - T.space.l - 32, r.y + r.h / 2 - 11)
+      ctx.lineTo(r.x + r.w - T.space.l - 12, r.y + r.h / 2)
+      ctx.lineTo(r.x + r.w - T.space.l - 32, r.y + r.h / 2 + 11)
+      ctx.closePath(); ctx.fill()
+    })
   }
 
+  // ---- 昨夜战报 ----
   private drawReport(frame: DayFrame): void {
     const { ctx } = this
     const r = reportRect()
@@ -410,41 +603,35 @@ export class WhiteboxRenderer {
     ctx.font = font(T.typography.body)
     ctx.fillText(`r均 ${frame.rAvg} · 死亡 ${frame.deaths} · 负伤 ${frame.wounds}`, r.x + T.space.m, r.y + 62)
     const barW = r.w - T.space.m * 2
-    ctx.fillStyle = withAlpha(col('panic'), 0.2)
-    ctx.fillRect(r.x + T.space.m, r.y + r.h - 34, barW, 10)
-    const panicRatio = Math.min(1, frame.population > 0 ? frame.panicSum / (frame.population * 100) : 0)
-    ctx.fillStyle = col('panic')
-    ctx.fillRect(r.x + T.space.m, r.y + r.h - 34, barW * panicRatio, 10)
+    ctx.fillStyle = withAlpha(col('panic'), 0.15)
+    ctx.beginPath(); ctx.roundRect(r.x + T.space.m, r.y + r.h - 36, barW, 12, 6); ctx.fill()
+    const ratio = Math.min(1, frame.population > 0 ? frame.panicSum / (frame.population * 100) : 0)
+    if (ratio > 0) {
+      const g = ctx.createLinearGradient(r.x + T.space.m, 0, r.x + T.space.m + barW * ratio, 0)
+      g.addColorStop(0, col('panic')); g.addColorStop(1, mix(col('panic'), col('danger'), 0.5))
+      ctx.fillStyle = g
+      ctx.beginPath(); ctx.roundRect(r.x + T.space.m, r.y + r.h - 36, Math.max(10, barW * ratio), 12, 6); ctx.fill()
+    }
     ctx.fillStyle = col('text_secondary')
     ctx.font = font(T.typography.caption)
     ctx.fillText(`hash=${frame.sessionHash}`, r.x + r.w - T.space.m - 220, r.y + 26)
   }
 
+  // ---- dock ----
   private drawDock(): void {
     const { ctx } = this
     ctx.textBaseline = 'middle'
     dockRects().forEach((r, i) => {
       const key = DOCK_KEYS[i]
-      const isNight = key.key === 'night'
-      ctx.beginPath()
-      ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn)
-      ctx.fillStyle = isNight ? withAlpha(col('gold_primary'), 0.16) : col('panel')
-      ctx.fill()
-      ctx.strokeStyle = isNight ? col('gold_deep') : col('panel_stroke')
-      ctx.lineWidth = 2
-      ctx.stroke()
-      ctx.fillStyle = isNight ? col('gold_primary') : col('text_primary')
-      ctx.font = font(T.typography.body, { weight: 'bold' })
-      const tw = ctx.measureText(key.label).width
-      ctx.fillText(key.label, r.x + (r.w - tw) / 2, r.y + r.h / 2)
+      this.button(r, key.label, key.key === 'night' ? 'primary' : 'normal')
     })
   }
 
-  // ---- DUSK 夜战预告横幅（SILENT 时替换为「?」，§四）----
+  // ---- DUSK 横幅 ----
   private drawDuskBanner(frame: DayFrame, now: number): void {
     const { ctx } = this
     const b = duskBannerRect()
-    this.panel(b.x, b.y, b.w, b.h, T.radius.btn)
+    this.panel(b.x, b.y, b.w, b.h, T.radius.btn, { depth: 8 })
     ctx.textBaseline = 'middle'
     ctx.fillStyle = col('text_secondary')
     ctx.font = font(T.typography.caption)
@@ -453,44 +640,29 @@ export class WhiteboxRenderer {
     ctx.font = font(T.typography.h2, { weight: 'bold' })
     if (silent) {
       ctx.fillStyle = col('text_secondary')
-      ctx.fillText('？', b.x + T.space.m, b.y + 68)
+      ctx.font = this.numFont(T.typography.h1)
+      ctx.fillText('?', b.x + T.space.m, b.y + 68)
       ctx.font = font(T.typography.caption)
-      ctx.fillText('静默之夜 · 情报缺失', b.x + T.space.m + 44, b.y + 68)
+      ctx.fillText('静默之夜 · 情报缺失', b.x + T.space.m + 36, b.y + 68)
     } else {
       const isBM = frame.modifiers.includes('BLOOD_MOON')
+      this.iconMoon(b.x + T.space.m + 18, b.y + 66, 16, isBM)
       ctx.fillStyle = isBM ? col('alert_blood') : col('text_primary')
-      ctx.fillText(isBM ? '血月 🔴' : '常规夜袭', b.x + T.space.m, b.y + 68)
+      ctx.font = font(T.typography.h2, { weight: 'bold' })
+      ctx.fillText(isBM ? '血月' : '常规夜袭', b.x + T.space.m + 46, b.y + 68)
       if (frame.modifiers.includes('MIGRATE')) {
         ctx.fillStyle = col('danger')
-        ctx.font = font(T.typography.caption)
-        ctx.fillText('怪物迁移 · 开战重排', b.x + T.space.m + 150, b.y + 68)
+        ctx.font = font(T.typography.caption, { weight: 'bold' })
+        ctx.fillText('怪物迁移 · 开战重排', b.x + T.space.m + 170, b.y + 68)
       }
     }
-    // 布防确认（88px 热区；threat 红闪吸引注意）
-    const c = duskConfirmRect()
     const threat = motion('threat')
-    const pulse = 0.7 + 0.3 * Math.sin((now / (threat.dur * 2)) * Math.PI * 2)
-    ctx.globalAlpha = pulse
-    this.button(c, '布防', col('gold_primary'), withAlpha(col('gold_primary'), 0.16), col('gold_deep'))
+    ctx.globalAlpha = 0.7 + 0.3 * Math.sin((now / (threat.dur * 2)) * Math.PI * 2)
+    this.button(duskConfirmRect(), '布防', 'primary')
     ctx.globalAlpha = 1
   }
 
-  private button(r: { x: number; y: number; w: number; h: number }, label: string, textColor: string, bg: string, stroke: string): void {
-    const { ctx } = this
-    ctx.beginPath()
-    ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn)
-    ctx.fillStyle = bg
-    ctx.fill()
-    ctx.strokeStyle = stroke
-    ctx.lineWidth = 2
-    ctx.stroke()
-    ctx.fillStyle = textColor
-    ctx.font = font(T.typography.body, { weight: 'bold' })
-    const tw = ctx.measureText(label).width
-    ctx.fillText(label, r.x + (r.w - tw) / 2, r.y + r.h / 2)
-  }
-
-  // ---- NIGHT 全屏夜战面板（§3.3：血月 threat 红闪×2+震屏 / 路血条三态 / 技能 CD 环）----
+  // ---- NIGHT 夜战面板 ----
   private drawNight(frame: DayFrame, now: number, pb: Playback): void {
     const { ctx } = this
     ctx.save()
@@ -498,30 +670,38 @@ export class WhiteboxRenderer {
       const burst = threatBurst(pb.nightStart, now)
       if (burst.shake > 0) ctx.translate(Math.sin(now / 16) * burst.shake, Math.cos(now / 13) * burst.shake)
       this.bgBase(col('bg_night'))
+      this.drawStars(now, 0.9)
       if (burst.flash > 0) {
         ctx.fillStyle = withAlpha(col('alert_blood'), 0.35 * burst.flash)
         ctx.fillRect(-20, -20, DESIGN_W + 40, DESIGN_H + 40)
       }
     } else {
       this.bgBase(col('bg_night'))
+      this.drawStars(now, 0.9)
+    }
+    // 血月大月亮相（右上，氛围）
+    if (frame.modifiers.includes('BLOOD_MOON')) {
+      ctx.beginPath(); ctx.arc(DESIGN_W - 120, 150, 52, 0, Math.PI * 2)
+      ctx.fillStyle = withAlpha(col('alert_blood'), 0.25); ctx.fill()
+      this.iconMoon(DESIGN_W - 120, 150, 40, true)
     }
     ctx.textBaseline = 'middle'
-    // 标题：特殊夜标记 + 波次
     const isBM = frame.modifiers.includes('BLOOD_MOON')
     const waves = pb.session && pb.nightStart !== null ? nightWaves(pb.session.routes, pb.nightStart, now) : null
     ctx.fillStyle = isBM ? col('alert_blood') : col('text_primary')
     ctx.font = font(T.typography.h1, { weight: 'bold' })
-    ctx.fillText(isBM ? '血月 🔴' : '夜袭', T.space.l, 120)
+    ctx.fillText(isBM ? '血月' : '夜袭', T.space.l, 120)
+    if (isBM) this.iconMoon(T.space.l + 130, 118, 14, true)
     ctx.fillStyle = col('text_secondary')
-    ctx.font = font(T.typography.h2)
-    const total = pb.session?.routes.length ?? 0
-    ctx.fillText(`第 ${waves?.waveNo ?? 0}/${total} 波`, T.space.l + 260, 120)
+    ctx.font = this.numFont(T.typography.h2)
+    ctx.fillText(`${waves?.waveNo ?? 0}/${pb.session?.routes.length ?? 0}`, T.space.l + 260, 120)
+    ctx.font = font(T.typography.caption)
+    ctx.fillText('波', T.space.l + 344, 120)
     if (pb.session?.silent) {
       ctx.fillStyle = col('text_secondary')
-      ctx.font = font(T.typography.body)
-      ctx.fillText('？', T.space.l + 480, 120)
+      ctx.font = this.numFont(T.typography.h2)
+      ctx.fillText('?', T.space.l + 420, 120)
     }
-    // 路血条（红/警戒/绿三态；当前波 normal 曲线充能）
     if (pb.session && waves) {
       pb.session.routes.forEach((_, i) => {
         const rv = waves.revealed[i]
@@ -529,40 +709,43 @@ export class WhiteboxRenderer {
         const isCurrent = waves.waveNo === i + 1
         const fill = rv ? (isCurrent ? waves.currentFill : 1) : 0
         ctx.fillStyle = col('text_secondary')
-        ctx.font = font(T.typography.caption)
-        ctx.fillText(`路${WAVE_LETTERS[i]}`, r.x, r.y + r.h / 2)
-        const barX = r.x + 64, barW = r.w - 64 - 160
-        ctx.fillStyle = withAlpha(col('panel_stroke'), 0.6)
-        ctx.beginPath(); ctx.roundRect(barX, r.y + r.h / 2 - 14, barW, 28, T.radius.chip); ctx.fill()
-        if (fill > 0) {
+        ctx.font = this.numFont(T.typography.body)
+        ctx.fillText(WAVE_LETTERS[i], r.x, r.y + r.h / 2)
+        const barX = r.x + 64, barW = r.w - 64 - 180
+        ctx.beginPath(); ctx.roundRect(barX, r.y + r.h / 2 - 16, barW, 32, T.radius.chip)
+        ctx.fillStyle = withAlpha(col('bg_night'), 0.7); ctx.fill()
+        ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 2; ctx.stroke()
+        if (fill > 0 && rv) {
           const stateColor = rv.state === 0 ? col('alert_blood') : rv.state === 1 ? col('gold_deep') : col('success')
-          ctx.fillStyle = stateColor
-          ctx.beginPath(); ctx.roundRect(barX, r.y + r.h / 2 - 14, Math.max(8, barW * fill), 28, T.radius.chip); ctx.fill()
+          const g = ctx.createLinearGradient(barX, 0, barX + barW, 0)
+          g.addColorStop(0, shade(stateColor, 0.75)); g.addColorStop(1, stateColor)
+          ctx.fillStyle = g
+          ctx.beginPath(); ctx.roundRect(barX + 3, r.y + r.h / 2 - 13, Math.max(8, (barW - 6) * fill), 26, T.radius.chip - 2); ctx.fill()
+          // 末端高光点
+          ctx.beginPath(); ctx.arc(barX + 3 + Math.max(8, (barW - 6) * fill), r.y + r.h / 2, 5, 0, Math.PI * 2)
+          ctx.fillStyle = withAlpha(col('text_primary'), 0.7); ctx.fill()
         }
-        ctx.fillStyle = col('text_primary')
-        ctx.font = font(T.typography.body)
         if (rv) {
           const mon = pb.monsterNames[rv.route.monsterId ?? ''] ?? '怪物'
-          const warn = rv.state === 0 ? ' ⚠⚠' : rv.state === 1 ? ' ⚠' : ''
-          ctx.fillText(`${mon} ${Math.round(rv.route.r * 100)}%${warn}`, barX + barW + T.space.s, r.y + r.h / 2)
+          ctx.fillStyle = rv.state === 0 ? col('alert_blood') : col('text_primary')
+          ctx.font = font(T.typography.body)
+          ctx.fillText(`${mon} ${Math.round(rv.route.r * 100)}%${rv.state === 0 ? ' ‼' : rv.state === 1 ? ' ⚠' : ''}`, barX + barW + T.space.s, r.y + r.h / 2)
         } else {
           ctx.fillStyle = col('text_secondary')
-          ctx.fillText('？？', barX + barW + T.space.s, r.y + r.h / 2)
+          ctx.font = this.numFont(T.typography.body)
+          ctx.fillText('??', barX + barW + T.space.s, r.y + r.h / 2)
         }
       })
     }
-    // 主动技（88px 热区 + CD 环）
+    // 主动技
     nightSkillRects().forEach((r, i) => {
       const sk = pb.skills[i]
       if (!sk) return
-      ctx.beginPath()
-      ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn)
-      ctx.fillStyle = col('panel')
-      ctx.fill()
-      ctx.strokeStyle = col('panel_stroke')
-      ctx.stroke()
+      ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn)
+      ctx.fillStyle = col('panel'); ctx.fill()
+      ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 3; ctx.stroke()
       ctx.fillStyle = col('text_primary')
-      ctx.font = font(T.typography.h2)
+      ctx.font = this.numFont(T.typography.h2)
       ctx.fillText(sk.glyph, r.x + r.w / 2 - 16, r.y + r.h / 2 - 8)
       ctx.font = font(T.typography.caption)
       ctx.fillStyle = col('text_secondary')
@@ -570,26 +753,24 @@ export class WhiteboxRenderer {
       ctx.fillText(sk.label, r.x + (r.w - lw) / 2, r.y + r.h - 18)
       const cdLeft = sk.cdUntil - now
       if (cdLeft > 0) {
-        const frac = cdLeft / (motion('normal').dur * 10) // CD 总长=normal×10（占位，tokens 派生）
+        const frac = cdLeft / (motion('normal').dur * 10)
         ctx.beginPath()
         ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 8, 30, -Math.PI / 2, -Math.PI / 2 + (1 - frac) * Math.PI * 2)
-        ctx.strokeStyle = col('gold_primary')
-        ctx.lineWidth = 4
-        ctx.stroke()
+        ctx.strokeStyle = col('gold_primary'); ctx.lineWidth = 5; ctx.stroke()
+        ctx.fillStyle = withAlpha(col('bg_night'), 0.55)
+        ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 8, 26, 0, Math.PI * 2); ctx.fill()
       }
     })
     ctx.restore()
   }
 
-  /** 战况日志（路结果逐波追加 + 技能使用；body 字号可读） */
+  /** 战况日志 + 战毕返回 */
   private drawNightLog(frame: DayFrame, now: number, pb: Playback): void {
     const { ctx } = this
     const r = nightLogRect()
     this.panel(r.x, r.y, r.w, r.h)
     ctx.save()
-    ctx.beginPath()
-    ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel)
-    ctx.clip()
+    ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel); ctx.clip()
     ctx.textBaseline = 'middle'
     const lines: string[] = []
     if (pb.session && pb.nightStart !== null) {
@@ -606,30 +787,31 @@ export class WhiteboxRenderer {
       ctx.fillStyle = i === visible.length - 1 ? col('text_primary') : col('text_secondary')
       ctx.fillText(ln, r.x + T.space.m, r.y + 32 + i * 36)
     })
-    // 战毕返回按钮（gold 主行动，88px 热区）
     if (pb.session && pb.nightStart !== null && nightWaves(pb.session.routes, pb.nightStart, now).done) {
-      const b = nightBackRect()
-      this.button(b, '天亮了 →', col('gold_primary'), withAlpha(col('gold_primary'), 0.16), col('gold_deep'))
+      this.button(nightBackRect(), '天亮了 →', 'primary')
     }
     ctx.restore()
   }
 
-  // ---- DAWN 收租结算（§3.4 标志性瞬间：物资雨 rain 500ms → 计数器 counter 800ms → 逐户 stagger 60ms）----
+  // ---- DAWN 收租结算 ----
   private drawSettle(frame: DayFrame, now: number, pb: Playback): void {
     const { ctx } = this
     const start = pb.settleStart
     ctx.textBaseline = 'middle'
-    // 物资雨：金色方块 24 粒子（美术规范 §七），rain 曲线 500ms 落下
     if (start !== null) {
       const rainM = motion('rain')
       const rainT = Math.min(1, (now - start) / rainM.dur)
       if (rainT < 1) {
-        ctx.fillStyle = col('gold_primary')
         for (let i = 0; i < 24; i++) {
-          const seed = (i * 97 + frame.day * 31) % 1000 / 1000
+          const seed = prand(i * 97 + frame.day * 31)
           const x = T.space.l + seed * (DESIGN_W - T.space.l * 2 - 24)
-          const y = rainM.fn(rainT) * DESIGN_H * 1.1 + seed * 300
-          ctx.fillRect(x, y % (DESIGN_H * 0.9), 20, 30)
+          const y = (rainM.fn(rainT) * DESIGN_H * 1.1 + seed * 300) % (DESIGN_H * 0.9)
+          ctx.fillStyle = withAlpha(col('gold_primary'), 0.35)
+          ctx.fillRect(x - 2, y - 2, 24, 34)
+          ctx.fillStyle = col('gold_primary')
+          ctx.fillRect(x, y, 20, 30)
+          ctx.fillStyle = shade(col('gold_primary'), 0.72)
+          ctx.fillRect(x + 4, y + 4, 12, 8)
         }
       }
     }
@@ -638,13 +820,12 @@ export class WhiteboxRenderer {
     ctx.fillStyle = col('text_secondary')
     ctx.font = font(T.typography.body)
     ctx.fillText('天亮 · 收租结算', r.x + T.space.m, r.y + 48)
-    // 计数器滚动（counter 800ms easeOutCubic；BebasNeue 位 M3 子集化，占位粗体）
     const households = Math.min(frame.population, frame.roomsBuilt)
     const shown = start !== null ? counterValue(frame.income, start + motion('rain').dur, now) : 0
     ctx.fillStyle = col('gold_primary')
-    ctx.font = font(T.typography.h1, { weight: 'bold' })
+    ctx.font = this.numFont(T.typography.h1)
     ctx.fillText(`+${fmt(shown)}`, settleCounterRect().x + T.space.m, settleCounterRect().y + 40)
-    // 逐户弹出（stagger 60ms 间隔 + fast 曲线滑入）
+    this.iconCoin(settleCounterRect().x + T.space.m + ctx.measureText(`+${fmt(shown)}`).width + 30, settleCounterRect().y + 38, 20)
     const perRoom = households > 0 ? Math.round(frame.income / households) : 0
     const popCount = Math.min(households, SETTLE_POP_MAX)
     for (let i = 0; i < popCount; i++) {
@@ -652,12 +833,13 @@ export class WhiteboxRenderer {
       if (p <= 0) continue
       const pr = settlePopRect(i)
       ctx.globalAlpha = p
+      this.iconPerson(pr.x + 14, pr.y + pr.h / 2, 22, col('text_secondary'))
       ctx.fillStyle = col('text_secondary')
       ctx.font = font(T.typography.caption)
-      ctx.fillText(`住 · F1-R${i + 1}`, pr.x, pr.y + pr.h / 2)
+      ctx.fillText(`住 · F1-R${i + 1}`, pr.x + 36, pr.y + pr.h / 2)
       ctx.fillStyle = col('gold_primary')
-      ctx.font = font(T.typography.body)
-      ctx.fillText(`+${fmt(perRoom)}`, pr.x + 160, pr.y + pr.h / 2)
+      ctx.font = this.numFont(T.typography.body)
+      ctx.fillText(`+${fmt(perRoom)}`, pr.x + 170, pr.y + pr.h / 2)
       ctx.globalAlpha = 1
     }
     if (households > SETTLE_POP_MAX) {
@@ -666,13 +848,12 @@ export class WhiteboxRenderer {
       ctx.font = font(T.typography.caption)
       ctx.fillText(`…共 ${households} 户`, pr.x, pr.y + pr.h + 24)
     }
-    // 结算动效链完成后亮出「继续」（88px 热区）
     if (start !== null && now >= settleDoneAt(start, households)) {
-      this.button(settleContinueRect(), '继续 ▶', col('gold_primary'), withAlpha(col('gold_primary'), 0.16), col('gold_deep'))
+      this.button(settleContinueRect(), '继续 ▶', 'primary')
     }
   }
 
-  // ---- 模态：事件卡模板（§3.2）/确认入夜/占位面板 ----
+  // ---- 模态 ----
   private drawModal(ui: UiState, frame: DayFrame, now: number, pb: Playback): void {
     const { ctx } = this
     const top: Modal | undefined = topModal(ui)
@@ -682,10 +863,13 @@ export class WhiteboxRenderer {
     const eased = m.fn(Math.min(1, (now - this.modalOpenAt) / m.dur))
     const r = modalRect()
     const slide = (1 - eased) * (DESIGN_H - r.y)
-    ctx.fillStyle = withAlpha(col('bg_night'), 0.6 * eased)
+    ctx.fillStyle = withAlpha(col('bg_night'), 0.62 * eased)
     ctx.fillRect(0, 0, DESIGN_W, DESIGN_H)
     const y = r.y + slide
     this.panel(r.x, y, r.w, r.h)
+    // 顶部把手
+    ctx.fillStyle = withAlpha(col('text_secondary'), 0.5)
+    ctx.beginPath(); ctx.roundRect(r.x + r.w / 2 - 40, y + 12, 80, 8, 4); ctx.fill()
     ctx.textBaseline = 'middle'
     if (top.kind === 'event' && top.card) {
       this.drawEventCard(top, y, frame, now, pb)
@@ -693,9 +877,11 @@ export class WhiteboxRenderer {
     }
     const title = top.kind === 'confirmNight' ? '确认入夜？'
       : ({ deploy: '布防', recruit: '招募', upgrade: '升级', settings: '设置' } as Record<string, string>)[top.id] ?? top.id
+    ctx.fillStyle = col('gold_primary')
+    ctx.beginPath(); ctx.roundRect(r.x + T.space.m, y + 32, 6, 32, 3); ctx.fill()
     ctx.fillStyle = col('text_primary')
     ctx.font = font(T.typography.h2, { weight: 'bold' })
-    ctx.fillText(title, r.x + T.space.m, y + 48)
+    ctx.fillText(title, r.x + T.space.m + 18, y + 48)
     ctx.strokeStyle = col('panel_stroke')
     ctx.beginPath(); ctx.moveTo(r.x + T.space.m, y + 80); ctx.lineTo(r.x + r.w - T.space.m, y + 80); ctx.stroke()
     ctx.fillStyle = col('text_secondary')
@@ -704,83 +890,196 @@ export class WhiteboxRenderer {
     ctx.fillText(body, r.x + T.space.m, y + 120)
     if (top.kind === 'confirmNight') {
       const cr = modalConfirmRect()
-      this.button({ ...cr, y: cr.y - r.y + y }, '入夜 ▶', col('gold_primary'), withAlpha(col('gold_primary'), 0.16), col('gold_deep'))
+      this.button({ ...cr, y: cr.y - r.y + y }, '入夜 ▶', 'primary')
     }
-    const c = modalCloseRect()
-    this.closeBtn(c, y - r.y, '关闭')
+    this.closeBtn(y - r.y, top.kind === 'event' && top.chosen !== undefined ? '继续' : '关闭')
   }
 
-  /** 事件卡（§3.2 模板：标题栏/正文 24px/选项按钮+风险星级/翻面→结果→图标飞资源栏） */
+  /** 事件卡（§3.2 模板） */
   private drawEventCard(top: Modal, y: number, frame: DayFrame, now: number, pb: Playback): void {
     const { ctx } = this
     const r = modalRect()
     const card = top.card
     if (!card) return
+    ctx.fillStyle = col('gold_primary')
+    ctx.beginPath(); ctx.roundRect(r.x + T.space.m, y + 32, 6, 32, 3); ctx.fill()
     ctx.fillStyle = col('text_primary')
     ctx.font = font(T.typography.h2, { weight: 'bold' })
-    ctx.fillText(card.title, r.x + T.space.m, y + 48)
+    ctx.fillText(card.title, r.x + T.space.m + 18, y + 48)
     ctx.strokeStyle = col('panel_stroke')
     ctx.beginPath(); ctx.moveTo(r.x + T.space.m, y + 80); ctx.lineTo(r.x + r.w - T.space.m, y + 80); ctx.stroke()
-    // 正文 24px（≤2 行）
     ctx.fillStyle = col('text_primary')
     ctx.font = font(T.typography.body)
-    if (card.text) ctx.fillText(card.text, r.x + T.space.m, y + 120, r.w - T.space.m * 2)
-    // 选项按钮：标签 + 概率徽标 + 风险星级（⚠×非首选结果数）
+    const bodyLines = card.text ? this.wrap(card.text, r.w - T.space.m * 2.4) : []
+    bodyLines.slice(0, 2).forEach((ln, i) => ctx.fillText(ln, r.x + T.space.m + 8, y + 118 + i * 34))
     const opt = card.options[0]
     const flipped = top.chosen !== undefined
-    const flip = cardFlip(pb.chosenAt, now) // normal 300ms easeOutCubic 翻面
+    const flip = cardFlip(pb.chosenAt, now)
     if (opt && !flipped) {
       const or = modalOptionRect()
-      const br = { ...or, y: or.y - r.y + y } // 随面板滑入（命中测试用终位，300ms 滑入窗口内偏差可忽略）
-      ctx.beginPath()
-      ctx.roundRect(br.x, br.y, br.w, br.h, T.radius.btn)
-      ctx.fillStyle = withAlpha(col('gold_primary'), 0.1)
-      ctx.fill()
-      ctx.strokeStyle = col('gold_deep')
-      ctx.stroke()
+      const br = { ...or, y: or.y - r.y + y }
+      ctx.beginPath(); ctx.roundRect(br.x, br.y, br.w, br.h, T.radius.btn)
+      const g = ctx.createLinearGradient(0, br.y, 0, br.y + br.h)
+      g.addColorStop(0, withAlpha(col('gold_primary'), 0.18)); g.addColorStop(1, withAlpha(col('gold_deep'), 0.1))
+      ctx.fillStyle = g; ctx.fill()
+      ctx.strokeStyle = col('gold_deep'); ctx.lineWidth = 3; ctx.stroke()
       ctx.fillStyle = col('text_primary')
       ctx.font = font(T.typography.body, { weight: 'bold' })
       ctx.fillText(`▶ ${opt.label}`, br.x + T.space.m, br.y + 34)
       ctx.fillStyle = col('text_secondary')
-      ctx.font = font(T.typography.caption)
+      ctx.font = this.numFont(T.typography.caption)
       const ps = opt.ps.map(p => `${Math.round(p * 100)}%`).join('/')
-      const stars = '⚠'.repeat(Math.min(3, opt.ps.length - 1))
-      ctx.fillText(`${ps} ${stars}`, br.x + T.space.m, br.y + 72)
+      ctx.fillText(ps, br.x + T.space.m, br.y + 72)
+      const stars = Math.min(3, opt.ps.length - 1)
+      for (let i = 0; i < stars; i++) this.iconWarn(br.x + br.w - 60 - i * 34, br.y + 66, 18)
     }
     if (flipped) {
-      // 结果浮现 + 金币图标飞向资源栏（rain 曲线 500ms）
       const flyT = pb.chosenAt !== null ? Math.min(1, Math.max(0, (now - (pb.chosenAt + motion('normal').dur)) / motion('rain').dur)) : 0
       ctx.globalAlpha = flip
       ctx.fillStyle = col('success')
       ctx.font = font(T.typography.body, { weight: 'bold' })
-      ctx.fillText(`✓ ${top.chosen === 0 ? '已执行' : '已选择'} · ${card.resultText}`, r.x + T.space.m, y + 170 + 40, r.w - T.space.m * 2)
+      ctx.fillText(`✓ 已执行 · ${card.resultText}`, r.x + T.space.m + 8, y + 210, r.w - T.space.m * 2.4)
       ctx.globalAlpha = 1
       if (flyT > 0 && flyT < 1) {
         const rainM = motion('rain')
-        const fx = r.x + T.space.m + (resourceRect().x + T.space.l - r.x) * rainM.fn(flyT)
-        const fy = y + 210 + (resourceRect().y + 20 - y - 210) * rainM.fn(flyT)
-        ctx.fillStyle = col('gold_primary')
-        ctx.beginPath(); ctx.arc(fx, fy, 14, 0, Math.PI * 2); ctx.fill()
+        const e = rainM.fn(flyT)
+        const fx = r.x + T.space.m + (resourceRect().x + T.space.l - r.x) * e
+        const fy = y + 210 + (resourceRect().y + 20 - y - 210) * e
+        this.iconCoin(fx, fy, 14)
       }
     }
-    const c = modalCloseRect()
-    this.closeBtn(c, y - r.y, flipped ? '继续' : '稍后')
+    this.closeBtn(y - r.y, flipped ? '继续' : '稍后')
   }
 
-  private closeBtn(c: { x: number; y: number; w: number; h: number }, dy: number, label: string): void {
+  private closeBtn(dy: number, label: string): void {
+    const c = modalCloseRect()
+    this.circleButton(c.x + c.w / 2, c.y + dy + c.h / 2, c.h / 2 - 4, () => {
+      const { ctx } = this
+      ctx.strokeStyle = col('text_primary'); ctx.lineWidth = 3.5
+      const m = 9
+      ctx.beginPath()
+      ctx.moveTo(c.x + c.w / 2 - m, c.y + dy + c.h / 2 - m); ctx.lineTo(c.x + c.w / 2 + m, c.y + dy + c.h / 2 + m)
+      ctx.moveTo(c.x + c.w / 2 + m, c.y + dy + c.h / 2 - m); ctx.lineTo(c.x + c.w / 2 - m, c.y + dy + c.h / 2 + m)
+      ctx.stroke()
+      ctx.fillStyle = col('text_primary')
+      ctx.font = font(T.typography.caption)
+      ctx.textAlign = 'center'
+      ctx.fillText(label, c.x + c.w / 2, c.y + dy + c.h - 8)
+      ctx.textAlign = 'left'
+    })
+  }
+
+  /** 占位页（功能点4）：图鉴 3 列网格剪影 / 商店礼包横滑 / 设置列表 */
+  private drawPage(page: 'main' | 'codex' | 'shop' | 'settings', now: number): void {
     const { ctx } = this
-    ctx.beginPath()
-    ctx.roundRect(c.x, c.y + dy, c.w, c.h, T.radius.btn)
-    ctx.fillStyle = withAlpha(col('text_secondary'), 0.15)
-    ctx.fill()
-    ctx.strokeStyle = col('panel_stroke')
-    ctx.stroke()
+    ctx.textBaseline = 'middle'
+    this.button(pageBackRect(), '◀ 返回', 'normal')
+    const titles: Record<string, string> = { codex: '图鉴', shop: '商店', settings: '设置' }
     ctx.fillStyle = col('text_primary')
-    ctx.font = font(T.typography.body)
-    const tw = ctx.measureText(label).width
-    ctx.fillText(label, c.x + (c.w - tw) / 2, c.y + dy + c.h / 2)
+    ctx.font = font(T.typography.h1, { weight: 'bold' })
+    ctx.fillText(titles[page] ?? '', pageTitleRect().x, pageTitleRect().y + pageTitleRect().h / 2)
+    if (page === 'codex') {
+      for (let row = 0; row < CODEX_ROWS; row++) {
+        for (let c = 0; c < CODEX_COLS; c++) {
+          const r = codexCellRect(c, row)
+          const unlocked = row === 0 && c === 0
+          const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h)
+          g.addColorStop(0, unlocked ? withAlpha(col('success'), 0.16) : withAlpha(col('bg_night'), 0.55))
+          g.addColorStop(1, unlocked ? withAlpha(col('success'), 0.06) : withAlpha(col('bg_night'), 0.3))
+          ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel)
+          ctx.fillStyle = g; ctx.fill()
+          ctx.strokeStyle = unlocked ? col('success') : col('panel_stroke')
+          ctx.lineWidth = 2; ctx.stroke()
+          ctx.font = this.numFont(T.typography.h1)
+          ctx.fillStyle = unlocked ? col('text_primary') : col('text_secondary')
+          ctx.textAlign = 'center'
+          if (unlocked) this.iconPerson(r.x + r.w / 2, r.y + r.h / 2 - 14, 56, col('gold_primary'))
+          else {
+            // 锁：环 + 方体
+            ctx.strokeStyle = col('text_secondary'); ctx.lineWidth = 4
+            ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 30, 16, Math.PI, 0); ctx.stroke()
+            ctx.fillStyle = col('text_secondary')
+            ctx.beginPath(); ctx.roundRect(r.x + r.w / 2 - 22, r.y + r.h / 2 - 30, 44, 34, 6); ctx.fill()
+          }
+          ctx.font = font(T.typography.caption)
+          ctx.fillStyle = unlocked ? col('text_primary') : col('text_secondary')
+          ctx.fillText(unlocked ? '循声者' : '未解锁', r.x + r.w / 2, r.y + r.h - 40)
+          ctx.textAlign = 'left'
+        }
+      }
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.fillText('占位：M3 按怪物进化树/住户名册填充', T.space.l, codexCellRect(0, CODEX_ROWS - 1).y + codexCellRect(0, 0).h + 40)
+    } else if (page === 'shop') {
+      const names = ['首充双倍', '物资补给包', '天赋石礼包']
+      const prices = ['¥6', '¥30', '¥68']
+      const was = ['¥12', '¥45', '¥98']
+      for (let i = 0; i < SHOP_CARDS; i++) {
+        const r = shopCardRect(i)
+        this.panel(r.x, r.y, r.w, r.h)
+        ctx.strokeStyle = i === 0 ? col('gold_deep') : col('panel_stroke')
+        ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel); ctx.stroke()
+        ctx.fillStyle = col('gold_primary')
+        ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + 140, 42, 0, Math.PI * 2); ctx.fill()
+        ctx.strokeStyle = col('gold_deep'); ctx.lineWidth = 4
+        ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + 140, 30, 0, Math.PI * 2); ctx.stroke()
+        this.iconCoin(r.x + r.w / 2 - 30, r.y + 110, 12)
+        ctx.fillStyle = col('text_primary')
+        ctx.font = font(T.typography.h2, { weight: 'bold' })
+        ctx.fillText(names[i], r.x + T.space.m, r.y + 280)
+        ctx.fillStyle = col('text_secondary')
+        ctx.font = font(T.typography.body)
+        ctx.fillText(was[i], r.x + T.space.m, r.y + 340)
+        const ww = ctx.measureText(was[i]).width
+        ctx.strokeStyle = col('danger')
+        ctx.beginPath(); ctx.moveTo(r.x + T.space.m, r.y + 340); ctx.lineTo(r.x + T.space.m + ww, r.y + 340); ctx.stroke()
+        ctx.fillStyle = col('gold_primary')
+        ctx.font = this.numFont(T.typography.h2)
+        ctx.fillText(prices[i], r.x + T.space.m + ww + T.space.s, r.y + 340)
+        if (i === 0) {
+          ctx.fillStyle = col('alert_blood')
+          ctx.beginPath(); ctx.roundRect(r.x + r.w - 128, r.y + 24, 96, 40, T.radius.chip); ctx.fill()
+          ctx.fillStyle = col('text_primary')
+          ctx.font = font(T.typography.caption, { weight: 'bold' })
+          ctx.textAlign = 'center'
+          ctx.fillText('双倍', r.x + r.w - 80, r.y + 45)
+          ctx.textAlign = 'left'
+        }
+      }
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.fillText('占位：SKU 走 iap_sku.json，IAA/IAP 合规审查后接入', T.space.l, shopCardRect(0).y + 600)
+    } else {
+      for (const [i, row] of SETTINGS_ROWS.entries()) {
+        const r = settingsRowRect(i)
+        this.panel(r.x, r.y, r.w, r.h, T.radius.btn)
+        ctx.fillStyle = col('text_primary')
+        ctx.font = font(T.typography.body)
+        ctx.fillText(row.label, r.x + T.space.m, r.y + r.h / 2)
+        if (row.key === 'codex' || row.key === 'shop') {
+          ctx.fillStyle = col('gold_primary')
+          ctx.beginPath()
+          ctx.moveTo(r.x + r.w - T.space.l, r.y + r.h / 2 - 12)
+          ctx.lineTo(r.x + r.w - T.space.l + 16, r.y + r.h / 2)
+          ctx.lineTo(r.x + r.w - T.space.l, r.y + r.h / 2 + 12)
+          ctx.closePath(); ctx.fill()
+        } else {
+          const tw = 96
+          const tx = r.x + r.w - tw - T.space.m
+          ctx.beginPath(); ctx.roundRect(tx, r.y + r.h / 2 - 24, tw, 48, 24)
+          ctx.fillStyle = withAlpha(col('success'), 0.3); ctx.fill()
+          ctx.beginPath(); ctx.arc(tx + tw - 24, r.y + r.h / 2, 18, 0, Math.PI * 2)
+          ctx.fillStyle = col('success'); ctx.fill()
+        }
+      }
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.fillText('存档三检查点：日间/黄昏/夜战（fail-safe 恢复）', T.space.l, settingsRowRect(SETTINGS_ROWS.length - 1).y + 128)
+    }
+    void now
   }
 }
+
 
 /** 帧率采样报告（性能预算冒烟：中端机 ≥30fps，白盒预算 ≥50fps） */
 export function fpsReport(samples: number[]): { min: number; avg: number; budgetOk: boolean } {

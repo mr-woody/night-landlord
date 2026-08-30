@@ -162,7 +162,13 @@ function settleHouseholds(): number {
 
 let simSessions: Record<number, BattleSession> = {}
 
-boot.then(() => {
+// 字体就绪（@font-face 子集；失败时回退系统字体不阻塞）
+const fontsReady = Promise.all([
+  (document as any).fonts.load('bold 24px "SourceHanSansCN-Bold"', '永夜收租人日次布防招募升级血月夜战'),
+  (document as any).fonts.load('32px "BebasNeue"', '0123456789D+%.'),
+]).catch(() => undefined)
+
+boot.then(async () => {
   const sim = runSimulation(app, kernel, { days: 7, seed: 42 })
   simSessions = sim.sessions
   frames = sim.records.map(r => ({
@@ -177,6 +183,7 @@ boot.then(() => {
   // 冒烟调试入口：?phase=day|dusk|night|dawn 进入对应相；?page=codex|shop|settings 直达占位页
   const want = new URLSearchParams(location.search).get('phase')
   const wantPage = new URLSearchParams(location.search).get('page')
+  await fontsReady
   renderer.start(
     () => {
       const f = frames[idx]
