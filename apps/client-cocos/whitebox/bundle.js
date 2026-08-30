@@ -6192,6 +6192,122 @@
     return { rows, allDone: steps.length > 0 && rows.every((r) => r.done), current };
   }
 
+  // config/weather.json
+  var weather_default = {
+    version: 1,
+    sourceDoc: "docs/\u6218\u6597\u6F14\u51FA\u4E0E\u5929\u6C14\u7CFB\u7EDF\u8BBE\u8BA1.md \xA73 + docs/\u6570\u636E\u914D\u7F6E\u8868\u7ED3\u6784\u8BBE\u8BA1.md \xA710",
+    entries: [
+      {
+        id: "sunny",
+        name: "\u6674",
+        lightMul: 1,
+        tintKey: "text_primary",
+        temp: "mild",
+        humidity: "low",
+        particles: "none",
+        fog: false,
+        gatherMul: 1,
+        encounterMul: 1,
+        panicDecayMul: 1,
+        foodConsumeMul: 1,
+        weightBase: 40,
+        weightAfter: 25,
+        exploreDisabled: false,
+        unlockDay: 1
+      },
+      {
+        id: "overcast",
+        name: "\u9634",
+        lightMul: 0.85,
+        tintKey: "text_secondary",
+        temp: "mild",
+        humidity: "mid",
+        particles: "none",
+        fog: false,
+        gatherMul: 0.9,
+        encounterMul: 1,
+        panicDecayMul: 1,
+        foodConsumeMul: 1,
+        weightBase: 20,
+        weightAfter: 20,
+        exploreDisabled: false,
+        unlockDay: 1
+      },
+      {
+        id: "rain",
+        name: "\u96E8",
+        lightMul: 0.75,
+        tintKey: "panel_stroke",
+        temp: "cold",
+        humidity: "high",
+        particles: "rain",
+        fog: false,
+        gatherMul: 0.75,
+        encounterMul: 1.2,
+        panicDecayMul: 0.9,
+        foodConsumeMul: 1,
+        weightBase: 15,
+        weightAfter: 20,
+        exploreDisabled: false,
+        unlockDay: 3
+      },
+      {
+        id: "foggy",
+        name: "\u96FE",
+        lightMul: 0.8,
+        tintKey: "text_secondary",
+        temp: "cold",
+        humidity: "satur",
+        particles: "fog",
+        fog: true,
+        gatherMul: 0.9,
+        encounterMul: 1.5,
+        panicDecayMul: 0.9,
+        foodConsumeMul: 1,
+        weightBase: 10,
+        weightAfter: 15,
+        exploreDisabled: false,
+        unlockDay: 6
+      },
+      {
+        id: "snowy",
+        name: "\u96EA",
+        lightMul: 0.95,
+        tintKey: "text_primary",
+        temp: "freeze",
+        humidity: "low",
+        particles: "snow",
+        fog: false,
+        gatherMul: 0.6,
+        encounterMul: 1,
+        panicDecayMul: 0.8,
+        foodConsumeMul: 1.1,
+        weightBase: 5,
+        weightAfter: 10,
+        exploreDisabled: false,
+        unlockDay: 10
+      },
+      {
+        id: "blood_dust",
+        name: "\u8840\u6708\u5C18\u66B4",
+        lightMul: 0.6,
+        tintKey: "alert_blood",
+        temp: "hot",
+        humidity: "low",
+        particles: "dust",
+        fog: true,
+        gatherMul: 0.5,
+        encounterMul: 2,
+        panicDecayMul: 0.7,
+        foodConsumeMul: 1.1,
+        weightBase: 0,
+        weightAfter: 10,
+        exploreDisabled: true,
+        unlockDay: 7
+      }
+    ]
+  };
+
   // apps/client-cocos/whitebox/renderer.ts
   var WAVE_LETTERS = ["A", "B", "C", "D", "E", "F"];
   var prand = (seed) => (seed * 9301 + 49297) % 233280 / 233280;
@@ -6425,6 +6541,18 @@
         ctx.fill();
       }
     }
+    iconStar(x, y, r, color) {
+      const { ctx } = this;
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = i / 10 * Math.PI * 2 - Math.PI / 2;
+        const rr = i % 2 === 0 ? r : r * 0.45;
+        ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+      }
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
     iconWarn(x, y, s) {
       const { ctx } = this;
       ctx.beginPath();
@@ -6460,12 +6588,14 @@
         case "DAY":
           this.drawDayBg(now);
           if (ui2.page === "map") {
+            this.drawWeatherLayer(this.weatherEntry(frame.weather), now);
             this.drawMapView(ui2, frame, now);
             this.drawTutorialBanner(frame);
             this.drawTutorialSteps(frame);
           } else if (ui2.page === "interior") this.drawInterior(ui2, frame, now, pb2);
           else if (ui2.page === "wild") this.drawWildView(ui2, frame, now, pb2);
           else if (ui2.page === "main") {
+            this.drawWeatherLayer(this.weatherEntry(frame.weather), now);
             this.button(mapBackRect(), "\u25C0 \u5C0F\u533A", "normal");
             this.drawHud(frame, now);
             this.drawTutorialBanner(frame);
@@ -6518,6 +6648,112 @@
         ctx.fillStyle = withAlpha(col("text_primary"), 0.05 + seed * 0.05);
         ctx.fill();
       }
+    }
+    /** 天气条目查询（frame.weather id → config/weather.json 条目） */
+    weatherEntry(id) {
+      const list = weather_default.entries;
+      return list.find((e) => e.id === id) ?? list[0];
+    }
+    /** 天气层：光照 overlay + 粒子（雨丝/雪花/雾带/血月尘）——全屏表现层 */
+    drawWeatherLayer(w, now) {
+      const { ctx } = this;
+      if (w.lightMul < 1) {
+        ctx.fillStyle = withAlpha(col(w.tintKey), (1 - w.lightMul) * 0.55);
+        ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
+      }
+      if (w.particles === "rain") {
+        ctx.strokeStyle = withAlpha(col("text_primary"), 0.3);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let i = 0; i < 130; i++) {
+          const speed = 0.9 * (0.7 + prand(i * 3) * 0.6);
+          const x = prand(i * 13) * DESIGN_W + Math.sin(now / 400 + i) * 6;
+          const y = (prand(i * 7) * DESIGN_H + now * speed) % DESIGN_H;
+          ctx.moveTo(x, y);
+          ctx.lineTo(x - 4, y + 18);
+        }
+        ctx.stroke();
+        ctx.fillStyle = withAlpha(col("text_primary"), 0.06);
+        ctx.fillRect(0, DESIGN_H - 140, DESIGN_W, 140);
+      } else if (w.particles === "snow") {
+        ctx.fillStyle = withAlpha(col("text_primary"), 0.75);
+        for (let i = 0; i < 90; i++) {
+          const speed = 0.12 * (0.6 + prand(i * 5) * 0.8);
+          const x = (prand(i * 11) * DESIGN_W + Math.sin(now / 700 + i * 2) * 26) % DESIGN_W;
+          const y = (prand(i * 23) * DESIGN_H + now * speed) % DESIGN_H;
+          ctx.beginPath();
+          ctx.arc(x, y, 1.8 + prand(i) * 2.4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (w.particles === "fog") {
+        for (let i = 0; i < 3; i++) {
+          const y = 180 + i * 260 + Math.sin(now / 2200 + i * 1.7) * 36;
+          ctx.fillStyle = withAlpha(col("text_secondary"), 0.1);
+          ctx.beginPath();
+          ctx.roundRect(-40, y, DESIGN_W + 80, 170, 90);
+          ctx.fill();
+        }
+      } else if (w.particles === "dust") {
+        ctx.strokeStyle = withAlpha(col("alert_blood"), 0.35);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < 60; i++) {
+          const speed = 0.5 * (0.6 + prand(i * 9) * 0.8);
+          const x = DESIGN_W - (prand(i * 13) * DESIGN_W + now * speed) % (DESIGN_W + 60);
+          const y = prand(i * 17) * DESIGN_H;
+          ctx.moveTo(x, y);
+          ctx.lineTo(x - 16, y + 2);
+        }
+        ctx.stroke();
+      }
+    }
+    /** 天气 HUD 角标（图标 + 名称） */
+    drawWeatherBadge(w, x, y) {
+      const { ctx } = this;
+      ctx.beginPath();
+      ctx.roundRect(x, y, 108, 28, T.radius.chip);
+      ctx.fillStyle = withAlpha(col("bg_night"), 0.5);
+      ctx.fill();
+      ctx.strokeStyle = col("panel_stroke");
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      if (w.particles === "rain") {
+        ctx.strokeStyle = withAlpha(col("text_primary"), 0.8);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let i = 0; i < 3; i++) {
+          ctx.moveTo(x + 14 + i * 8, y + 6);
+          ctx.lineTo(x + 11 + i * 8, y + 18);
+        }
+        ctx.stroke();
+      } else if (w.particles === "snow") {
+        this.iconStar(x + 18, y + 13, 8, col("text_primary"));
+      } else if (w.particles === "fog") {
+        ctx.strokeStyle = col("text_secondary");
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 8, y + 10);
+        ctx.lineTo(x + 28, y + 10);
+        ctx.moveTo(x + 10, y + 16);
+        ctx.lineTo(x + 30, y + 16);
+        ctx.stroke();
+      } else if (w.particles === "dust") {
+        ctx.beginPath();
+        ctx.arc(x + 18, y + 13, 8, 0, Math.PI * 2);
+        ctx.fillStyle = col("alert_blood");
+        ctx.fill();
+      } else if (w.id === "overcast") {
+        ctx.fillStyle = col("text_secondary");
+        ctx.beginPath();
+        ctx.arc(x + 13, y + 15, 7, 0, Math.PI * 2);
+        ctx.arc(x + 23, y + 13, 9, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        this.iconStar(x + 18, y + 13, 8, col("gold_primary"));
+      }
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.caption);
+      ctx.fillText(w.name, x + 36, y + 15);
     }
     /** 夜空星点（NIGHT/DAWN 过渡） */
     drawStars(now, alpha) {
@@ -6572,6 +6808,7 @@
         ctx.stroke();
       }
       const st = settingsRect();
+      this.drawWeatherBadge(this.weatherEntry(frame.weather), st.x - 196, hud.h / 2 - 14);
       this.circleButton(st.x + st.w / 2, hud.h / 2, 26, () => this.iconGear(st.x + st.w / 2, hud.h / 2, 13, col("text_secondary")));
       if (frame.modifiers.length) {
         const isBM = frame.modifiers.includes("BLOOD_MOON");
@@ -7380,6 +7617,7 @@
         ctx.lineWidth = 2;
         ctx.stroke();
       }
+      this.drawWeatherBadge(this.weatherEntry(frame.weather), DESIGN_W - 32 - 196, hud.h / 2 - 14);
       const st = settingsRect();
       this.circleButton(st.x + st.w / 2, hud.h / 2, 26, () => this.iconGear(st.x + st.w / 2, hud.h / 2, 13, col("text_secondary")));
       void now;
@@ -8154,7 +8392,8 @@
       panicSum: r.panicSum,
       // 表现层投影：破防房间（r<0.95）与今日事件（weight 高在前，完整元数据供事件卡模板）
       breachedRooms: (sim.sessions[r.day]?.routes ?? []).filter((rt) => rt.r < 0.95).map((rt) => rt.roomId),
-      eventCards: [...sim.eventCards[r.day] ?? []].sort((a, b) => b.weight - a.weight)
+      eventCards: [...sim.eventCards[r.day] ?? []].sort((a, b) => b.weight - a.weight),
+      weather: weatherOfDay(r.day, 42, { weather: weather_default }).id
     }));
     const want = new URLSearchParams(location.search).get("phase");
     const wantPage = new URLSearchParams(location.search).get("page");

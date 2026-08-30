@@ -25,6 +25,9 @@ import {
 import { DESIGN_W, DESIGN_H, hitTest } from './layout.ts'
 import { settleDoneAt, nightWaves } from './anim.ts'
 import { WILD_ZONE_NAME } from './layout.ts'
+import { weatherOfDay } from '@rn/weather'
+import weatherJson from '../../../config/weather.json' with { type: 'json' }
+import type { WeatherEntry } from '@rn/weather'
 
 // JSON 推断的异构 cost 联合与 Record<string,number> 不兼容——使用点收窄（数据经 check-config 校验）
 const tables = {
@@ -263,7 +266,8 @@ boot.then(async () => {
     modifiers: r.modifiers, avgLevel: r.avgLevel, panicSum: r.panicSum,
     // 表现层投影：破防房间（r<0.95）与今日事件（weight 高在前，完整元数据供事件卡模板）
     breachedRooms: (sim.sessions[r.day]?.routes ?? []).filter(rt => rt.r < 0.95).map(rt => rt.roomId),
-    eventCards: [...(sim.eventCards[r.day] ?? [])].sort((a, b) => b.weight - a.weight)
+    eventCards: [...(sim.eventCards[r.day] ?? [])].sort((a, b) => b.weight - a.weight),
+    weather: weatherOfDay(r.day, 42, { weather: weatherJson as unknown as { entries: WeatherEntry[] } }).id
   }))
   // 冒烟调试入口：?phase=day|dusk|night|dawn 进入对应相；?page=codex|shop|settings 直达占位页
   const want = new URLSearchParams(location.search).get('phase')
