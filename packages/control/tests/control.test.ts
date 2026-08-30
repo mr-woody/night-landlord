@@ -1,7 +1,7 @@
 // @rn/control 单测：合并/拒绝非法键/类型守卫/回滚（base 不变）/留痕。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { applyOverlay, type OverlayFile } from '../src/index.ts'
+import { applyOverlay, validateOverlayFile, MemoryOverlaySource, type OverlayFile } from '../src/index.ts'
 
 const base = { version: 1, entries: [{ key: 'CFG_R0', value: 100 }, { key: 'CFG_G_T', value: 1.15 }] }
 
@@ -24,4 +24,20 @@ test('拒绝：键不存在 / 类型不符（防手误注入新逻辑位）', ()
   const r = applyOverlay('constants', base, { version: 5, patches: { constants: { 'entries.NOPE.value': 1, 'entries.CFG_G_T.value': 'high' } } })
   assert.equal(r.rejected.length, 2)
   assert.equal(r.merged.entries[1].value, 1.15)
+})
+
+test('OverlaySource：Memory 源加载 + 文件结构校验拒绝坏形状（E4 契约）', async () => {
+  const { MemoryOverlaySource, validateOverlayFile } = await import('../src/index.ts')
+  const src = new MemoryOverlaySource({ version: 2, patches: { constants: { 'entries.CFG_R0.value': 110 } } })
+  const file = await src.load()
+  const v = validateOverlayFile(file)
+  assert.equal(v.ok, true)
+  assert.equal(validateOverlayFile({ version: 0 }).ok, false)
+  assert.equal(validateOverlayFile(null).ok, false)
+  // 应用契约闭环：load→validate→applyOverlay 生效
+  if (v.ok) {
+    const localBase = { version: 1, entries: [{ key: 'CFG_R0', value: 100 }, { key: 'CFG_G_T', value: 1.15 }] }
+    const r = applyOverlay('constants', localBase, v.file)
+    assert.equal(r.merged.entries[0].value, 110)
+  }
 })

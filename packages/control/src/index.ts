@@ -58,3 +58,41 @@ export function applyOverlay<T>(target: string, base: T, overlay: OverlayFile): 
   }
   return { merged, applied, rejected, version: overlay.version }
 }
+
+// ---- 覆盖层来源契约（M4 E4；FR-C3 单一通道）：远程通道开通前以本地文件源落地 ----
+import { readFileSync } from 'node:fs'
+
+export interface OverlaySource {
+  load(): Promise<OverlayFile>
+}
+
+/** 本地文件源（生产：远程 HTTP 源实现同接口后无缝替换；校验逻辑复用 applyOverlay 单点） */
+export class FileOverlaySource implements OverlaySource {
+  private path: string
+  constructor(path: string) {
+    this.path = path
+  }
+  async load(): Promise<OverlayFile> {
+    return JSON.parse(readFileSync(this.path, 'utf8')) as OverlayFile
+  }
+}
+
+/** 内存源（测试/预览用） */
+export class MemoryOverlaySource implements OverlaySource {
+  private file: OverlayFile
+  constructor(file: OverlayFile) {
+    this.file = file
+  }
+  async load(): Promise<OverlayFile> {
+    return this.file
+  }
+}
+
+/** 覆盖层文件结构校验（形状/版本/patches 白名单容器） */
+export function validateOverlayFile(obj: unknown): { ok: true; file: OverlayFile } | { ok: false; reason: string } {
+  const o = obj as Partial<OverlayFile> | null
+  if (!o || typeof o !== 'object') return { ok: false, reason: '非对象' }
+  if (typeof o.version !== 'number' || o.version < 1) return { ok: false, reason: 'version 非法' }
+  if (!o.patches || typeof o.patches !== 'object' || Array.isArray(o.patches)) return { ok: false, reason: 'patches 缺失或非对象' }
+  return { ok: true, file: o as OverlayFile }
+}
