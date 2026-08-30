@@ -25,7 +25,7 @@ import {
   threatBurst, dissolveAlpha, cardFlip
 } from './anim.ts'
 import { tutorialBoard, type TutRow } from './tutorial.ts'
-import { monsterProgress, monsterVisual } from './battle.ts'
+import { monsterProgress, monsterVisual, guardVisual } from './battle.ts'
 import weatherJson from '../../../config/weather.json' with { type: 'json' }
 import buildingDefJson from '../../../config/building_def.json' with { type: 'json' }
 
@@ -64,7 +64,7 @@ export interface Playback {
   parties: { zone: string; size: number; returnsDay: number }[]
   /** 房屋等级覆盖（M3.2 F7 升级交互；缺省=天数成长占位） */
   houseLevels: Record<number, number>
-  skills: { label: string; glyph: string; cdUntil: number; fxUntil: number; fxKind: 'supply' | 'shield' }[]
+  skills: { label: string; glyph: string; cdUntil: number; fxUntil: number; fxKind: 'supply' | 'shield' | 'wave' }[]
 }
 
 export interface RendererCallbacks {
@@ -863,12 +863,11 @@ export class WhiteboxRenderer {
         const breachedNow = rv && rv.state !== 2
         const resolved = waves.waveNo > i + 1
         this.drawHouseMini(hx, hy, lane.scale, breachedNow && (resolved || this.isCurrentLane(waves, i, now)) ? col('alert_blood') : undefined, now)
-        // 守卫驻守（红臂章住户）
+        // 守卫驻守（职业差异化：棍棒/弓弩/顶锅；红臂章）
         const gx = hx - 46 * lane.scale
         ctx.save(); ctx.translate(gx, hy); ctx.scale(lane.scale, lane.scale)
-        this.iconPerson(0, 0, 26, col('text_primary'))
-        ctx.fillStyle = col('alert_blood')
-        ctx.fillRect(-3, -2, 8, 5)
+        const attacking = this.isCurrentLane(waves, i, now) && monsterProgress(i + 1, pb.nightStart ?? 0, now) > 0.72
+        this.drawGuard(0, 0, guardVisual(i), attacking, now)
         ctx.restore()
         // 波次标签（车道左端）
         ctx.fillStyle = col('text_secondary')
@@ -937,6 +936,20 @@ export class WhiteboxRenderer {
           ctx.textAlign = 'left'
         }
       })
+    }
+    // 主力技：冲击波扇形（防线向怪物方向扩散）
+    const waveFx = pb.skills.find(k => k.fxKind === 'wave')
+    if (waveFx && now < waveFx.fxUntil) {
+      const k = 1 - (waveFx.fxUntil - now) / 900
+      for (const lane of laneDefs) {
+        ctx.beginPath()
+        ctx.moveTo(houseX - 280, lane.y + 10)
+        ctx.arc(houseX - 280, lane.y + 10, 130 + k * 430, -0.5, 0.5)
+        ctx.closePath()
+        ctx.strokeStyle = withAlpha(col('gold_primary'), 0.7 * (1 - k))
+        ctx.lineWidth = 6 * (1 - k) + 1
+        ctx.stroke()
+      }
     }
     // 技能差异化 VFX（设计 §10.3）：空投=降落伞下落；护盾=蓝色半球罩
     pb.skills.forEach(sk => {
@@ -1348,6 +1361,39 @@ export class WhiteboxRenderer {
     ctx.textAlign = 'center'
     ctx.fillText('新开放', cx, cy + 1)
     ctx.textAlign = 'left'
+  }
+
+  /** 守卫绘制（职业差异：守卫棍棒横扫/猎人弓弩/平民顶锅；攻击节拍挥击） */
+  private drawGuard(x: number, y: number, visual: 'club' | 'bow' | 'pot', attacking: boolean, now: number): void {
+    this.iconPerson(x, y, 26, col('text_primary'))
+    const { ctx } = this
+    ctx.fillStyle = col('alert_blood')
+    ctx.fillRect(x - 3, y - 2, 8, 5)
+    const swing = attacking ? Math.sin(now / 70) * 0.6 : 0
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 3
+    if (visual === 'club') {
+      ctx.save()
+      ctx.translate(x + 10, y - 6)
+      ctx.rotate(-0.6 + swing)
+      ctx.strokeRect(0, -2, 18, 4)
+      ctx.fillStyle = col('panel_stroke'); ctx.fillRect(14, -5, 7, 7)
+      ctx.restore()
+    } else if (visual === 'bow') {
+      ctx.beginPath(); ctx.arc(x + 12, y - 4, 9, -1.1, 1.1); ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(x + 12 + Math.cos(-1.1) * 9, y - 4 + Math.sin(-1.1) * 9)
+      ctx.lineTo(x + 12 + Math.cos(1.1) * 9, y - 4 + Math.sin(1.1) * 9)
+      ctx.stroke()
+      if (attacking) {
+        ctx.strokeStyle = col('gold_primary'); ctx.lineWidth = 2
+        const ax = x + 14 + (Math.sin(now / 70) + 1) * 8
+        ctx.beginPath(); ctx.moveTo(ax, y - 4); ctx.lineTo(ax + 14, y - 4); ctx.stroke()
+      }
+    } else {
+      ctx.beginPath(); ctx.ellipse(x + 11, y - 16, 9, 5, 0, 0, Math.PI * 2)
+      ctx.fillStyle = col('panel_stroke'); ctx.fill()
+      ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2; ctx.stroke()
+    }
   }
 
   /** 怪物绘制（差异化：循声者爬行+声波圈/破窗者携梯/攀楼种挂钩/飞行种悬停/精英红眼尖刺） */
@@ -1936,6 +1982,12 @@ export class WhiteboxRenderer {
           ctx.lineTo(r.x + r.w - T.space.l + 16, r.y + r.h / 2)
           ctx.lineTo(r.x + r.w - T.space.l, r.y + r.h / 2 + 12)
           ctx.closePath(); ctx.fill()
+        } else if (row.key === 'privacy' || row.key === 'minors' || row.key === 'odds') {
+          // 合规行（E5 骨架）：入口+说明；真实内容页/实名能力接平台（M4）
+          ctx.fillStyle = col('text_secondary')
+          ctx.font = font(T.typography.caption)
+          ctx.fillText('查看', r.x + r.w - T.space.l - 60, r.y + r.h / 2)
+          ctx.fillText('▸', r.x + r.w - T.space.l, r.y + r.h / 2)
         } else {
           const tw = 96
           const tx = r.x + r.w - tw - T.space.m

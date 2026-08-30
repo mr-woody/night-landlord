@@ -76,7 +76,8 @@ const pb: Playback = {
   houseLevels: {},
   skills: [
     { label: '空投物资', glyph: '💊', cdUntil: 0, fxUntil: 0, fxKind: 'supply' },
-    { label: '护盾', glyph: '🛡', cdUntil: 0, fxUntil: 0, fxKind: 'shield' }
+    { label: '护盾', glyph: '🛡', cdUntil: 0, fxUntil: 0, fxKind: 'shield' },
+    { label: '冲击波', glyph: '💥', cdUntil: 0, fxUntil: 0, fxKind: 'wave' }
   ]
 }
 

@@ -2,7 +2,7 @@
 // 红线：资源产出/伤害一律 EffectOp 经 applyEffects 单点（D4）；确定性=createDayRng 日域流
 // （禁 Math.random/Date.now）；野外不禁 KILL_TENANT 之外的护栏同样适用（苟神不死原则）。
 import { createDayRng, hash32, canonicalJson } from '@rn/core'
-import { applyEffects, type GameState, type EffectOp } from '@rn/systems'
+import { applyEffects, serialize, type GameState, type EffectOp } from '@rn/systems'
 
 // ---- 配置类型（消费 config/map_def|explore_def|gather_table|wildlife 四表）----
 export interface MapDefEntry {
@@ -240,4 +240,36 @@ export function deserializeWorld(json: string, tables: WorldTables): WorldState 
   w.nextPartyId ??= 1
   w.totalYield = { food: 0, water: 0, material: 0, ammo: 0, gold: 0, talentStone: 0, ...(w.totalYield ?? {}) }
   return w
+}
+
+// ---- 存档槽位（M4 E1；PR-Q1/K5）----
+export interface SaveSlotMeta {
+  day: number
+  seed: number
+  /** gameState+worldState 联合哈希（防篡改/损坏校验） */
+  hash: string
+  explore: boolean
+  savedAtNote?: string
+}
+export interface SaveSlotV1 {
+  version: 1
+  meta: SaveSlotMeta
+  gameState: string
+  worldState: string
+}
+
+export function makeSaveSlot(meta: Omit<SaveSlotMeta, 'hash'>, state: GameState, world: WorldState): SaveSlotV1 {
+  const gameState = serialize(state)
+  const worldState = serializeWorld(world)
+  const hash = hash32(gameState + '\u0000' + worldState)
+  return { version: 1, meta: { ...meta, hash }, gameState, worldState }
+}
+
+/** 校验槽位：版本/哈希；损坏或被改 → {ok:false}（fail-open：调用方可走重建） */
+export function verifySaveSlot(slot: SaveSlotV1): { ok: boolean; reason?: string } {
+  if (slot?.version !== 1) return { ok: false, reason: `不支持的存档版本 ${slot?.version}` }
+  if (!slot.gameState || !slot.worldState) return { ok: false, reason: '缺状态字段' }
+  const hash = hash32(slot.gameState + '\u0000' + slot.worldState)
+  if (hash !== slot.meta?.hash) return { ok: false, reason: `哈希不符 ${hash} vs ${slot.meta?.hash}` }
+  return { ok: true }
 }

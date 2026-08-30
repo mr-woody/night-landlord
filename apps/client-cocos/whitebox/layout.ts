@@ -176,7 +176,10 @@ export const SETTINGS_ROWS: { key: string; label: string }[] = [
   { key: 'shop', label: '商店' },
   { key: 'sfx', label: '音效' },
   { key: 'bgm', label: '音乐' },
-  { key: 'notice', label: '推送通知' }
+  { key: 'notice', label: '推送通知' },
+  { key: 'privacy', label: '隐私协议' },
+  { key: 'minors', label: '未成年保护' },
+  { key: 'odds', label: '概率公示' }
 ]
 export function settingsRowRect(i: number): Rect {
   return { x: M, y: HUD_H + T.space.s * 2 + HIT_MIN + i * (88 + T.space.s), w: DESIGN_W - M * 2, h: 88 }

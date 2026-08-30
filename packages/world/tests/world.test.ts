@@ -11,7 +11,7 @@ import { createGameState } from '@rn/systems'
 import { loadConstants } from '@rn/formula'
 import {
   createWorldState, dispatchParty, resolveDue, restoreStamina, unlockProgress,
-  worldHash, serializeWorld, deserializeWorld, worldCapacity, type WorldTables
+  worldHash, serializeWorld, deserializeWorld, worldCapacity, makeSaveSlot, verifySaveSlot, type WorldTables
 } from '../src/index.ts'
 
 const tables: WorldTables = {
@@ -152,4 +152,20 @@ test('住户扩容（M3.4-①）：初始 30，B/C 栋解锁后 60/90（worldCap
   assert.equal(worldCapacity(world), 30, '仅 A 栋')
   unlockProgress(world, 30, tables)
   assert.equal(worldCapacity(world), 90, 'D30 三栋全解锁')
+})
+
+test('存档槽位（E1）：make→verify 通过；篡改状态→哈希不符拒绝', () => {
+  const { state, world } = freshWorld(33)
+  const slot = makeSaveSlot({ day: 12, seed: 33, explore: true }, state, world)
+  assert.equal(slot.version, 1)
+  assert.equal(verifySaveSlot(slot).ok, true)
+  // 篡改 gameState（金翻倍）→ 拒绝
+  const tampered = JSON.parse(JSON.stringify(slot))
+  const gs = JSON.parse(tampered.gameState)
+  gs.resources.gold *= 2
+  tampered.gameState = JSON.stringify(gs)
+  const v = verifySaveSlot(tampered)
+  assert.equal(v.ok, false)
+  // 旧版本迁移拒绝（版本门）
+  assert.equal(verifySaveSlot({ ...slot, version: 2 } as any).ok, false)
 })

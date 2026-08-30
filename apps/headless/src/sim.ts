@@ -244,7 +244,7 @@ export interface EventCardMeta {
 
 export function runSimulation(
   app: AppContext, kernel: Kernel, options: { days: number; seed: number; explore?: boolean }
-): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number; distinctFired: string[]; eventCounts: Record<string, number>; eventCards: Record<number, EventCardMeta[]>; world?: WorldState; stabilizer: { window: string; wealth: number; produceConsume: number; panic: number }[] } {
+): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number; distinctFired: string[]; eventCounts: Record<string, number>; eventCards: Record<number, EventCardMeta[]>; world?: WorldState; finalState?: GameState; stabilizer: { window: string; wealth: number; produceConsume: number; panic: number }[] } {
   if (options.explore && !app.world) throw new Error('explore=true 需要 AppContext.world（四张世界表）')
   const { tables, constants } = app
   const formula = kernel.service<ReturnType<typeof createFormula>>('formula')
@@ -425,7 +425,7 @@ export function runSimulation(
     }
   }
   const stabilizer = stabilizerL1(records)
-  return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, eventCards, world: exploreOn ? world : undefined, stabilizer }
+  return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, eventCards, world: exploreOn ? world : undefined, finalState: exploreOn ? state : undefined, stabilizer }
 }
 
 /** Stabilizer L1 度量（只记录不干预）：财富指数/产出消耗比/恐慌总量，按血月周期聚合 */
