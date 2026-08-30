@@ -213,3 +213,21 @@ export function resolveDue(
 /** 序列化与哈希（检查点/复算） */
 export const serializeWorld = (w: WorldState): string => canonicalJson(w)
 export const worldHash = (w: WorldState): string => hash32(serializeWorld(w))
+
+/** 反序列化 + 版本迁移（PR-P2）：v1 正常载入并补全早期档缺失字段；
+ *  非 v1/损坏档 → 按 tables 重建初始态（载入方负责回填真实 seed），不抛错（fail-open 存档策略） */
+export function deserializeWorld(json: string, tables: WorldTables): WorldState {
+  let parsed: Partial<WorldState> | null = null
+  try { parsed = JSON.parse(json) as Partial<WorldState> } catch { parsed = null }
+  if (!parsed || parsed.version !== 1) return createWorldState(parsed?.seed ?? 0, tables)
+  const w = parsed as WorldState
+  w.seed ??= 0
+  w.lots ??= {}
+  w.buildings ??= {}
+  w.stamina ??= {}
+  w.gatherReadyDay ??= {}
+  w.parties ??= []
+  w.nextPartyId ??= 1
+  w.totalYield = { food: 0, water: 0, material: 0, ammo: 0, gold: 0, talentStone: 0, ...(w.totalYield ?? {}) }
+  return w
+}

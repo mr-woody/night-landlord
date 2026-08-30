@@ -11,7 +11,7 @@ import { createGameState } from '@rn/systems'
 import { loadConstants } from '@rn/formula'
 import {
   createWorldState, dispatchParty, resolveDue, restoreStamina, unlockProgress,
-  worldHash, serializeWorld, type WorldTables
+  worldHash, serializeWorld, deserializeWorld, type WorldTables
 } from '../src/index.ts'
 
 const tables: WorldTables = {
@@ -130,4 +130,19 @@ test('序列化往返：serialize→parse 后哈希一致', () => {
   const h0 = worldHash(world)
   const round = JSON.parse(serializeWorld(world))
   assert.equal(worldHash(round), h0)
+})
+
+test('存档统一（PR-P2）：serialize→deserialize 往返哈希一致；旧档迁移不崩', async () => {
+  const { state, world } = freshWorld(21)
+  dispatchParty(world, state, tables, constants, { zone: 'zn_forest_edge', tenantIds: [1], day: 1 })
+  const h0 = worldHash(world)
+  const restored = deserializeWorld(serializeWorld(world), tables)
+  assert.equal(worldHash(restored), h0, '往返哈希一致')
+  // 旧档/损坏档：fail-open 重建，不抛错
+  assert.equal(deserializeWorld('{"version":2,"seed":7}', tables).version, 1)
+  assert.equal(deserializeWorld('not-json', tables).seed, 0)
+  // 字段补全：缺 totalYield 键 → 默认 0 补齐
+  const legacy = serializeWorld(world).replace('"food":0,', '"food":')
+  const migrated = deserializeWorld(legacy, tables)
+  assert.equal(migrated.totalYield.food, 0)
 })
