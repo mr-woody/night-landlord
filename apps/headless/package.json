@@ -1,0 +1,10 @@
+{
+  "name": "@rn/headless",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "simulate": "node src/main.ts simulate --days 30",
+    "verify": "node src/main.ts verify"
+  }
+}

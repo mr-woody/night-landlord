@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "sourceDoc": "docs/数据配置表结构设计.md §7（公共建筑：设计方案 4.1）",
+  "entries": [
+    { "type": "room",       "level": 1, "cost": { "gold": 300 }, "slots": { "tenant": 1, "fort": 2 }, "unlockDay": 0 },
+    { "type": "canteen",    "level": 1, "cost": { "gold": 0 },    "capacity": 10 },
+    { "type": "canteen",    "level": 2, "cost": { "gold": 500 },  "capacity": 14 },
+    { "type": "canteen",    "level": 3, "cost": { "gold": 1000 }, "capacity": 18 },
+    { "type": "canteen",    "level": 4, "cost": { "gold": 2500 }, "capacity": 24 },
+    { "type": "canteen",    "level": 5, "cost": { "gold": 5000 }, "capacity": 30 },
+    { "type": "warehouse",  "level": 1, "cost": { "gold": 0 },    "capacity": 5000 },
+    { "type": "warehouse",  "level": 2, "cost": { "gold": 800 },  "capacity": 12000 },
+    { "type": "warehouse",  "level": 3, "cost": { "gold": 2500 }, "capacity": 30000 },
+    { "type": "broadcast",  "level": 1, "cost": { "gold": 600 },  "unlockDay": 2 },
+    { "type": "broadcast",  "level": 2, "cost": { "gold": 1800 }, "unlockDay": 8 },
+    { "type": "watchtower", "level": 1, "cost": { "gold": 0 },    "capacity": 1 },
+    { "type": "watchtower", "level": 2, "cost": { "gold": 400 },  "capacity": 2 },
+    { "type": "watchtower", "level": 3, "cost": { "gold": 1200 }, "capacity": 3 },
+    { "type": "clinic",     "level": 1, "cost": { "gold": 800 } },
+    { "type": "hall",       "level": 1, "cost": { "gold": 800 } },
+    { "type": "workshop",   "level": 1, "cost": { "gold": 800 } }
+  ]
+}

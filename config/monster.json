@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "sourceDoc": "docs/数据配置表结构设计.md §4（进化树：设计方案 4.5）",
+  "entries": [
+    { "id": "m_seeker",    "name": "循声者", "tier": "minion", "unlockDay": 1,  "hpMul": 1.0,  "mechanics": [],             "usableNightMods": ["NORMAL", "BLOOD_MOON", "SILENT", "MIGRATE"], "active": true },
+    { "id": "m_breaker",   "name": "破窗者", "tier": "minion", "unlockDay": 3,  "hpMul": 1.0,  "mechanics": ["breakDoor"],  "usableNightMods": ["NORMAL", "BLOOD_MOON", "SILENT", "MIGRATE"], "active": true },
+    { "id": "m_climber",   "name": "攀楼种", "tier": "minion", "unlockDay": 5,  "hpMul": 1.05, "mechanics": ["climbWindow"], "usableNightMods": ["NORMAL", "BLOOD_MOON", "MIGRATE"], "active": true },
+    { "id": "m_flyer",     "name": "飞行种", "tier": "elite",  "unlockDay": 9,  "hpMul": 1.1,  "mechanics": ["fly"],        "usableNightMods": ["NORMAL", "BLOOD_MOON", "MIGRATE"], "active": true },
+    { "id": "m_focus",     "name": "围攻AI", "tier": "elite",  "unlockDay": 12, "hpMul": 1.15, "mechanics": ["focusFire"],  "usableNightMods": ["NORMAL", "BLOOD_MOON"], "active": true },
+    { "id": "m_elite",     "name": "精英种", "tier": "elite",  "unlockDay": 18, "hpMul": 1.25, "mechanics": [],             "usableNightMods": ["NORMAL", "BLOOD_MOON", "SILENT", "MIGRATE"], "active": true },
+    { "id": "m_nightking", "name": "夜王",   "tier": "boss",   "unlockDay": 30, "hpMul": 2.0,  "mechanics": [],             "usableNightMods": [], "active": false }
+  ]
+}
