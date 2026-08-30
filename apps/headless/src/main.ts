@@ -2,14 +2,15 @@
 // 命令：simulate / verify / replay / diagnose / depgraph
 // 架构：kernel.boot(bundle) → 经服务（formula/game/battle/director/persistence）驱动日循环；
 //       逻辑包零平台依赖；uniform 策略属应用层，允许读配置表。
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { resolve, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createKernel, type Kernel } from '@rn/kernel'
 import { createDayRng } from '@rn/core'
 import { createFormula, loadConstants } from '@rn/formula'
-import { createGameState, serialize, deserialize, runNight, type Tables } from '@rn/systems'
+import { createGameState, serialize, deserialize, runNight, checkInvariants, canteenCap, type Tables } from '@rn/systems'
+import { makeSaveSlot, verifySaveSlot, deserializeWorld } from '@rn/world'
 import { buildBundle, runSimulation, betaSim, type AppContext, type EventLibEntry } from './sim.ts'
 import { applyOverlay, type OverlayFile } from '@rn/control'
 
@@ -209,6 +210,52 @@ function cmdCompliance(app: AppContext, args: Record<string, string>): number {
   return 0
 }
 
+const SAVES_DIR = join(ROOT, 'saves')
+
+function cmdSave(app: AppContext, kernel: Kernel, args: Record<string, string>): number {
+  const slot = (args.slot ?? 'auto').replace(/[^a-z0-9_-]/gi, '')
+  const days = Number(args.days ?? 30)
+  const seed = Number(args.seed ?? 42)
+  const explore = args.explore !== undefined
+  const sim = runSimulation(app, kernel, { days, seed, explore })
+  if (!sim.world || !sim.finalState) { console.error('save 需要 --explore（WorldState 随探索系统落盘）'); return 1 }
+  const errs = checkInvariants(sim.finalState, { canteenCap: canteenCap(sim.finalState, app.tables.buildingDef), warehouseCap: 30000 })
+  if (errs.length) { console.error(`save 拒绝：终态不变量违规 ${errs.join(',')}`); return 1 }
+  const slotData = makeSaveSlot({ day: days, seed, explore }, sim.finalState, sim.world)
+  const v = verifySaveSlot(slotData)
+  if (!v.ok) { console.error(`save 校验失败：${v.reason}`); return 1 }
+  mkdirSync(SAVES_DIR, { recursive: true })
+  writeFileSync(join(SAVES_DIR, `${slot}.json`), JSON.stringify(slotData, null, 2))
+  console.log(`save[${slot}] D${days} seed=${seed} explore=${explore} hash=${slotData.meta.hash} → saves/${slot}.json`)
+  return 0
+}
+
+function cmdLoad(app: AppContext, kernel: Kernel, args: Record<string, string>): number {
+  const slot = (args.slot ?? 'auto').replace(/[^a-z0-9_-]/gi, '')
+  const path = join(SAVES_DIR, `${slot}.json`)
+  if (!existsSync(path)) { console.error(`load: 槽位不存在 ${path}`); return 1 }
+  const raw = JSON.parse(readFileSync(path, 'utf8'))
+  const v = verifySaveSlot(raw)
+  if (!v.ok) { console.error(`load 校验失败：${v.reason}`); return 1 }
+  const state = deserialize(raw.gameState)
+  const world = deserializeWorld(raw.worldState, app.world ?? ({} as any))
+  const errs = checkInvariants(state, { canteenCap: canteenCap(state, app.tables.buildingDef), warehouseCap: 30000 })
+  console.log(`load[${slot}] D${state.day} 人口${state.tenants.length} 金币${state.resources.gold} 楼栋${Object.keys(world.buildings).length}栋 不变量违规=${errs.length}`)
+  return errs.length ? 1 : 0
+}
+
+function cmdList(app: AppContext, kernel: Kernel, args: Record<string, string>): number {
+  if (!existsSync(SAVES_DIR)) { console.log('list: 无存档目录'); return 0 }
+  for (const f of readdirSync(SAVES_DIR).filter(n => n.endsWith('.json'))) {
+    try {
+      const raw = JSON.parse(readFileSync(join(SAVES_DIR, f), 'utf8'))
+      const v = verifySaveSlot(raw)
+      console.log(`${f.replace('.json','').padEnd(12)} D${raw.meta.day} explore=${raw.meta.explore} ${v.ok ? 'OK' : 'CORRUPT'}`)
+    } catch { console.log(`${f} CORRUPT`) }
+  }
+  return 0
+}
+
 async function main(): Promise<void> {
   const argv = process.argv.slice(2)
   const cmd = argv[0] ?? ''
@@ -231,7 +278,10 @@ async function main(): Promise<void> {
   else if (cmd === 'diagnose') code = await cmdDiagnose(app)
   else if (cmd === 'depgraph') code = await cmdDepgraph(app, args)
   else if (cmd === 'compliance') code = cmdCompliance(app, args)
-  else { console.error('用法: main.ts simulate|verify|replay|diagnose|depgraph [--days N] [--seed S] [--out f] [--check] [--design] [--explore]'); code = 2 }
+  else if (cmd === 'save') code = cmdSave(app, kernel, args)
+  else if (cmd === 'load') code = cmdLoad(app, kernel, args)
+  else if (cmd === 'list') code = cmdList(app, kernel, args)
+  else { console.error('用法: main.ts simulate|verify|replay|diagnose|depgraph|save|load|list|compliance [--days N] [--seed S] [--slot S] [--out f] [--check] [--design] [--explore]'); code = 2 }
   process.exitCode = code
 }
 
