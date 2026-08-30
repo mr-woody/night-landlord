@@ -204,8 +204,8 @@
     },
     {
       "key": "UPGRADE_BASE",
-      "value": 1,
-      "min": 1,
+      "value": 0.5,
+      "min": 0.5,
       "max": 10,
       "desc": "住户升级基础成本（金币，M2 FINDING-1 闭环）",
       "sourceDoc": "M2 可执行目标 功能点1"
