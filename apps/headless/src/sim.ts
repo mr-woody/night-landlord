@@ -11,6 +11,7 @@ import {
   createWorldState, dispatchParty, resolveDue, restoreStamina, serializeWorld,
   type WorldState, type WorldTables
 } from '@rn/world'
+import { weatherOfDay, weatherMuls, type WeatherEntry } from '@rn/weather'
 
 export interface EventLibEntry {
   id: string; ver: number; type: 'scripted' | 'choice' | 'mission'; title: string
@@ -29,6 +30,8 @@ export interface AppContext {
   monsters: { version: number; entries: { id: string; name: string; active: boolean; unlockDay: number; usableNightMods: string[] }[] }
   /** 世界空间四表（M3.0；explore 开启时必填） */
   world?: WorldTables
+  /** 天气表（M3.2 环境层） */
+  weather?: { entries: WeatherEntry[] }
 }
 
 export interface DirectorService {
@@ -220,6 +223,8 @@ export interface DayRecord {
   panicSum: number; spend: number; wealth: number; modifiers: string[]
   /** 当日探索产出折算（EXPLORE_ENABLED 开启时非 0；折算：食物/水=1、建材=2） */
   exploreYield: number
+  /** 当日天气 id（M3.2 环境层） */
+  weather: string
 }
 
 function target(d: number, t: Tables): number {
@@ -281,6 +286,7 @@ export function runSimulation(
   for (let d = 1; d <= options.days; d++) {
     state.day = d
     state.phase = 'DAY'
+    const weather = app.weather ? weatherOfDay(d, options.seed, { weather: app.weather }) : undefined
     const row = tables.dayCurve.rows.find(r => r.day === d)!
     while (state.canteenLevel < 5) {
       const next = tables.buildingDef.entries.find(b => b.type === 'canteen' && b.level === state.canteenLevel + 1)
@@ -387,7 +393,7 @@ export function runSimulation(
     let dayExploreYield = 0
     if (exploreOn && world) {
       const before = { ...world.totalYield }
-      resolveDue(world, state, app.world!, constants, d)
+      resolveDue(world, state, app.world!, constants, d, weather ? weatherMuls(weather) : undefined)
       dayExploreYield = (world.totalYield.food - before.food) + (world.totalYield.water - before.water)
         + (world.totalYield.material - before.material) * 2
       exploreYieldTotal += dayExploreYield
@@ -405,7 +411,8 @@ export function runSimulation(
       targetLevel: levelForU(row.u, constants.CFG_G_U),
       panicSum: state.tenants.reduce((a, t) => a + t.panic, 0),
       spend: spent, wealth: state.resources.gold + state.resources.food + state.resources.material,
-      exploreYield: exploreOn ? dayExploreYield : 0
+      exploreYield: exploreOn ? dayExploreYield : 0,
+      weather: weather?.id ?? 'sunny'
     })
     spent = 0
   }

@@ -44,7 +44,8 @@ export function loadApp(overlayPath?: string): AppContext {
       gatherTable: loadJson('config/gather_table.json'),
       wildlife: loadJson('config/wildlife.json'),
       buildingDef: tables.buildingDef
-    }
+    },
+    weather: loadJson('config/weather.json')
   }
 }
 

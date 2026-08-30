@@ -154,8 +154,12 @@ export function restoreStamina(w: WorldState, state: GameState, constants: Recor
 export interface ResolveReport { partyId: number; loot: { resource: string; amount: number }[]; encounters: string[]; wounded: number[] }
 
 export function resolveDue(
-  w: WorldState, state: GameState, tables: WorldTables, constants: Record<string, number>, day: number
+  w: WorldState, state: GameState, tables: WorldTables, constants: Record<string, number>, day: number,
+  /** 天气系数（M3.2 F3：@rn/weather 传入；缺省=基准 1） */
+  weather?: { gatherMul: number; encounterMul: number }
 ): ResolveReport[] {
+  const gMul = weather?.gatherMul ?? 1
+  const eMul = weather?.encounterMul ?? 1
   const reports: ResolveReport[] = []
   const due = w.parties.filter(p => p.returnsDay <= day)
   for (const party of due) {
@@ -175,7 +179,8 @@ export function resolveDue(
     for (let i = 0; i < entry.gatherSlots && nodes.length > 0; i++) {
       const idx = Math.floor(rng.next() * nodes.length)
       const node = nodes.splice(idx, 1)[0]
-      const amount = node.yieldMin + Math.floor(rng.next() * (node.yieldMax - node.yieldMin + 1))
+      const raw = node.yieldMin + Math.floor(rng.next() * (node.yieldMax - node.yieldMin + 1))
+      const amount = Math.max(0, Math.round(raw * gMul))
       addLoot(node.resource, amount)
       w.gatherReadyDay[node.id] = day + node.respawnDays
     }
@@ -184,7 +189,7 @@ export function resolveDue(
     const hourPool = tables.wildlife.entries.filter(x =>
       x.zones.includes(party.zone) && x.unlockDay <= day &&
       (party.overnight ? x.activeHours !== 'day' : x.activeHours !== 'night'))
-    const encounterP = Math.min(0.9, 0.35 * mul)
+    const encounterP = Math.min(0.95, 0.35 * mul * eMul)
     if (hourPool.length > 0 && rng.next() < encounterP) {
       const animal = hourPool[Math.floor(rng.next() * hourPool.length)]
       const winP = Math.min(0.95, (constants.WILDLIFE_FIGHT_WIN_BASE ?? 0.7) + (party.members.length - 1) * 0.06)
