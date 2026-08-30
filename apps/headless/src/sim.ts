@@ -201,7 +201,7 @@ function target(d: number, t: Tables): number {
 
 export function runSimulation(
   app: AppContext, kernel: Kernel, options: { days: number; seed: number }
-): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number; distinctFired: string[]; eventCounts: Record<string, number> } {
+): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number; distinctFired: string[]; eventCounts: Record<string, number>; stabilizer: { window: string; wealth: number; produceConsume: number; panic: number }[] } {
   const { tables, constants } = app
   const formula = kernel.service<ReturnType<typeof createFormula>>('formula')
   const director = kernel.service<DirectorService>('director')
@@ -330,7 +330,21 @@ export function runSimulation(
       findings.push(`β_sim D${[1, 8, 15, 22][i]}-=${simBeta[i]}% vs 设计 ${designed[i]}%：升级线跟踪偏离（M2 FINDING-1 已闭环，此处为实际运行偏差）`)
     }
   }
-  return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts }
+  const stabilizer = stabilizerL1(records)
+  return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, stabilizer }
+}
+
+/** Stabilizer L1 度量（只记录不干预）：财富指数/产出消耗比/恐慌总量，按血月周期聚合 */
+export function stabilizerL1(records: DayRecord[]): { window: string; wealth: number; produceConsume: number; panic: number }[] {
+  const windows: [number, number][] = [[1, 7], [8, 14], [15, 21], [22, 28], [29, 30]]
+  return windows.map(([s, e]) => {
+    const recs = records.filter(r => r.day >= s && r.day <= e)
+    const income = recs.reduce((a, r) => a + r.income, 0)
+    const spend = recs.reduce((a, r) => a + r.spend, 0)
+    const wealth = recs.length ? recs[recs.length - 1].wealth : 0
+    const panic = recs.reduce((a, r) => a + r.panicSum, 0)
+    return { window: `D${s}-${e}`, wealth, produceConsume: spend > 0 ? Math.round(income / spend * 100) / 100 : 0, panic }
+  })
 }
 
 export function betaSim(records: DayRecord[], tables: Tables): number[] {
