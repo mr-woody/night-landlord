@@ -208,6 +208,7 @@ export type HitTarget =
   | { kind: 'partyMinus' }
   | { kind: 'partyPlus' }
   | { kind: 'explore' }
+  | { kind: 'house'; index: number }
   | { kind: 'none' }
 
 export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?: string } = {}): HitTarget {
@@ -233,6 +234,13 @@ export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?
     for (const [i, r] of dockRects().entries()) if (inRect(r)) return { kind: 'dock', key: DOCK_KEYS[i].key }
     if (inRect(settingsRect())) return { kind: 'settings' }
     return { kind: 'none' }
+  }
+  // L2 小屋群落（在 iso 地块之后、dock 之前）
+  if (page === 'map') {
+    for (let i = 29; i >= 0; i--) {
+      const r = houseHitRect(i)
+      if (inRect(r)) return { kind: 'house', index: i }
+    }
   }
   // L1 野外：区域卡/返回/派出/人数
   if (page === 'wild') {
@@ -351,3 +359,11 @@ export function wildDispatchRect(): Rect { return { x: DESIGN_W - M - HIT_MIN - 
 export function wildMinusRect(): Rect { return { x: M + T.space.s, y: wildDetailRect().y + 130, w: HIT_MIN, h: HIT_MIN } }
 export function wildPlusRect(): Rect { return { x: M + T.space.s + HIT_MIN + T.space.s, y: wildDetailRect().y + 130, w: HIT_MIN, h: HIT_MIN } }
 export const WILD_ZONE_NAME = (zone: string): string => WILD_ZONES.find(z => z.zone === zone)?.name ?? zone
+
+/** 小屋命中矩形（与 renderer.drawHouseVillage 网格一致） */
+export function houseHitRect(i: number): Rect {
+  const col = i % 6, row = Math.floor(i / 6)
+  const x = 96 + col * 100 + (row % 2) * 50
+  const y = 726 + row * 84
+  return { x, y: y - 46, w: 62, h: 50 }
+}

@@ -2,7 +2,7 @@
 // （DAWN_SETTLE→DAY→DUSK_FORECAST→NIGHT，门②）+ 主界面/事件卡/夜战/结算渲染
 // + rAF 帧率采样。打包：npm run build:whitebox（esbuild → whitebox/bundle.js）
 import { createKernel } from '../../../packages/kernel/src/index.ts'
-import { createGameState, type Tables } from '../../../packages/systems/src/index.ts'
+import { createGameState, applyEffects, type Tables } from '../../../packages/systems/src/index.ts'
 import { createWorldState, dispatchParty, resolveDue, restoreStamina, type WorldTables } from '../../../packages/world/src/index.ts'
 import { createFormula, loadConstants } from '../../../packages/formula/src/index.ts'
 import { buildBundle, runSimulation, type AppContext } from '../../../apps/headless/src/sim.ts'
@@ -73,6 +73,7 @@ const pb: Playback = {
   forts: {},
   parties: [],
   wildReports: [],
+  houseLevels: {},
   skills: [
     { label: '空投物资', glyph: '💊', cdUntil: 0 },
     { label: '护盾', glyph: '🛡', cdUntil: 0 }
@@ -140,6 +141,12 @@ canvas.addEventListener('click', ev => {
     case 'explore':
       Object.assign(ui, setPage(ui, 'wild'))
       return
+    case 'house':
+      Object.assign(ui, openModal(ui, { kind: 'panel', id: `house:${hit.index}` }))
+      return
+    case 'house':
+      Object.assign(ui, openModal(ui, { kind: 'panel', id: `house:${hit.index}` }))
+      return
     case 'wildBack':
       Object.assign(ui, setPage(ui, 'map'))
       return
@@ -185,6 +192,22 @@ canvas.addEventListener('click', ev => {
       if (topModal(ui)?.kind === 'confirmNight') {
         Object.assign(ui, closeModal(ui))
         ui.phase = 'DUSK_FORECAST'
+      } else if (topModal(ui)?.id.startsWith('house:')) {
+        // 房屋升级（M3.2 F7）：EffectOp 消耗 building_def.house 成本
+        const idx = Number(topModal(ui)!.id.split(':')[1])
+        const lv = Math.min(5, pb.houseLevels[idx] ?? 0)
+        if (lv >= 5) return
+        const cost = (buildingDefJson as any).entries.find((e: any) => e.type === 'house' && e.level === lv + 1)?.cost ?? {}
+        const ops = Object.entries(cost).map(([k, n]) => k === 'gold'
+          ? { op: 'ADD_GOLD', n: -(n as number) }
+          : { op: 'ADD_RES', res: k, n: -(n as number) })
+        const r = applyEffects(sideState, ops as any, { constants: app.constants, buildingDef: tables.buildingDef })
+        if (r.applied === ops.length) {
+          pb.houseLevels[idx] = lv + 1
+          Object.assign(ui, closeModal(ui))
+        } else {
+          Object.assign(ui, openModal(ui, { kind: 'panel', id: '资源不足' }))
+        }
       }
       return
     case 'modal':
@@ -249,6 +272,7 @@ const wtables: WorldTables = {
 } as unknown as WorldTables
 const sideState = createGameState(42)
 const world = createWorldState(42, wtables)
+/** 房屋等级（M3.2 F7：升级交互；EffectOp 消耗 building_def.house 成本） */
 
 // 字体就绪（@font-face 子集；失败时回退系统字体不阻塞）
 const fontsReady = Promise.all([
@@ -299,5 +323,8 @@ boot.then(async () => {
   else enterDay(0)
   if (wantDay >= 1 && wantDay <= frames.length) enterDay(wantDay - 1)
   if (wantPage) ui.page = wantPage as UiState['page']
+  const wantModal = new URLSearchParams(location.search).get('modal')
+  if (wantModal === 'night') Object.assign(ui, openModal(ui, { kind: 'confirmNight', id: 'night' }))
+  else if (wantModal) Object.assign(ui, openModal(ui, { kind: 'panel', id: wantModal }))
   console.log(`白盒播放就绪：${frames.length} 天，事件 ${sim.eventsFired} 次，独立 ${sim.distinctFired.length}`)
 })

@@ -6006,6 +6006,12 @@
       if (inRect(settingsRect())) return { kind: "settings" };
       return { kind: "none" };
     }
+    if (page === "map") {
+      for (let i = 29; i >= 0; i--) {
+        const r = houseHitRect(i);
+        if (inRect(r)) return { kind: "house", index: i };
+      }
+    }
     if (page === "wild") {
       if (inRect(wildBackRect())) return { kind: "wildBack" };
       for (const z of WILD_ZONES) {
@@ -6110,6 +6116,12 @@
     return { x: M + T.space.s + HIT_MIN + T.space.s, y: wildDetailRect().y + 130, w: HIT_MIN, h: HIT_MIN };
   }
   var WILD_ZONE_NAME = (zone) => WILD_ZONES.find((z) => z.zone === zone)?.name ?? zone;
+  function houseHitRect(i) {
+    const col2 = i % 6, row = Math.floor(i / 6);
+    const x = 96 + col2 * 100 + row % 2 * 50;
+    const y = 726 + row * 84;
+    return { x, y: y - 46, w: 62, h: 50 };
+  }
 
   // apps/client-cocos/whitebox/anim.ts
   function routeView(rt) {
@@ -6319,6 +6331,212 @@
         weightAfter: 10,
         exploreDisabled: true,
         unlockDay: 7
+      }
+    ]
+  };
+
+  // config/building_def.json with { type: 'json' }
+  var building_def_default2 = {
+    version: 2,
+    sourceDoc: "docs/\u6570\u636E\u914D\u7F6E\u8868\u7ED3\u6784\u8BBE\u8BA1.md \xA77\uFF08\u516C\u5171\u5EFA\u7B51\uFF1A\u8BBE\u8BA1\u65B9\u6848 4.1\uFF09",
+    entries: [
+      {
+        type: "room",
+        level: 1,
+        cost: {
+          gold: 300
+        },
+        slots: {
+          tenant: 1,
+          fort: 2
+        },
+        unlockDay: 0
+      },
+      {
+        type: "canteen",
+        level: 1,
+        cost: {
+          gold: 0
+        },
+        capacity: 10
+      },
+      {
+        type: "canteen",
+        level: 2,
+        cost: {
+          gold: 500
+        },
+        capacity: 14
+      },
+      {
+        type: "canteen",
+        level: 3,
+        cost: {
+          gold: 1e3
+        },
+        capacity: 18
+      },
+      {
+        type: "canteen",
+        level: 4,
+        cost: {
+          gold: 2500
+        },
+        capacity: 24
+      },
+      {
+        type: "canteen",
+        level: 5,
+        cost: {
+          gold: 5e3
+        },
+        capacity: 30
+      },
+      {
+        type: "warehouse",
+        level: 1,
+        cost: {
+          gold: 0
+        },
+        capacity: 5e3
+      },
+      {
+        type: "warehouse",
+        level: 2,
+        cost: {
+          gold: 800
+        },
+        capacity: 12e3
+      },
+      {
+        type: "warehouse",
+        level: 3,
+        cost: {
+          gold: 2500
+        },
+        capacity: 3e4
+      },
+      {
+        type: "broadcast",
+        level: 1,
+        cost: {
+          gold: 600
+        },
+        unlockDay: 2
+      },
+      {
+        type: "broadcast",
+        level: 2,
+        cost: {
+          gold: 1800
+        },
+        unlockDay: 8
+      },
+      {
+        type: "watchtower",
+        level: 1,
+        cost: {
+          gold: 0
+        },
+        capacity: 1
+      },
+      {
+        type: "watchtower",
+        level: 2,
+        cost: {
+          gold: 400
+        },
+        capacity: 2
+      },
+      {
+        type: "watchtower",
+        level: 3,
+        cost: {
+          gold: 1200
+        },
+        capacity: 3
+      },
+      {
+        type: "clinic",
+        level: 1,
+        cost: {
+          gold: 800
+        }
+      },
+      {
+        type: "hall",
+        level: 1,
+        cost: {
+          gold: 800
+        }
+      },
+      {
+        type: "workshop",
+        level: 1,
+        cost: {
+          gold: 800
+        }
+      },
+      {
+        type: "house",
+        level: 0,
+        cost: {},
+        durability: 0.8,
+        unlockDay: 1,
+        desc: "\u623F\u5C4B\u8FDB\u5316 Lv0\uFF08\u6218\u6597\u6F14\u51FA\u4E0E\u5929\u6C14\u7CFB\u7EDF\u8BBE\u8BA1 \xA71.2\uFF09"
+      },
+      {
+        type: "house",
+        level: 1,
+        cost: {
+          material: 50
+        },
+        durability: 0.9,
+        unlockDay: 1,
+        desc: "\u623F\u5C4B\u8FDB\u5316 Lv1\uFF08\u6218\u6597\u6F14\u51FA\u4E0E\u5929\u6C14\u7CFB\u7EDF\u8BBE\u8BA1 \xA71.2\uFF09"
+      },
+      {
+        type: "house",
+        level: 2,
+        cost: {
+          material: 150
+        },
+        durability: 1,
+        unlockDay: 2,
+        desc: "\u623F\u5C4B\u8FDB\u5316 Lv2\uFF08\u6218\u6597\u6F14\u51FA\u4E0E\u5929\u6C14\u7CFB\u7EDF\u8BBE\u8BA1 \xA71.2\uFF09"
+      },
+      {
+        type: "house",
+        level: 3,
+        cost: {
+          material: 400,
+          gold: 200
+        },
+        durability: 1.15,
+        unlockDay: 8,
+        desc: "\u623F\u5C4B\u8FDB\u5316 Lv3\uFF08\u6218\u6597\u6F14\u51FA\u4E0E\u5929\u6C14\u7CFB\u7EDF\u8BBE\u8BA1 \xA71.2\uFF09"
+      },
+      {
+        type: "house",
+        level: 4,
+        cost: {
+          material: 800,
+          gold: 500
+        },
+        durability: 1.3,
+        unlockDay: 15,
+        desc: "\u623F\u5C4B\u8FDB\u5316 Lv4\uFF08\u6218\u6597\u6F14\u51FA\u4E0E\u5929\u6C14\u7CFB\u7EDF\u8BBE\u8BA1 \xA71.2\uFF09"
+      },
+      {
+        type: "house",
+        level: 5,
+        cost: {
+          material: 1500,
+          gold: 1200
+        },
+        durability: 1.5,
+        unlockDay: 22,
+        desc: "\u623F\u5C4B\u8FDB\u5316 Lv5\uFF08\u6218\u6597\u6F14\u51FA\u4E0E\u5929\u6C14\u7CFB\u7EDF\u8BBE\u8BA1 \xA71.2\uFF09"
       }
     ]
   };
@@ -6604,7 +6822,7 @@
           this.drawDayBg(now);
           if (ui2.page === "map") {
             this.drawMapView(ui2, frame, now);
-            this.drawHouseVillage(frame, now);
+            this.drawHouseVillage(frame, now, pb2);
             this.drawWeatherLayer(this.weatherEntry(frame.weather), now);
             this.drawTutorialBanner(frame);
             this.drawTutorialSteps(frame);
@@ -7556,7 +7774,7 @@
       void now;
     }
     /** 独栋小屋群落（M3.2 F5；K-H1 决议）：30 栋错排，6 级进化外观，烟囱/窗光/间距 */
-    drawHouseVillage(frame, now) {
+    drawHouseVillage(frame, now, pb2) {
       const { ctx } = this;
       ctx.textBaseline = "middle";
       ctx.fillStyle = col("text_secondary");
@@ -7567,7 +7785,8 @@
         const x = 96 + col2 * 100 + row % 2 * 50;
         const y = 726 + row * 84;
         const occupied = i < frame.population;
-        const level = Math.min(5, Math.floor(frame.day / 6) + (i % 2 === 0 ? 0 : 1));
+        const dayGrowth = Math.min(5, Math.floor(frame.day / 6) + (i % 2 === 0 ? 0 : 1));
+        const level = Math.min(5, Math.max(pb2.houseLevels[i] ?? 0, dayGrowth));
         this.drawHouse(x, y, level, occupied, now, i);
       }
     }
@@ -8131,7 +8350,7 @@
         this.drawEventCard(top, y, frame, now, pb2);
         return;
       }
-      const title = top.kind === "confirmNight" ? "\u786E\u8BA4\u5165\u591C\uFF1F" : { deploy: "\u5E03\u9632", recruit: "\u62DB\u52DF", upgrade: "\u5347\u7EA7", settings: "\u8BBE\u7F6E" }[top.id] ?? top.id;
+      const title = top.id.startsWith("house:") ? `\u5C0F\u5C4B ${Number(top.id.split(":")[1]) + 1} \u53F7` : top.kind === "confirmNight" ? "\u786E\u8BA4\u5165\u591C\uFF1F" : { deploy: "\u5E03\u9632", recruit: "\u62DB\u52DF", upgrade: "\u5347\u7EA7", settings: "\u8BBE\u7F6E" }[top.id] ?? top.id;
       ctx.fillStyle = col("gold_primary");
       ctx.beginPath();
       ctx.roundRect(r.x + T.space.m, y + 32, 6, 32, 3);
@@ -8146,8 +8365,25 @@
       ctx.stroke();
       ctx.fillStyle = col("text_secondary");
       ctx.font = font(T.typography.body);
-      const body = top.kind === "confirmNight" ? "\u5165\u591C\u540E\u4E0D\u53EF\u6253\u65AD\uFF08\u5168\u5C4F\u591C\u6218\uFF09" : "\u5360\u4F4D\u9762\u677F\uFF1AM3 \u63A5\u5165\u5BF9\u5E94\u7CFB\u7EDF\u64CD\u4F5C";
-      ctx.fillText(body, r.x + T.space.m, y + 120);
+      if (top.id.startsWith("house:")) {
+        const idx2 = Number(top.id.split(":")[1]);
+        const lv = Math.min(5, pb2.houseLevels[idx2] ?? 0);
+        ctx.fillStyle = col("text_primary");
+        ctx.font = font(T.typography.body, { weight: "bold" });
+        ctx.fillText(`\u5F53\u524D\u7B49\u7EA7 Lv${lv}${lv >= 5 ? "\uFF08\u6EE1\u7EA7\uFF09" : ` \u2192 Lv${lv + 1}`}`, r.x + T.space.m, y + 120);
+        const cost = lv >= 5 ? {} : building_def_default2.entries.find((e) => e.type === "house" && e.level === lv + 1)?.cost ?? {};
+        const costText = Object.entries(cost).map(([k, v]) => `${k === "gold" ? "\u91D1\u5E01" : "\u5EFA\u6750"} \xD7${v}`).join("  ") || "\u514D\u8D39";
+        ctx.fillStyle = col("gold_primary");
+        ctx.font = font(T.typography.body);
+        ctx.fillText(`\u5347\u7EA7\u6D88\u8017\uFF1A${costText}`, r.x + T.space.m, y + 160);
+        if (lv < 5) {
+          const cr = modalConfirmRect();
+          this.button({ ...cr, y: cr.y - r.y + y }, "\u5347\u7EA7 \u25B6", "primary");
+        }
+      } else {
+        const body = top.kind === "confirmNight" ? "\u5165\u591C\u540E\u4E0D\u53EF\u6253\u65AD\uFF08\u5168\u5C4F\u591C\u6218\uFF09" : "\u5360\u4F4D\u9762\u677F\uFF1AM3 \u63A5\u5165\u5BF9\u5E94\u7CFB\u7EDF\u64CD\u4F5C";
+        ctx.fillText(body, r.x + T.space.m, y + 120);
+      }
       if (top.kind === "confirmNight") {
         const cr = modalConfirmRect();
         this.button({ ...cr, y: cr.y - r.y + y }, "\u5165\u591C \u25B6", "primary");
@@ -8421,6 +8657,7 @@
     forts: {},
     parties: [],
     wildReports: [],
+    houseLevels: {},
     skills: [
       { label: "\u7A7A\u6295\u7269\u8D44", glyph: "\u{1F48A}", cdUntil: 0 },
       { label: "\u62A4\u76FE", glyph: "\u{1F6E1}", cdUntil: 0 }
@@ -8483,6 +8720,12 @@
       case "explore":
         Object.assign(ui, setPage(ui, "wild"));
         return;
+      case "house":
+        Object.assign(ui, openModal(ui, { kind: "panel", id: `house:${hit.index}` }));
+        return;
+      case "house":
+        Object.assign(ui, openModal(ui, { kind: "panel", id: `house:${hit.index}` }));
+        return;
       case "wildBack":
         Object.assign(ui, setPage(ui, "map"));
         return;
@@ -8530,6 +8773,19 @@
         if (topModal(ui)?.kind === "confirmNight") {
           Object.assign(ui, closeModal(ui));
           ui.phase = "DUSK_FORECAST";
+        } else if (topModal(ui)?.id.startsWith("house:")) {
+          const idx2 = Number(topModal(ui).id.split(":")[1]);
+          const lv = Math.min(5, pb.houseLevels[idx2] ?? 0);
+          if (lv >= 5) return;
+          const cost = building_def_default.entries.find((e) => e.type === "house" && e.level === lv + 1)?.cost ?? {};
+          const ops = Object.entries(cost).map(([k, n]) => k === "gold" ? { op: "ADD_GOLD", n: -n } : { op: "ADD_RES", res: k, n: -n });
+          const r = applyEffects(sideState, ops, { constants: app.constants, buildingDef: tables.buildingDef });
+          if (r.applied === ops.length) {
+            pb.houseLevels[idx2] = lv + 1;
+            Object.assign(ui, closeModal(ui));
+          } else {
+            Object.assign(ui, openModal(ui, { kind: "panel", id: "\u8D44\u6E90\u4E0D\u8DB3" }));
+          }
         }
         return;
       case "modal":
@@ -8655,6 +8911,9 @@
     } else enterDay(0);
     if (wantDay >= 1 && wantDay <= frames.length) enterDay(wantDay - 1);
     if (wantPage) ui.page = wantPage;
+    const wantModal = new URLSearchParams(location.search).get("modal");
+    if (wantModal === "night") Object.assign(ui, openModal(ui, { kind: "confirmNight", id: "night" }));
+    else if (wantModal) Object.assign(ui, openModal(ui, { kind: "panel", id: wantModal }));
     console.log(`\u767D\u76D2\u64AD\u653E\u5C31\u7EEA\uFF1A${frames.length} \u5929\uFF0C\u4E8B\u4EF6 ${sim.eventsFired} \u6B21\uFF0C\u72EC\u7ACB ${sim.distinctFired.length}`);
   });
 })();

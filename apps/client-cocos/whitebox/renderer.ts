@@ -27,6 +27,7 @@ import {
 import { tutorialBoard, type TutRow } from './tutorial.ts'
 import { monsterProgress, monsterVisual } from './battle.ts'
 import weatherJson from '../../../config/weather.json' with { type: 'json' }
+import buildingDefJson from '../../../config/building_def.json' with { type: 'json' }
 
 export interface DayFrame {
   day: number
@@ -61,6 +62,8 @@ export interface Playback {
   wildReports: string[][]
   /** 在外队伍（表现层投影） */
   parties: { zone: string; size: number; returnsDay: number }[]
+  /** 房屋等级覆盖（M3.2 F7 升级交互；缺省=天数成长占位） */
+  houseLevels: Record<number, number>
   skills: { label: string; glyph: string; cdUntil: number }[]
 }
 
@@ -302,7 +305,7 @@ export class WhiteboxRenderer {
         this.drawDayBg(now)
         if (ui.page === 'map') {
           this.drawMapView(ui, frame, now)
-          this.drawHouseVillage(frame, now)
+          this.drawHouseVillage(frame, now, pb)
           this.drawWeatherLayer(this.weatherEntry(frame.weather), now)
           this.drawTutorialBanner(frame)
           this.drawTutorialSteps(frame)
@@ -1151,7 +1154,7 @@ export class WhiteboxRenderer {
   }
 
   /** 独栋小屋群落（M3.2 F5；K-H1 决议）：30 栋错排，6 级进化外观，烟囱/窗光/间距 */
-  private drawHouseVillage(frame: DayFrame, now: number): void {
+  private drawHouseVillage(frame: DayFrame, now: number, pb: Playback): void {
     const { ctx } = this
     ctx.textBaseline = 'middle'
     // 区域名
@@ -1163,8 +1166,8 @@ export class WhiteboxRenderer {
       const x = 96 + col * 100 + (row % 2) * 50  // 错排=间距属性可视化
       const y = 726 + row * 84
       const occupied = i < frame.population
-      // 进化等级（表现层占位：随天数成长；真实升级交互在 F7）
-      const level = Math.min(5, Math.floor(frame.day / 6) + (i % 2 === 0 ? 0 : 1))
+      const dayGrowth = Math.min(5, Math.floor(frame.day / 6) + (i % 2 === 0 ? 0 : 1))
+      const level = Math.min(5, Math.max(pb.houseLevels[i] ?? 0, dayGrowth))
       this.drawHouse(x, y, level, occupied, now, i)
     }
   }
@@ -1604,7 +1607,8 @@ export class WhiteboxRenderer {
       this.drawEventCard(top, y, frame, now, pb)
       return
     }
-    const title = top.kind === 'confirmNight' ? '确认入夜？'
+    const title = top.id.startsWith('house:') ? `小屋 ${Number(top.id.split(':')[1]) + 1} 号`
+      : top.kind === 'confirmNight' ? '确认入夜？'
       : ({ deploy: '布防', recruit: '招募', upgrade: '升级', settings: '设置' } as Record<string, string>)[top.id] ?? top.id
     ctx.fillStyle = col('gold_primary')
     ctx.beginPath(); ctx.roundRect(r.x + T.space.m, y + 32, 6, 32, 3); ctx.fill()
@@ -1615,8 +1619,26 @@ export class WhiteboxRenderer {
     ctx.beginPath(); ctx.moveTo(r.x + T.space.m, y + 80); ctx.lineTo(r.x + r.w - T.space.m, y + 80); ctx.stroke()
     ctx.fillStyle = col('text_secondary')
     ctx.font = font(T.typography.body)
-    const body = top.kind === 'confirmNight' ? '入夜后不可打断（全屏夜战）' : '占位面板：M3 接入对应系统操作'
-    ctx.fillText(body, r.x + T.space.m, y + 120)
+    if (top.id.startsWith('house:')) {
+      // 房屋升级面板（M3.2 F7）：等级/消耗/升级按钮（EffectOp 走 side state）
+      const idx = Number(top.id.split(':')[1])
+      const lv = Math.min(5, pb.houseLevels[idx] ?? 0)
+      ctx.fillStyle = col('text_primary')
+      ctx.font = font(T.typography.body, { weight: 'bold' })
+      ctx.fillText(`当前等级 Lv${lv}${lv >= 5 ? '（满级）' : ` → Lv${lv + 1}`}`, r.x + T.space.m, y + 120)
+      const cost = lv >= 5 ? {} : (((buildingDefJson as any).entries.find((e: any) => e.type === 'house' && e.level === lv + 1)?.cost ?? {}) as Record<string, number>)
+      const costText = Object.entries(cost).map(([k, v]) => `${k === 'gold' ? '金币' : '建材'} ×${v}`).join('  ') || '免费'
+      ctx.fillStyle = col('gold_primary')
+      ctx.font = font(T.typography.body)
+      ctx.fillText(`升级消耗：${costText}`, r.x + T.space.m, y + 160)
+      if (lv < 5) {
+        const cr = modalConfirmRect()
+        this.button({ ...cr, y: cr.y - r.y + y }, '升级 ▶', 'primary')
+      }
+    } else {
+      const body = top.kind === 'confirmNight' ? '入夜后不可打断（全屏夜战）' : '占位面板：M3 接入对应系统操作'
+      ctx.fillText(body, r.x + T.space.m, y + 120)
+    }
     if (top.kind === 'confirmNight') {
       const cr = modalConfirmRect()
       this.button({ ...cr, y: cr.y - r.y + y }, '入夜 ▶', 'primary')
