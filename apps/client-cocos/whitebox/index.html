@@ -2,18 +2,20 @@
 <html lang="zh">
 <head>
   <meta charset="utf-8">
-  <title>M2 白盒渲染 · 永夜收租人</title>
+  <title>M2.5 白盒渲染 · 永夜收租人</title>
+  <!-- 内联样式与 config/theme.json tokens 同步（M2.5 功能点1，scripts/check-theme.mjs 断言色值合规）：
+       bg_night=#0B1020 / text_secondary=#8892B0 / panel_stroke=#2A3555 -->
   <style>
-    body { background: #05070f; color: #889; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 12px; }
+    body { background: #0B1020; color: #8892B0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 12px; }
     #fps { font-size: 14px; margin-bottom: 6px; }
-    canvas { border: 1px solid #223; }
+    canvas { border: 1px solid #2A3555; }
     p { font-size: 12px; max-width: 400px; }
   </style>
 </head>
 <body>
   <div id="fps">FPS 采样中…</div>
   <canvas id="stage" width="400" height="720"></canvas>
-  <p>M2 白盒渲染：竖屏剖面占位 UI（房间格子/人口/金币/日次/夜战结果面板）+ 物资雨占位动画 + rAF 帧率采样。
+  <p>M2.5 白盒渲染：tokens 驱动（色板/字号/动效曲线全部取自 config/theme.json）竖屏剖面占位 UI + 物资雨占位动画 + rAF 帧率采样。
      控制台执行 __fpsReport() 可导出帧率报告（性能预算：min ≥50fps）。</p>
   <script src="./bundle.js"></script>
 </body>

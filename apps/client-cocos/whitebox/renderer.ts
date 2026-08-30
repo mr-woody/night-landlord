@@ -1,6 +1,8 @@
-// 白盒渲染器（M2 功能点6）：竖屏剖面占位 UI——房间格子/人口/金币/日次/夜战结果面板
-// + 物资雨占位动画 + rAF 帧率采样。纯 Canvas 2D，零引擎依赖；Creator 原生组件见
-// apps/client-cocos/creator-fragment/（随 Creator 安装后移植同一渲染协议）。
+// 白盒渲染器（M2.5 功能点1 起）：tokens 驱动重绘——色板/字号/动效曲线全部从
+// theme.ts（config/theme.json）取，零硬编码色值（scripts/check-theme.mjs 断言）。
+// M2 竖屏剖面占位布局保持不变；§3.1 线框风格化在 P2 起展开。
+// 纯 Canvas 2D，零引擎依赖；Creator 原生组件移植同一渲染协议（ADR-9 方案 a）。
+import { T, col, withAlpha, motion, font } from './theme.ts'
 
 export interface DayFrame {
   day: number
@@ -30,16 +32,15 @@ export class WhiteboxRenderer {
   private frames = 0
   private fpsSamples: number[] = []
   private lastSample = 0
-  private lastFrame = 0
 
   constructor(private canvas: HTMLCanvasElement, private cb: RendererCallbacks) {
     this.ctx = canvas.getContext('2d')!
   }
 
-  /** rAF 主循环：帧率采样（P6 性能预算冒烟）+ 重绘 */
-  start(getFrame: () => DayFrame | null, dayMs = 1500): void {
+  /** rAF 主循环：帧率采样（P6 性能预算冒烟）+ 重绘；物资雨窗口=motion.rain.dur（tokens） */
+  start(getFrame: () => DayFrame | null, dayMs: number): void {
+    const rainDur = motion('rain').dur
     let dayStart = performance.now()
-    let dayIndex = 0
     const tick = (now: number) => {
       this.frames++
       if (now - this.lastSample >= 1000) {
@@ -52,9 +53,9 @@ export class WhiteboxRenderer {
       const frame = getFrame()
       const elapsed = now - dayStart
       if (frame) {
-        const rainPhase = elapsed < dayMs * 0.35 // 物资雨占位动画：每日前 35% 时段
-        this.draw(frame, rainPhase, rainPhase ? elapsed / (dayMs * 0.35) : 0)
-        if (elapsed >= dayMs) { dayStart = now; dayIndex++ }
+        const rain = elapsed < rainDur // 物资雨占位动画：每日 rain.dur 时段
+        this.draw(frame, rain, rain ? elapsed / rainDur : 0)
+        if (elapsed >= dayMs) { dayStart = now }
       }
       requestAnimationFrame(tick)
     }
@@ -65,66 +66,64 @@ export class WhiteboxRenderer {
   draw(frame: DayFrame, rain: boolean, rainT: number): void {
     const { ctx, canvas } = this
     const W = canvas.width, H = canvas.height
-    ctx.fillStyle = '#0b1020'
+    ctx.fillStyle = col('bg_night')
     ctx.fillRect(0, 0, W, H)
 
-    // HUD：日次/人口/金币/战力
-    ctx.fillStyle = '#e8e8f0'
-    ctx.font = 'bold 22px sans-serif'
-    ctx.fillText(`第 ${frame.day} 天`, 16, 34)
-    ctx.font = '16px sans-serif'
-    ctx.fillStyle = '#ffd700'
-    ctx.fillText(`金币 ${frame.gold}`, 140, 34)
-    ctx.fillStyle = '#9fd8ff'
-    ctx.fillText(`人口 ${frame.population}/${frame.roomsBuilt}`, 16, 60)
-    ctx.fillStyle = '#ffb0b0'
-    ctx.fillText(`战力 ${frame.power}`, 160, 60)
+    // HUD：日次/人口/金币/战力（字号=typography tokens，色=palette tokens）
+    ctx.fillStyle = col('text_primary')
+    ctx.font = font(T.typography.h2, { weight: 'bold' })
+    ctx.fillText(`第 ${frame.day} 天`, T.space.s, T.typography.h2)
+    ctx.font = font(T.typography.caption)
+    ctx.fillStyle = col('gold_primary')
+    ctx.fillText(`金币 ${frame.gold}`, T.space.s + 124, T.typography.h2)
+    ctx.fillStyle = col('text_secondary')
+    ctx.fillText(`人口 ${frame.population}/${frame.roomsBuilt}`, T.space.s, T.typography.h2 + T.space.s + 2)
+    ctx.fillText(`战力 ${frame.power}`, T.space.s + 144, T.typography.h2 + T.space.s + 2)
     if (frame.modifiers.length) {
-      ctx.fillStyle = '#ff6b6b'
-      ctx.fillText(`特殊夜: ${frame.modifiers.join('/')}`, 16, 86)
+      ctx.fillStyle = col('alert_blood')
+      ctx.fillText(`特殊夜: ${frame.modifiers.join('/')}`, T.space.s, T.typography.h2 + T.space.s * 2 + 4)
     }
 
-    // 竖屏剖面：6 层 × 5 房间格子（占位 UI）
-    const gx = 16, gy = 110, gw = (W - 32) / ROOMS_PER_FLOOR, gh = 64
+    // 竖屏剖面：6 层 × 5 房间格子（占位 UI；占用=success 亮格，空房=panel_stroke 描边）
+    const gx = T.space.s, gy = T.space.l + T.typography.h2 + 40, gw = (W - T.space.s * 2) / ROOMS_PER_FLOOR, gh = 64
     let occupied = frame.population
     for (let f = 0; f < FLOORS; f++) {
-      ctx.fillStyle = '#334'
+      ctx.fillStyle = col('text_secondary')
       ctx.fillText(`${FLOORS - f}F`, gx, gy + f * gh + gh / 2)
       for (let r = 0; r < ROOMS_PER_FLOOR; r++) {
         const x = gx + 28 + r * gw, y = gy + f * gh
         const isOccupied = occupied > 0
         if (isOccupied) occupied--
-        ctx.strokeStyle = isOccupied ? '#7ec8ff' : '#2a2f45'
+        ctx.strokeStyle = isOccupied ? col('success') : col('panel_stroke')
         ctx.strokeRect(x + 4, y + 6, gw - 12, gh - 14)
         if (isOccupied) {
-          ctx.fillStyle = '#7ec8ff33'
+          ctx.fillStyle = withAlpha(col('success'), 0.2)
           ctx.fillRect(x + 4, y + 6, gw - 12, gh - 14)
-          ctx.fillStyle = '#cfe8ff'
-          ctx.font = '12px sans-serif'
+          ctx.fillStyle = col('text_primary')
+          ctx.font = font(T.typography.caption)
           ctx.fillText('住', x + gw / 2 - 6, y + gh / 2 + 4)
         }
       }
     }
 
-    // 物资雨占位动画（天亮收租，标志性瞬间的白盒表达）
+    // 物资雨占位动画（天亮收租，标志性瞬间的白盒表达；色=gold_primary）
     if (rain) {
-      ctx.fillStyle = '#ffd700'
+      ctx.fillStyle = col('gold_primary')
       for (let i = 0; i < 24; i++) {
         const seed = (i * 97 + frame.day * 31) % 1000 / 1000
-        const x = 30 + seed * (W - 70)
+        const x = T.space.s + 14 + seed * (W - T.space.s * 2 - 38)
         const y = ((rainT * H * 1.4 + seed * 300) % (H * 0.9))
         ctx.fillRect(x, y, 10, 16)
       }
-      ctx.fillStyle = '#ffd700'
-      ctx.font = 'bold 26px sans-serif'
+      ctx.font = font(T.typography.h1, { weight: 'bold' })
       ctx.fillText(`+${frame.income} 物资雨`, W / 2 - 70, H / 2)
     }
 
     // 夜战结果面板
-    ctx.fillStyle = '#889'
-    ctx.font = '13px sans-serif'
-    ctx.fillText(`夜战: r均=${frame.rAvg} 死亡${frame.deaths} 负伤${frame.wounds} ${frame.modifiers.includes('BLOOD_MOON') ? '[血月]' : ''} hash=${frame.sessionHash}`, 16, H - 46)
-    ctx.fillText(`恐慌总量 ${frame.panicSum} · 平均等级 ${frame.avgLevel}`, 16, H - 26)
+    ctx.fillStyle = col('text_secondary')
+    ctx.font = font(T.typography.caption)
+    ctx.fillText(`夜战: r均=${frame.rAvg} 死亡${frame.deaths} 负伤${frame.wounds} ${frame.modifiers.includes('BLOOD_MOON') ? '[血月]' : ''} hash=${frame.sessionHash}`, T.space.s, H - T.space.l - 6)
+    ctx.fillText(`恐慌总量 ${frame.panicSum} · 平均等级 ${frame.avgLevel}`, T.space.s, H - T.space.m)
   }
 }
 

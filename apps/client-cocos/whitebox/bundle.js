@@ -1707,6 +1707,76 @@
     ]
   };
 
+  // config/theme.json
+  var theme_default = {
+    version: 1,
+    sourceDoc: "docs/UI-UX\u8BBE\u8BA1\u89C4\u8303.md \xA7\u4E8C",
+    color: {
+      bg_night: "#0B1020",
+      bg_dawn: "#141A2E",
+      alert_blood: "#C0392B",
+      gold_primary: "#FFD700",
+      gold_deep: "#B8860B",
+      panel: "#1A2238",
+      panel_stroke: "#2A3555",
+      text_primary: "#E8E8F0",
+      text_secondary: "#8892B0",
+      success: "#7FFF9F",
+      danger: "#FF6B6B",
+      panic: "#9B59B6"
+    },
+    typography: {
+      family_cn: "SourceHanSansCN-Bold",
+      family_num: "BebasNeue",
+      h1: 32,
+      h2: 26,
+      body: 24,
+      caption: 18
+    },
+    space: { xs: 8, s: 16, m: 24, l: 32 },
+    radius: { panel: 16, btn: 12, chip: 8 },
+    motion: {
+      fast: { dur: 150, ease: "easeOutQuad" },
+      normal: { dur: 300, ease: "easeOutCubic" },
+      rain: { dur: 500, ease: "easeOutBack" },
+      threat: { dur: 300, ease: "easeInQuad", repeat: 2 },
+      dissolve: { dur: 800, ease: "linear" }
+    }
+  };
+
+  // apps/client-cocos/whitebox/theme.ts
+  var T = theme_default;
+  function withAlpha(hex, alpha) {
+    const h = hex.replace("#", "");
+    return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${alpha})`;
+  }
+  function col(key) {
+    return T.color[key];
+  }
+  var EASE = {
+    linear: (t) => t,
+    easeOutQuad: (t) => 1 - (1 - t) ** 2,
+    easeOutCubic: (t) => 1 - (1 - t) ** 3,
+    easeInQuad: (t) => t * t,
+    easeOutBack: (t) => {
+      const c1 = 1.70158;
+      const c3 = c1 + 1;
+      return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2;
+    }
+  };
+  function easeByName(name) {
+    return EASE[name] ?? EASE.linear;
+  }
+  function motion(name) {
+    const m = T.motion[name] ?? T.motion.normal;
+    return { dur: m.dur, fn: easeByName(m.ease), repeat: m.repeat };
+  }
+  function font(px, opts = {}) {
+    const family = opts.family && typeof opts.family === "string" ? opts.family : T.typography.family_cn;
+    const weight = opts.weight ? opts.weight + " " : "";
+    return `${weight}${px}px "${family}", sans-serif`;
+  }
+
   // apps/client-cocos/whitebox/renderer.ts
   var FLOORS = 6;
   var ROOMS_PER_FLOOR = 5;
@@ -1722,11 +1792,10 @@
     frames = 0;
     fpsSamples = [];
     lastSample = 0;
-    lastFrame = 0;
-    /** rAF 主循环：帧率采样（P6 性能预算冒烟）+ 重绘 */
-    start(getFrame, dayMs = 1500) {
+    /** rAF 主循环：帧率采样（P6 性能预算冒烟）+ 重绘；物资雨窗口=motion.rain.dur（tokens） */
+    start(getFrame, dayMs) {
+      const rainDur = motion("rain").dur;
       let dayStart = performance.now();
-      let dayIndex = 0;
       const tick = (now) => {
         this.frames++;
         if (now - this.lastSample >= 1e3) {
@@ -1739,11 +1808,10 @@
         const frame = getFrame();
         const elapsed = now - dayStart;
         if (frame) {
-          const rainPhase = elapsed < dayMs * 0.35;
-          this.draw(frame, rainPhase, rainPhase ? elapsed / (dayMs * 0.35) : 0);
+          const rain = elapsed < rainDur;
+          this.draw(frame, rain, rain ? elapsed / rainDur : 0);
           if (elapsed >= dayMs) {
             dayStart = now;
-            dayIndex++;
           }
         }
         requestAnimationFrame(tick);
@@ -1754,58 +1822,56 @@
     draw(frame, rain, rainT) {
       const { ctx, canvas: canvas2 } = this;
       const W = canvas2.width, H = canvas2.height;
-      ctx.fillStyle = "#0b1020";
+      ctx.fillStyle = col("bg_night");
       ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = "#e8e8f0";
-      ctx.font = "bold 22px sans-serif";
-      ctx.fillText(`\u7B2C ${frame.day} \u5929`, 16, 34);
-      ctx.font = "16px sans-serif";
-      ctx.fillStyle = "#ffd700";
-      ctx.fillText(`\u91D1\u5E01 ${frame.gold}`, 140, 34);
-      ctx.fillStyle = "#9fd8ff";
-      ctx.fillText(`\u4EBA\u53E3 ${frame.population}/${frame.roomsBuilt}`, 16, 60);
-      ctx.fillStyle = "#ffb0b0";
-      ctx.fillText(`\u6218\u529B ${frame.power}`, 160, 60);
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.h2, { weight: "bold" });
+      ctx.fillText(`\u7B2C ${frame.day} \u5929`, T.space.s, T.typography.h2);
+      ctx.font = font(T.typography.caption);
+      ctx.fillStyle = col("gold_primary");
+      ctx.fillText(`\u91D1\u5E01 ${frame.gold}`, T.space.s + 124, T.typography.h2);
+      ctx.fillStyle = col("text_secondary");
+      ctx.fillText(`\u4EBA\u53E3 ${frame.population}/${frame.roomsBuilt}`, T.space.s, T.typography.h2 + T.space.s + 2);
+      ctx.fillText(`\u6218\u529B ${frame.power}`, T.space.s + 144, T.typography.h2 + T.space.s + 2);
       if (frame.modifiers.length) {
-        ctx.fillStyle = "#ff6b6b";
-        ctx.fillText(`\u7279\u6B8A\u591C: ${frame.modifiers.join("/")}`, 16, 86);
+        ctx.fillStyle = col("alert_blood");
+        ctx.fillText(`\u7279\u6B8A\u591C: ${frame.modifiers.join("/")}`, T.space.s, T.typography.h2 + T.space.s * 2 + 4);
       }
-      const gx = 16, gy = 110, gw = (W - 32) / ROOMS_PER_FLOOR, gh = 64;
+      const gx = T.space.s, gy = T.space.l + T.typography.h2 + 40, gw = (W - T.space.s * 2) / ROOMS_PER_FLOOR, gh = 64;
       let occupied = frame.population;
       for (let f = 0; f < FLOORS; f++) {
-        ctx.fillStyle = "#334";
+        ctx.fillStyle = col("text_secondary");
         ctx.fillText(`${FLOORS - f}F`, gx, gy + f * gh + gh / 2);
         for (let r = 0; r < ROOMS_PER_FLOOR; r++) {
           const x = gx + 28 + r * gw, y = gy + f * gh;
           const isOccupied = occupied > 0;
           if (isOccupied) occupied--;
-          ctx.strokeStyle = isOccupied ? "#7ec8ff" : "#2a2f45";
+          ctx.strokeStyle = isOccupied ? col("success") : col("panel_stroke");
           ctx.strokeRect(x + 4, y + 6, gw - 12, gh - 14);
           if (isOccupied) {
-            ctx.fillStyle = "#7ec8ff33";
+            ctx.fillStyle = withAlpha(col("success"), 0.2);
             ctx.fillRect(x + 4, y + 6, gw - 12, gh - 14);
-            ctx.fillStyle = "#cfe8ff";
-            ctx.font = "12px sans-serif";
+            ctx.fillStyle = col("text_primary");
+            ctx.font = font(T.typography.caption);
             ctx.fillText("\u4F4F", x + gw / 2 - 6, y + gh / 2 + 4);
           }
         }
       }
       if (rain) {
-        ctx.fillStyle = "#ffd700";
+        ctx.fillStyle = col("gold_primary");
         for (let i = 0; i < 24; i++) {
           const seed = (i * 97 + frame.day * 31) % 1e3 / 1e3;
-          const x = 30 + seed * (W - 70);
+          const x = T.space.s + 14 + seed * (W - T.space.s * 2 - 38);
           const y = (rainT * H * 1.4 + seed * 300) % (H * 0.9);
           ctx.fillRect(x, y, 10, 16);
         }
-        ctx.fillStyle = "#ffd700";
-        ctx.font = "bold 26px sans-serif";
+        ctx.font = font(T.typography.h1, { weight: "bold" });
         ctx.fillText(`+${frame.income} \u7269\u8D44\u96E8`, W / 2 - 70, H / 2);
       }
-      ctx.fillStyle = "#889";
-      ctx.font = "13px sans-serif";
-      ctx.fillText(`\u591C\u6218: r\u5747=${frame.rAvg} \u6B7B\u4EA1${frame.deaths} \u8D1F\u4F24${frame.wounds} ${frame.modifiers.includes("BLOOD_MOON") ? "[\u8840\u6708]" : ""} hash=${frame.sessionHash}`, 16, H - 46);
-      ctx.fillText(`\u6050\u614C\u603B\u91CF ${frame.panicSum} \xB7 \u5E73\u5747\u7B49\u7EA7 ${frame.avgLevel}`, 16, H - 26);
+      ctx.fillStyle = col("text_secondary");
+      ctx.font = font(T.typography.caption);
+      ctx.fillText(`\u591C\u6218: r\u5747=${frame.rAvg} \u6B7B\u4EA1${frame.deaths} \u8D1F\u4F24${frame.wounds} ${frame.modifiers.includes("BLOOD_MOON") ? "[\u8840\u6708]" : ""} hash=${frame.sessionHash}`, T.space.s, H - T.space.l - 6);
+      ctx.fillText(`\u6050\u614C\u603B\u91CF ${frame.panicSum} \xB7 \u5E73\u5747\u7B49\u7EA7 ${frame.avgLevel}`, T.space.s, H - T.space.m);
     }
   };
 
@@ -1820,6 +1886,7 @@
     formula: createFormula({ dayCurve: tables.dayCurve, constants: loadConstants(tables.constants.entries) }),
     constants: loadConstants(tables.constants.entries),
     eventLib: event_lib_default,
+    // JSON 宽类型收窄（type 字面量联合）
     monsters: monster_default
   };
   var kernel = createKernel({ appName: "nl-whitebox", clock: { logicalDay: () => 0, wallMs: () => Date.now() } });
@@ -1832,14 +1899,14 @@
     onFps(fps, min, avg) {
       const el = document.getElementById("fps");
       el.textContent = `FPS ${fps}\uFF08min ${min} / avg ${avg}\uFF09\u9884\u7B97${min >= 50 ? "\u8FBE\u6807" : "\u672A\u8FBE\u6807"}`;
-      el.style.color = min >= 50 ? "#7fff9f" : "#ffb0b0";
+      el.style.color = min >= 50 ? col("success") : col("danger");
     }
   });
+  var DAY_MS = T.motion.dissolve.dur * 2;
   var idx = 0;
   boot.then(() => {
     const sim = runSimulation(app, kernel, { days: 7, seed: 42 });
     const frames = sim.records.map((r) => {
-      const row = tables.dayCurve.rows.find((x) => x.day === r.day);
       return {
         day: r.day,
         population: r.population,
@@ -1859,7 +1926,7 @@
     renderer.start(() => {
       if (idx >= frames.length) idx = 0;
       return frames[idx];
-    }, 1600);
+    }, DAY_MS);
     console.log(`\u767D\u76D2\u64AD\u653E\u5C31\u7EEA\uFF1A${frames.length} \u5929\uFF0C\u4E8B\u4EF6 ${sim.eventsFired} \u6B21\uFF0C\u72EC\u7ACB ${sim.distinctFired.length}`);
   });
 })();

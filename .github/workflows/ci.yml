@@ -1,7 +1,7 @@
 name: ci
 on:
   push:
-    branches: ["main", "m1/**", "m2/**", "m3/**"]
+    branches: ["main", "m1/**", "m2/**", "m2p5/**", "m3/**"]
   pull_request:
 
 jobs:
@@ -16,6 +16,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: node scripts/check-config.mjs
+      - run: npm run check:theme
       - run: npm run verify -- --design
       - run: npm run depgraph -- --check
       - run: npm run sync:cocos && npm run sync:cocos:check
