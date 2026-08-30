@@ -185,6 +185,29 @@ async function cmdDepgraph(app: AppContext, args: Record<string, string>): Promi
   return 0
 }
 
+/** D7 合规包（PR-P7）：概率公示数据出口——事件概率/卡池 SKU/广告频控（静态导出，上线提交平台审核用） */
+function cmdCompliance(app: AppContext, args: Record<string, string>): number {
+  const eventProbabilities: Record<string, unknown> = {}
+  for (const e of app.eventLib.entries) {
+    eventProbabilities[e.id] = e.options.map(o => ({
+      label: o.label,
+      outcomes: o.outcomes.map(oc => ({ p: oc.p, effects: oc.effects.map(x => x.op) }))
+    }))
+  }
+  const sku = loadJson<{ version: number; entries: { id: string; type: string; price: number }[] }>('config/iap_sku.json')
+  const out = {
+    doc: '概率公示数据包（PR-P7；上线时随版本提交平台审核）',
+    generatedFrom: 'config/event_lib.json + config/iap_sku.json（构建期静态导出，无运行时随机）',
+    events: eventProbabilities,
+    iap: sku.entries,
+    adFrequency: { rent_x2: '每日无限（主广告位）', offline_x2: '每日 3 次', talent_reroll: '每日 2 次', night_airdrop: '每夜 2 次', rescue_shield: '每夜 1 次' }
+  }
+  const text = JSON.stringify(out, null, 2)
+  if (args.out) { writeFileSync(resolve(ROOT, args.out), text); console.log(`compliance 包已写入 ${resolve(ROOT, args.out)}`) }
+  else console.log(text)
+  return 0
+}
+
 async function main(): Promise<void> {
   const argv = process.argv.slice(2)
   const cmd = argv[0] ?? ''
@@ -206,6 +229,7 @@ async function main(): Promise<void> {
   else if (cmd === 'replay') code = cmdReplay(app, kernel, args)
   else if (cmd === 'diagnose') code = await cmdDiagnose(app)
   else if (cmd === 'depgraph') code = await cmdDepgraph(app, args)
+  else if (cmd === 'compliance') code = cmdCompliance(app, args)
   else { console.error('用法: main.ts simulate|verify|replay|diagnose|depgraph [--days N] [--seed S] [--out f] [--check] [--design] [--explore]'); code = 2 }
   process.exitCode = code
 }
