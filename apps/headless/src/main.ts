@@ -116,6 +116,12 @@ function cmdVerify(app: AppContext, kernel: Kernel, args: Record<string, string>
     results.push({ name: 'V13b 探索产出 D30 锚点', ok: c30 >= t30 * 0.6 && c30 <= t30 * 1.6, detail: `折算=${c30} vs 目标 ${t30}±40%` })
     results.push({ name: 'V13c 探索记账一致', ok: Math.abs(total - c30) <= 2, detail: `totalYield 折算=${total} vs 逐日和=${c30}` })
   }
+  // V14 性能预算：30 天模拟 wall-time ≤5s（headless 逻辑帧预算；渲染端另有 DC/帧率门）
+  const simT0 = Date.now()
+  runSimulation(app, kernel, { days: 30, seed: 42 })
+  const simMs = Date.now() - simT0
+  results.push({ name: 'V14 逻辑预算 ≤5s/30天', ok: simMs <= 5000, detail: `${simMs}ms` })
+
   let ok = true
   for (const r of results) {
     if (r.name === 'FINDING') { console.log(`NOTE  ${r.detail}`); continue }
