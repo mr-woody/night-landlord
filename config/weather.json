@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "sourceDoc": "docs/战斗演出与天气系统设计.md §3 + docs/数据配置表结构设计.md §10",
+  "entries": [
+    {
+      "id": "sunny", "name": "晴", "lightMul": 1.0, "tintKey": "text_primary",
+      "temp": "mild", "humidity": "low", "particles": "none", "fog": false,
+      "gatherMul": 1.0, "encounterMul": 1.0, "panicDecayMul": 1.0, "foodConsumeMul": 1.0,
+      "weightBase": 40, "weightAfter": 25, "exploreDisabled": false, "unlockDay": 1
+    },
+    {
+      "id": "overcast", "name": "阴", "lightMul": 0.85, "tintKey": "text_secondary",
+      "temp": "mild", "humidity": "mid", "particles": "none", "fog": false,
+      "gatherMul": 0.9, "encounterMul": 1.0, "panicDecayMul": 1.0, "foodConsumeMul": 1.0,
+      "weightBase": 20, "weightAfter": 20, "exploreDisabled": false, "unlockDay": 1
+    },
+    {
+      "id": "rain", "name": "雨", "lightMul": 0.75, "tintKey": "panel_stroke",
+      "temp": "cold", "humidity": "high", "particles": "rain", "fog": false,
+      "gatherMul": 0.75, "encounterMul": 1.2, "panicDecayMul": 0.9, "foodConsumeMul": 1.0,
+      "weightBase": 15, "weightAfter": 20, "exploreDisabled": false, "unlockDay": 3
+    },
+    {
+      "id": "foggy", "name": "雾", "lightMul": 0.8, "tintKey": "text_secondary",
+      "temp": "cold", "humidity": "satur", "particles": "fog", "fog": true,
+      "gatherMul": 0.9, "encounterMul": 1.5, "panicDecayMul": 0.9, "foodConsumeMul": 1.0,
+      "weightBase": 10, "weightAfter": 15, "exploreDisabled": false, "unlockDay": 6
+    },
+    {
+      "id": "snowy", "name": "雪", "lightMul": 0.95, "tintKey": "text_primary",
+      "temp": "freeze", "humidity": "low", "particles": "snow", "fog": false,
+      "gatherMul": 0.6, "encounterMul": 1.0, "panicDecayMul": 0.8, "foodConsumeMul": 1.1,
+      "weightBase": 5, "weightAfter": 10, "exploreDisabled": false, "unlockDay": 10
+    },
+    {
+      "id": "blood_dust", "name": "血月尘暴", "lightMul": 0.6, "tintKey": "alert_blood",
+      "temp": "hot", "humidity": "low", "particles": "dust", "fog": true,
+      "gatherMul": 0.5, "encounterMul": 2.0, "panicDecayMul": 0.7, "foodConsumeMul": 1.1,
+      "weightBase": 0, "weightAfter": 10, "exploreDisabled": true, "unlockDay": 7
+    }
+  ]
+}

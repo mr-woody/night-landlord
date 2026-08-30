@@ -101,6 +101,14 @@ canteen.forEach((b, i) => {
   if (i > 0) check(b.capacity > canteen[i - 1].capacity, 'canteen capacity 未升序')
 })
 check(canteen[canteen.length - 1].capacity >= 30, 'canteen 顶级容量须 ≥30（D30 满层锚点）')
+const houses = bd.entries.filter(b => b.type === 'house').sort((a, b) => a.level - b.level)
+check(houses.length === 6, `building_def 房屋进化应 6 级，实际 ${houses.length}`)
+houses.forEach((h, i) => {
+  check(h.level === i, `house Lv${h.level} 应连续（${i}）`)
+  const dur = h.durability ?? 0
+  check(i === 0 ? dur === 0.8 : dur > houses[i - 1].durability, `house Lv${h.level} 耐久系数未递增`)
+})
+check((houses[0].durability ?? 0) === 0.8 && (houses[5].durability ?? 0) === 1.5, 'house 耐久端点应为 0.8/1.5')
 const room = bd.entries.find(b => b.type === 'room')
 check(room && room.slots && room.slots.tenant === 1, 'room 应含 tenant×1 槽位')
 
@@ -168,6 +176,32 @@ ed.entries.forEach(e => {
   e.eventPool.forEach(ev => check(ev.startsWith('evt_wd_'), `explore_def ${e.id} 事件池须为 evt_wd_* 组`))
 })
 
+
+// ---- weather（v2.1 天气引擎，战斗演出与天气系统设计 §3）----
+const theme = JSON.parse(readFileSync(join(root, 'config/theme.json'), 'utf8'))
+const tintKeys = new Set(Object.keys(theme.color))
+const wx = load('weather.json')
+const WX_IDS = ['sunny', 'overcast', 'rain', 'foggy', 'snowy', 'blood_dust']
+const wxIds = new Set()
+wx.entries.forEach((w, i) => {
+  check(wxIds.has(w.id) === false, `weather 重复 id ${w.id}`)
+  wxIds.add(w.id)
+  check(WX_IDS.includes(w.id), `weather ${w.id} 非白名单 id`)
+  check(typeof w.lightMul === 'number' && w.lightMul >= 0.5 && w.lightMul <= 1.05, `weather ${w.id} lightMul 越界`)
+  check(tintKeys.has(w.tintKey), `weather ${w.id} tintKey 不在 theme 色板键内`)
+  check(['mild', 'cold', 'hot', 'freeze'].includes(w.temp), `weather ${w.id} temp 非法`)
+  check(['low', 'mid', 'high', 'satur'].includes(w.humidity), `weather ${w.id} humidity 非法`)
+  check(['none', 'rain', 'snow', 'fog', 'dust'].includes(w.particles), `weather ${w.id} particles 非法`)
+  check(w.gatherMul >= 0.4 && w.gatherMul <= 1.0, `weather ${w.id} gatherMul 越界`)
+  check(w.encounterMul >= 0.8 && w.encounterMul <= 2.5, `weather ${w.id} encounterMul 越界`)
+  check(w.weightBase >= 0 && w.weightAfter >= 0, `weather ${w.id} 权重负值`)
+})
+for (const id of WX_IDS) check(wxIds.has(id), `weather 缺 ${id}`)
+check(wx.entries.find(w => w.id === 'sunny')?.gatherMul === 1.0, 'sunny 应为基准 gatherMul=1.0')
+const bdust = wx.entries.find(w => w.id === 'blood_dust')
+check(bdust.exploreDisabled === true, 'blood_dust 应禁用探索（血月尘暴）')
+check(bdust.unlockDay === 7, 'blood_dust unlockDay 应=7（首个血月日）')
+
 if (failures.length) {
   console.error(`check-config：${failures.length} 项失败`)
   failures.forEach(f => console.error('  ✗ ' + f))
@@ -175,3 +209,4 @@ if (failures.length) {
 }
 console.log('check-config：基础表全部通过（day_curve 31 行 / constants 全键 / monster 7 / iap 8 / event_lib 62=scripted10+48 / building_def）')
 console.log(`check-config：世界空间四表通过（map_def ${md.entries.length} / explore_def ${ed.entries.length} / gather_table ${gt.entries.length} / wildlife ${wl.entries.length}）`)
+console.log(`check-config：天气表通过（weather ${wx.entries.length}）+ 房屋进化 6 级`)
