@@ -165,6 +165,22 @@ export function buildBundle(app: AppContext, options: { devtools?: boolean } = {
   return list
 }
 
+/** 效果操作 → 结果摘要文案（表现层投影；applyEffects 单点语义的白盒可读化） */
+function summarizeEffects(ops: EffectOp[]): string {
+  const parts: string[] = []
+  for (const op of ops) {
+    if (op.op === 'ADD_GOLD') parts.push(`金币${op.n >= 0 ? '+' : ''}${op.n}`)
+    else if (op.op === 'ADD_RES') parts.push(`${op.res}${op.n >= 0 ? '+' : ''}${op.n}`)
+    else if (op.op === 'ADD_PANIC') parts.push(`恐慌+${op.n}`)
+    else if (op.op === 'WOUND_TENANT') parts.push('住户负伤')
+    else if (op.op === 'SPAWN_TENANT') parts.push(`新住户入住（${op.quality}）`)
+    else if (op.op === 'UPGRADE_TENANT') parts.push('住户升级')
+    else if (op.op === 'GRANT_BUFF') parts.push(`获得 ${op.buff}`)
+    else if (op.op === 'NIGHT_MOD') parts.push(`特殊夜 ${op.mod}`)
+  }
+  return parts.length ? parts.join(' · ') : '无直接状态变化'
+}
+
 /** outcome 按 p 掷骰（日域确定性 RNG）；tenantId=-1 解析为随机住户。 */
 export function rollOutcome(e: EventLibEntry, state: GameState, day: number, rng: { next(): number }): EffectOp[] {
   const option = e.options[0]
@@ -199,9 +215,20 @@ function target(d: number, t: Tables): number {
   return t.dayCurve.rows.find(r => r.day === d)?.population ?? 30
 }
 
+/** 事件卡渲染元数据（M2.5 表现层投影，纯加法）：标题/正文/权重/选项标签+各 outcome 概率
+ *  + resultText（实际掷中 outcome 的效果摘要，供卡面翻面结果展示）。不参与 finalHash。 */
+export interface EventCardMeta {
+  id: string
+  title: string
+  text?: string
+  weight: number
+  options: { label: string; ps: number[] }[]
+  resultText: string
+}
+
 export function runSimulation(
   app: AppContext, kernel: Kernel, options: { days: number; seed: number }
-): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number; distinctFired: string[]; eventCounts: Record<string, number>; stabilizer: { window: string; wealth: number; produceConsume: number; panic: number }[] } {
+): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number; distinctFired: string[]; eventCounts: Record<string, number>; eventCards: Record<number, EventCardMeta[]>; stabilizer: { window: string; wealth: number; produceConsume: number; panic: number }[] } {
   const { tables, constants } = app
   const formula = kernel.service<ReturnType<typeof createFormula>>('formula')
   const director = kernel.service<DirectorService>('director')
@@ -214,6 +241,7 @@ export function runSimulation(
   const findings: string[] = []
   const distinctFired = new Set<string>()
   const eventCounts: Record<string, number> = {}
+  const eventCards: Record<number, EventCardMeta[]> = {}
   let eventsFired = 0
   let spent = 0
   let checkpoints = 0
@@ -292,6 +320,18 @@ export function runSimulation(
       eventCounts[ev.id] = (eventCounts[ev.id] ?? 0) + 1
     }
     eventsFired += events
+    eventCards[d] = todays.map(ev => {
+      const e = app.eventLib.entries.find(x => x.id === ev.id)
+      return {
+        id: ev.id,
+        title: e?.title ?? ev.id,
+        text: e?.text,
+        weight: e?.weight ?? 0,
+        options: (e?.options ?? []).map(o => ({ label: o.label, ps: o.outcomes.map(oc => oc.p) })),
+        // ev.effects = 实际掷中 outcome 的效果 + 2 条 bookkeep（fired_/last_），剔除后即结果摘要
+        resultText: summarizeEffects(ev.effects.filter(op => !(op.op === 'SET_FLAG' && (String(op.key).startsWith('fired_') || String(op.key).startsWith('last_')))))
+      }
+    })
     persistence.put(`ckpt_${d}_day`, serialize(state))
     checkpoints++
 
@@ -331,7 +371,7 @@ export function runSimulation(
     }
   }
   const stabilizer = stabilizerL1(records)
-  return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, stabilizer }
+  return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, eventCards, stabilizer }
 }
 
 /** Stabilizer L1 度量（只记录不干预）：财富指数/产出消耗比/恐慌总量，按血月周期聚合 */

@@ -981,6 +981,20 @@
     }
     return list;
   }
+  function summarizeEffects(ops) {
+    const parts = [];
+    for (const op of ops) {
+      if (op.op === "ADD_GOLD") parts.push(`\u91D1\u5E01${op.n >= 0 ? "+" : ""}${op.n}`);
+      else if (op.op === "ADD_RES") parts.push(`${op.res}${op.n >= 0 ? "+" : ""}${op.n}`);
+      else if (op.op === "ADD_PANIC") parts.push(`\u6050\u614C+${op.n}`);
+      else if (op.op === "WOUND_TENANT") parts.push("\u4F4F\u6237\u8D1F\u4F24");
+      else if (op.op === "SPAWN_TENANT") parts.push(`\u65B0\u4F4F\u6237\u5165\u4F4F\uFF08${op.quality}\uFF09`);
+      else if (op.op === "UPGRADE_TENANT") parts.push("\u4F4F\u6237\u5347\u7EA7");
+      else if (op.op === "GRANT_BUFF") parts.push(`\u83B7\u5F97 ${op.buff}`);
+      else if (op.op === "NIGHT_MOD") parts.push(`\u7279\u6B8A\u591C ${op.mod}`);
+    }
+    return parts.length ? parts.join(" \xB7 ") : "\u65E0\u76F4\u63A5\u72B6\u6001\u53D8\u5316";
+  }
   function rollOutcome(e, state, day, rng) {
     const option = e.options[0];
     if (!option) return [];
@@ -1022,6 +1036,7 @@
     const findings = [];
     const distinctFired = /* @__PURE__ */ new Set();
     const eventCounts = {};
+    const eventCards = {};
     let eventsFired = 0;
     let spent = 0;
     let checkpoints = 0;
@@ -1090,6 +1105,18 @@
         eventCounts[ev.id] = (eventCounts[ev.id] ?? 0) + 1;
       }
       eventsFired += events;
+      eventCards[d] = todays.map((ev) => {
+        const e = app2.eventLib.entries.find((x) => x.id === ev.id);
+        return {
+          id: ev.id,
+          title: e?.title ?? ev.id,
+          text: e?.text,
+          weight: e?.weight ?? 0,
+          options: (e?.options ?? []).map((o) => ({ label: o.label, ps: o.outcomes.map((oc) => oc.p) })),
+          // ev.effects = 实际掷中 outcome 的效果 + 2 条 bookkeep（fired_/last_），剔除后即结果摘要
+          resultText: summarizeEffects(ev.effects.filter((op) => !(op.op === "SET_FLAG" && (String(op.key).startsWith("fired_") || String(op.key).startsWith("last_")))))
+        };
+      });
       persistence.put(`ckpt_${d}_day`, serialize(state));
       checkpoints++;
       state.phase = "DUSK_FORECAST";
@@ -1137,7 +1164,7 @@
       }
     }
     const stabilizer = stabilizerL1(records);
-    return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, stabilizer };
+    return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, eventCards, stabilizer };
   }
   function stabilizerL1(records) {
     const windows = [[1, 7], [8, 14], [15, 21], [22, 28], [29, 30]];
@@ -1707,107 +1734,1070 @@
     ]
   };
 
-  // apps/client-cocos/whitebox/renderer.ts
+  // config/theme.json
+  var theme_default = {
+    version: 1,
+    sourceDoc: "docs/UI-UX\u8BBE\u8BA1\u89C4\u8303.md \xA7\u4E8C",
+    color: {
+      bg_night: "#0B1020",
+      bg_dawn: "#141A2E",
+      alert_blood: "#C0392B",
+      gold_primary: "#FFD700",
+      gold_deep: "#B8860B",
+      panel: "#1A2238",
+      panel_stroke: "#2A3555",
+      text_primary: "#E8E8F0",
+      text_secondary: "#8892B0",
+      success: "#7FFF9F",
+      danger: "#FF6B6B",
+      panic: "#9B59B6"
+    },
+    typography: {
+      family_cn: "SourceHanSansCN-Bold",
+      family_num: "BebasNeue",
+      h1: 32,
+      h2: 26,
+      body: 24,
+      caption: 18
+    },
+    space: { xs: 8, s: 16, m: 24, l: 32 },
+    radius: { panel: 16, btn: 12, chip: 8 },
+    motion: {
+      fast: { dur: 150, ease: "easeOutQuad" },
+      normal: { dur: 300, ease: "easeOutCubic" },
+      rain: { dur: 500, ease: "easeOutBack" },
+      threat: { dur: 300, ease: "easeInQuad", repeat: 2 },
+      dissolve: { dur: 800, ease: "linear" },
+      counter: { dur: 800, ease: "easeOutCubic" },
+      stagger: { dur: 60, ease: "linear" }
+    }
+  };
+
+  // apps/client-cocos/whitebox/theme.ts
+  var T = theme_default;
+  function withAlpha(hex, alpha) {
+    const h = hex.replace("#", "");
+    return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${alpha})`;
+  }
+  function col(key) {
+    return T.color[key];
+  }
+  var EASE = {
+    linear: (t) => t,
+    easeOutQuad: (t) => 1 - (1 - t) ** 2,
+    easeOutCubic: (t) => 1 - (1 - t) ** 3,
+    easeInQuad: (t) => t * t,
+    easeOutBack: (t) => {
+      const c1 = 1.70158;
+      const c3 = c1 + 1;
+      return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2;
+    }
+  };
+  function easeByName(name) {
+    return EASE[name] ?? EASE.linear;
+  }
+  function motion(name) {
+    const m = T.motion[name] ?? T.motion.normal;
+    return { dur: m.dur, fn: easeByName(m.ease), repeat: m.repeat };
+  }
+  function font(px, opts = {}) {
+    const family = opts.family && typeof opts.family === "string" ? opts.family : T.typography.family_cn;
+    const weight = opts.weight ? opts.weight + " " : "";
+    return `${weight}${px}px "${family}", sans-serif`;
+  }
+
+  // apps/client-cocos/whitebox/state.ts
+  var EVENT_QUEUE_MAX = 2;
+  function createUiState() {
+    return { phase: "DAY", page: "main", modals: [], eventQueue: [] };
+  }
+  function topModal(s) {
+    return s.eventQueue[s.eventQueue.length - 1] ?? s.modals[s.modals.length - 1];
+  }
+  function canInterrupt(s) {
+    return s.phase !== "NIGHT";
+  }
+  function pushEvent(s, card) {
+    if (!canInterrupt(s) || s.eventQueue.length >= EVENT_QUEUE_MAX) return s;
+    return { ...s, eventQueue: [...s.eventQueue, { kind: "event", id: card.id, card }] };
+  }
+  function openModal(s, m) {
+    if (s.phase === "NIGHT") return s;
+    return { ...s, modals: [...s.modals, m] };
+  }
+  function closeModal(s) {
+    if (s.eventQueue.length > 0) return { ...s, eventQueue: s.eventQueue.slice(0, -1) };
+    if (s.modals.length > 0) return { ...s, modals: s.modals.slice(0, -1) };
+    return s;
+  }
+  function setPage(s, page) {
+    if (s.phase !== "DAY") return s;
+    return { ...s, page };
+  }
+
+  // apps/client-cocos/whitebox/layout.ts
+  var DESIGN_W = 750;
+  var DESIGN_H = 1624;
+  var HIT_MIN = 88;
+  var M = T.space.l;
+  var GAP = T.space.s;
+  var HUD_H = T.typography.h1 + T.space.s;
+  var RES_H = 64;
+  var DOCK_H = HIT_MIN;
+  var DOCK_Y = DESIGN_H - T.space.m - DOCK_H;
+  function hudRect() {
+    return { x: 0, y: 0, w: DESIGN_W, h: HUD_H };
+  }
+  function resourceRect() {
+    return { x: 0, y: HUD_H + T.space.xs, w: DESIGN_W, h: RES_H };
+  }
+  function settingsRect() {
+    return { x: DESIGN_W - M - HIT_MIN, y: (HUD_H - HIT_MIN) / 2 + 2, w: HIT_MIN, h: HIT_MIN };
+  }
   var FLOORS = 6;
   var ROOMS_PER_FLOOR = 5;
+  var FLOOR_LABEL_W = 48;
+  function buildingRect() {
+    const y = resourceRect().y + RES_H + GAP;
+    const h = DESIGN_H * 0.44;
+    return { x: M, y, w: DESIGN_W - M * 2, h };
+  }
+  function roomRect(floor, room) {
+    const b = buildingRect();
+    const gw = (b.w - FLOOR_LABEL_W - T.space.xs * (ROOMS_PER_FLOOR - 1)) / ROOMS_PER_FLOOR;
+    const gh = (b.h - T.space.xs * (FLOORS - 1)) / FLOORS;
+    return {
+      x: b.x + FLOOR_LABEL_W + room * (gw + T.space.xs),
+      y: b.y + floor * (gh + T.space.xs),
+      w: gw,
+      h: gh
+    };
+  }
+  function floorLabelRect(floor) {
+    const b = buildingRect();
+    const gh = (b.h - T.space.xs * (FLOORS - 1)) / FLOORS;
+    return { x: b.x, y: b.y + floor * (gh + T.space.xs), w: FLOOR_LABEL_W, h: gh };
+  }
+  function eventEntryRect() {
+    const y = buildingRect().y + buildingRect().h + GAP;
+    return { x: M, y, w: DESIGN_W - M * 2, h: 112 };
+  }
+  function reportRect() {
+    const y = eventEntryRect().y + eventEntryRect().h + GAP;
+    return { x: M, y, w: DESIGN_W - M * 2, h: 120 };
+  }
+  var DOCK_KEYS = [
+    { key: "deploy", label: "\u5E03\u9632" },
+    { key: "recruit", label: "\u62DB\u52DF" },
+    { key: "upgrade", label: "\u5347\u7EA7" },
+    { key: "night", label: "\u25B6\u591C" }
+  ];
+  function dockRects() {
+    const n = DOCK_KEYS.length;
+    const w = (DESIGN_W - M * 2 - T.space.s * (n - 1)) / n;
+    return DOCK_KEYS.map((_, i) => ({ x: M + i * (w + T.space.s), y: DOCK_Y, w, h: DOCK_H }));
+  }
+  var MODAL_H = 420;
+  function modalRect() {
+    return { x: M, y: DESIGN_H - T.space.m - MODAL_H, w: DESIGN_W - M * 2, h: MODAL_H };
+  }
+  function modalCloseRect() {
+    const r = modalRect();
+    return { x: r.x + r.w - HIT_MIN - T.space.s, y: r.y + r.h - HIT_MIN - T.space.s, w: HIT_MIN, h: HIT_MIN };
+  }
+  function modalConfirmRect() {
+    const r = modalRect();
+    return { x: r.x + T.space.s, y: r.y + r.h - HIT_MIN - T.space.s, w: HIT_MIN + T.space.l, h: HIT_MIN };
+  }
+  function modalOptionRect() {
+    const r = modalRect();
+    return { x: r.x + T.space.m, y: r.y + 170, w: r.w - T.space.m * 2, h: HIT_MIN + T.space.xs };
+  }
+  var NIGHT_ROUTE_H = 72;
+  function nightRouteRect(i) {
+    return { x: M, y: 220 + i * (NIGHT_ROUTE_H + T.space.s), w: DESIGN_W - M * 2, h: NIGHT_ROUTE_H };
+  }
+  function nightSkillRects() {
+    return [0, 1].map((i) => ({ x: M + i * (HIT_MIN + T.space.s), y: 700, w: HIT_MIN, h: HIT_MIN }));
+  }
+  function nightLogRect() {
+    return { x: M, y: 840, w: DESIGN_W - M * 2, h: 560 };
+  }
+  function nightBackRect() {
+    return { x: (DESIGN_W - HIT_MIN * 2) / 2, y: DOCK_Y, w: HIT_MIN * 2, h: HIT_MIN };
+  }
+  function duskBannerRect() {
+    return { x: M, y: HUD_H + T.space.s, w: DESIGN_W - M * 2, h: 104 };
+  }
+  function duskConfirmRect() {
+    const b = duskBannerRect();
+    return { x: b.x + b.w - HIT_MIN - T.space.s, y: b.y + (b.h - HIT_MIN) / 2, w: HIT_MIN, h: HIT_MIN };
+  }
+  var SETTLE_H = 560;
+  function settlePanelRect() {
+    return { x: M, y: DESIGN_H - T.space.m - SETTLE_H, w: DESIGN_W - M * 2, h: SETTLE_H };
+  }
+  function settleCounterRect() {
+    const r = settlePanelRect();
+    return { x: r.x, y: r.y + 96, w: r.w, h: 96 };
+  }
+  var SETTLE_POP_MAX = 6;
+  function settlePopRect(i) {
+    const r = settlePanelRect();
+    return { x: r.x + T.space.m, y: r.y + 216 + i * 48, w: r.w - T.space.m * 2, h: 44 };
+  }
+  function settleContinueRect() {
+    const r = settlePanelRect();
+    return { x: r.x + r.w - HIT_MIN - T.space.s, y: r.y + r.h - HIT_MIN - T.space.s, w: HIT_MIN + T.space.l, h: HIT_MIN };
+  }
+  function pageBackRect() {
+    return { x: M, y: HUD_H + T.space.s, w: HIT_MIN, h: HIT_MIN };
+  }
+  function pageTitleRect() {
+    return { x: M + HIT_MIN + T.space.s, y: HUD_H + T.space.s, w: DESIGN_W - M * 2 - HIT_MIN - T.space.s, h: HIT_MIN };
+  }
+  var CODEX_COLS = 3;
+  var CODEX_ROWS = 3;
+  function codexCellRect(col2, row) {
+    const gx = M, gy = HUD_H + T.space.s * 2 + HIT_MIN;
+    const cw = (DESIGN_W - M * 2 - T.space.s * (CODEX_COLS - 1)) / CODEX_COLS;
+    const ch = 240;
+    return { x: gx + col2 * (cw + T.space.s), y: gy + row * (ch + T.space.s), w: cw, h: ch };
+  }
+  var SHOP_CARDS = 3;
+  function shopCardRect(i) {
+    const w = 420, h = 560;
+    return { x: M + i * (w + T.space.s), y: HUD_H + T.space.s * 2 + HIT_MIN, w, h };
+  }
+  var SETTINGS_ROWS = [
+    { key: "codex", label: "\u56FE\u9274" },
+    { key: "shop", label: "\u5546\u5E97" },
+    { key: "sfx", label: "\u97F3\u6548" },
+    { key: "bgm", label: "\u97F3\u4E50" },
+    { key: "notice", label: "\u63A8\u9001\u901A\u77E5" }
+  ];
+  function settingsRowRect(i) {
+    return { x: M, y: HUD_H + T.space.s * 2 + HIT_MIN + i * (88 + T.space.s), w: DESIGN_W - M * 2, h: 88 };
+  }
+  function hitTest(x, y, opts = {}) {
+    const modalOpen = opts.modalOpen ?? false;
+    const page = opts.page ?? "main";
+    const inRect = (r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+    if (modalOpen) {
+      if (inRect(modalCloseRect())) return { kind: "modalClose" };
+      if (inRect(modalConfirmRect())) return { kind: "modalConfirm" };
+      if (inRect(modalOptionRect())) return { kind: "modalOption" };
+      return { kind: "modal" };
+    }
+    if (page !== "main") {
+      if (inRect(pageBackRect())) return { kind: "pageBack" };
+      if (page === "settings") {
+        for (const [i, row] of SETTINGS_ROWS.entries()) {
+          if (inRect(settingsRowRect(i)) && (row.key === "codex" || row.key === "shop")) {
+            return { kind: "nav", page: row.key };
+          }
+        }
+      }
+      return { kind: "none" };
+    }
+    if (inRect(duskConfirmRect())) return { kind: "duskConfirm" };
+    for (const [i, r] of nightSkillRects().entries()) if (inRect(r)) return { kind: "skill", index: i };
+    if (inRect(nightBackRect())) return { kind: "nightBack" };
+    if (inRect(settleContinueRect())) return { kind: "settleContinue" };
+    for (const [i, r] of dockRects().entries()) {
+      if (inRect(r)) return { kind: "dock", key: DOCK_KEYS[i].key };
+    }
+    if (inRect(settingsRect())) return { kind: "settings" };
+    if (inRect(eventEntryRect())) return { kind: "eventEntry" };
+    for (let f = 0; f < FLOORS; f++) {
+      for (let r = 0; r < ROOMS_PER_FLOOR; r++) {
+        if (inRect(roomRect(f, r))) return { kind: "room", floor: FLOORS - f, room: r };
+      }
+    }
+    return { kind: "none" };
+  }
+
+  // apps/client-cocos/whitebox/anim.ts
+  function routeView(rt) {
+    const ratio = Math.min(1, rt.r / 1);
+    const state = rt.r < 0.95 ? 0 : rt.r < 1 ? 1 : 2;
+    return { route: rt, ratio, state };
+  }
+  var OUTCOME_LABEL = {
+    HOLD: "\u5B88\u4F4F",
+    HOLD_WOUNDED: "\u5B88\u4F4F\xB7\u8D1F\u4F24",
+    LOSE_1: "\u7834\u9632\xD71",
+    LOSE_2: "\u7834\u9632\xD72",
+    LOSE_3P: "\u7834\u9632\xD73+"
+  };
+  var WAVE_MS = motion("normal").dur * 3;
+  function nightWaves(routes, start, now) {
+    const elapsed = Math.max(0, now - start);
+    const n = Math.min(routes.length, Math.floor(elapsed / WAVE_MS) + 1);
+    const revealed = [];
+    for (let i = 0; i < n; i++) revealed.push(routeView(routes[i]));
+    const into = elapsed - (n - 1) * WAVE_MS;
+    const currentFill = n === 0 ? 0 : Math.min(1, into / motion("normal").dur);
+    return { revealed, currentFill, done: elapsed >= routes.length * WAVE_MS + motion("dissolve").dur, waveNo: n };
+  }
+  function counterValue(target2, start, now) {
+    const m = motion("counter");
+    const p = Math.min(1, Math.max(0, (now - start) / m.dur));
+    return Math.round(target2 * m.fn(p));
+  }
+  function popProgress(i, start, now) {
+    const st = motion("stagger");
+    const m = motion("fast");
+    const t0 = start + i * st.dur;
+    return Math.min(1, Math.max(0, (now - t0) / m.dur));
+  }
+  function settleDoneAt(start, households) {
+    return start + motion("rain").dur + motion("counter").dur + households * motion("stagger").dur;
+  }
+  function threatBurst(start, now) {
+    const t = motion("threat");
+    const total = t.dur * (t.repeat ?? 1);
+    const elapsed = now - start;
+    if (elapsed < 0 || elapsed > total + t.dur) return { flash: 0, shake: 0 };
+    const u = elapsed % t.dur / t.dur;
+    const wave = t.fn(u);
+    const decay = 1 - elapsed / (total + t.dur);
+    return { flash: wave * decay, shake: 8 * (1 - u) * decay };
+  }
+  function dissolveAlpha(start, now) {
+    if (start === null) return 1;
+    const m = motion("dissolve");
+    return Math.min(1, Math.max(0, (now - start) / m.dur));
+  }
+  function cardFlip(start, now) {
+    if (start === null) return 0;
+    const m = motion("normal");
+    return Math.min(1, Math.max(0, (now - start) / m.dur));
+  }
+
+  // apps/client-cocos/whitebox/renderer.ts
+  function fmt(n) {
+    return n.toLocaleString("en-US");
+  }
+  var WAVE_LETTERS = ["A", "B", "C", "D", "E", "F"];
   var WhiteboxRenderer = class {
     constructor(canvas2, cb) {
-      this.canvas = canvas2;
       this.cb = cb;
       this.ctx = canvas2.getContext("2d");
     }
-    canvas;
     cb;
     ctx;
     frames = 0;
     fpsSamples = [];
+    // 预热期原始样本（透明保留）
+    budgetSamples = [];
+    // 预热后样本（预算判定源）
+    warmupLeft = 2;
+    // 预热窗数：加载/首帧编译毛刺不计入预算
     lastSample = 0;
-    lastFrame = 0;
-    /** rAF 主循环：帧率采样（P6 性能预算冒烟）+ 重绘 */
-    start(getFrame, dayMs = 1500) {
-      let dayStart = performance.now();
-      let dayIndex = 0;
+    modalOpenAt = null;
+    /** rAF 主循环：帧率采样（预算 min ≥50fps，2 窗预热剔除加载毛刺）+ 重绘 */
+    start(getFrame, getUi, getPb) {
       const tick = (now) => {
         this.frames++;
         if (now - this.lastSample >= 1e3) {
           const fps = Math.round(this.frames * 1e3 / (now - this.lastSample));
           this.fpsSamples.push(fps);
-          this.cb.onFps(fps, Math.min(...this.fpsSamples), Math.round(this.fpsSamples.reduce((a, b) => a + b, 0) / this.fpsSamples.length));
+          if (this.warmupLeft > 0) this.warmupLeft--;
+          else this.budgetSamples.push(fps);
+          const src = this.budgetSamples.length ? this.budgetSamples : this.fpsSamples;
+          this.cb.onFps(fps, Math.min(...src), Math.round(src.reduce((a, b) => a + b, 0) / src.length));
           this.frames = 0;
           this.lastSample = now;
         }
         const frame = getFrame();
-        const elapsed = now - dayStart;
-        if (frame) {
-          const rainPhase = elapsed < dayMs * 0.35;
-          this.draw(frame, rainPhase, rainPhase ? elapsed / (dayMs * 0.35) : 0);
-          if (elapsed >= dayMs) {
-            dayStart = now;
-            dayIndex++;
-          }
-        }
+        if (frame) this.draw(getUi(), frame, now, getPb());
         requestAnimationFrame(tick);
       };
       this.lastSample = performance.now();
       requestAnimationFrame(tick);
     }
-    draw(frame, rain, rainT) {
-      const { ctx, canvas: canvas2 } = this;
-      const W = canvas2.width, H = canvas2.height;
-      ctx.fillStyle = "#0b1020";
-      ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = "#e8e8f0";
-      ctx.font = "bold 22px sans-serif";
-      ctx.fillText(`\u7B2C ${frame.day} \u5929`, 16, 34);
-      ctx.font = "16px sans-serif";
-      ctx.fillStyle = "#ffd700";
-      ctx.fillText(`\u91D1\u5E01 ${frame.gold}`, 140, 34);
-      ctx.fillStyle = "#9fd8ff";
-      ctx.fillText(`\u4EBA\u53E3 ${frame.population}/${frame.roomsBuilt}`, 16, 60);
-      ctx.fillStyle = "#ffb0b0";
-      ctx.fillText(`\u6218\u529B ${frame.power}`, 160, 60);
-      if (frame.modifiers.length) {
-        ctx.fillStyle = "#ff6b6b";
-        ctx.fillText(`\u7279\u6B8A\u591C: ${frame.modifiers.join("/")}`, 16, 86);
+    getSamples() {
+      return this.budgetSamples;
+    }
+    // ---- 相位分发（门②：DAWN_SETTLE→DAY→DUSK_FORECAST→NIGHT 四相 UI 状态机）----
+    draw(ui2, frame, now, pb2) {
+      const { ctx } = this;
+      switch (ui2.phase) {
+        case "DAWN_SETTLE":
+          this.bgBase(col("bg_night"));
+          ctx.fillStyle = withAlpha(col("bg_dawn"), dissolveAlpha(pb2.settleStart, now));
+          ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
+          this.drawSettle(frame, now, pb2);
+          this.drawModal(ui2, frame, now, pb2);
+          break;
+        case "DAY":
+          ctx.fillStyle = col("bg_dawn");
+          ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
+          if (ui2.page === "main") {
+            this.drawHud(frame, now);
+            this.drawResources(frame);
+            this.drawBuilding(frame, now);
+            this.drawEventEntry(frame);
+            this.drawReport(frame);
+            this.drawDock();
+          } else {
+            this.drawPage(ui2.page, now);
+          }
+          this.drawModal(ui2, frame, now, pb2);
+          break;
+        case "DUSK_FORECAST":
+          ctx.fillStyle = col("bg_dawn");
+          ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
+          this.drawHud(frame, now);
+          this.drawResources(frame);
+          this.drawBuilding(frame, now);
+          this.drawEventEntry(frame);
+          this.drawReport(frame);
+          this.drawDock();
+          this.drawDuskBanner(frame, now);
+          this.drawModal(ui2, frame, now, pb2);
+          break;
+        case "NIGHT":
+          this.drawNight(frame, now, pb2);
+          this.drawNightLog(frame, now, pb2);
+          break;
       }
-      const gx = 16, gy = 110, gw = (W - 32) / ROOMS_PER_FLOOR, gh = 64;
+    }
+    /** 占位页（功能点4）：图鉴 3 列网格剪影 / 商店礼包横滑 / 设置列表 */
+    drawPage(page, now) {
+      const { ctx } = this;
+      ctx.textBaseline = "middle";
+      this.button(pageBackRect(), "\u25C0 \u8FD4\u56DE", col("text_primary"), col("panel"), col("panel_stroke"));
+      const titles = { codex: "\u56FE\u9274", shop: "\u5546\u5E97", settings: "\u8BBE\u7F6E" };
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.h1, { weight: "bold" });
+      ctx.fillText(titles[page] ?? "", pageTitleRect().x, pageTitleRect().y + pageTitleRect().h / 2);
+      if (page === "codex") {
+        for (let row = 0; row < CODEX_ROWS; row++) {
+          for (let c = 0; c < CODEX_COLS; c++) {
+            const r = codexCellRect(c, row);
+            const unlocked = row === 0 && c === 0;
+            ctx.beginPath();
+            ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel);
+            ctx.fillStyle = unlocked ? withAlpha(col("success"), 0.12) : withAlpha(col("bg_night"), 0.5);
+            ctx.fill();
+            ctx.strokeStyle = unlocked ? col("success") : col("panel_stroke");
+            ctx.stroke();
+            ctx.font = font(T.typography.h1);
+            ctx.fillStyle = unlocked ? col("text_primary") : col("text_secondary");
+            ctx.fillText(unlocked ? "\u{1F9DF}" : "\u{1F512}", r.x + r.w / 2 - 18, r.y + r.h / 2 - 16);
+            ctx.font = font(T.typography.caption);
+            ctx.fillText(unlocked ? "\u5FAA\u58F0\u8005" : "\u672A\u89E3\u9501", r.x + r.w / 2 - 24, r.y + r.h - 40);
+          }
+        }
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText("\u5360\u4F4D\uFF1AM3 \u6309\u602A\u7269\u8FDB\u5316\u6811/\u4F4F\u6237\u540D\u518C\u586B\u5145", T.space.l, codexCellRect(0, CODEX_ROWS - 1).y + 240 + 40);
+      } else if (page === "shop") {
+        const names = ["\u9996\u5145\u53CC\u500D", "\u7269\u8D44\u8865\u7ED9\u5305", "\u5929\u8D4B\u77F3\u793C\u5305"];
+        const prices = ["\xA56", "\xA530", "\xA568"];
+        const was = ["\xA512", "\xA545", "\xA598"];
+        for (let i = 0; i < SHOP_CARDS; i++) {
+          const r = shopCardRect(i);
+          ctx.beginPath();
+          ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel);
+          ctx.fillStyle = col("panel");
+          ctx.fill();
+          ctx.strokeStyle = i === 0 ? col("gold_deep") : col("panel_stroke");
+          ctx.stroke();
+          ctx.fillStyle = col("text_secondary");
+          ctx.font = font(T.typography.h1);
+          ctx.fillText("\u{1F381}", r.x + r.w / 2 - 20, r.y + 140);
+          ctx.fillStyle = col("text_primary");
+          ctx.font = font(T.typography.h2, { weight: "bold" });
+          ctx.fillText(names[i], r.x + T.space.m, r.y + 280);
+          ctx.fillStyle = col("text_secondary");
+          ctx.font = font(T.typography.body);
+          ctx.fillText(was[i], r.x + T.space.m, r.y + 340);
+          const ww = ctx.measureText(was[i]).width;
+          ctx.strokeStyle = col("danger");
+          ctx.beginPath();
+          ctx.moveTo(r.x + T.space.m, r.y + 340);
+          ctx.lineTo(r.x + T.space.m + ww, r.y + 340);
+          ctx.stroke();
+          ctx.fillStyle = col("gold_primary");
+          ctx.font = font(T.typography.h2, { weight: "bold" });
+          ctx.fillText(prices[i], r.x + T.space.m + ww + T.space.s, r.y + 340);
+          if (i === 0) {
+            ctx.fillStyle = col("alert_blood");
+            ctx.font = font(T.typography.caption, { weight: "bold" });
+            ctx.fillText("\u53CC\u500D", r.x + r.w - 96, r.y + 40);
+          }
+        }
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText("\u5360\u4F4D\uFF1ASKU \u8D70 iap_sku.json\uFF0CIAA/IAP \u5408\u89C4\u5BA1\u67E5\u540E\u63A5\u5165", T.space.l, shopCardRect(0).y + 560 + 40);
+      } else {
+        for (const [i, row] of SETTINGS_ROWS.entries()) {
+          const r = settingsRowRect(i);
+          ctx.beginPath();
+          ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn);
+          ctx.fillStyle = col("panel");
+          ctx.fill();
+          ctx.strokeStyle = col("panel_stroke");
+          ctx.stroke();
+          ctx.fillStyle = col("text_primary");
+          ctx.font = font(T.typography.body);
+          ctx.fillText(row.label, r.x + T.space.m, r.y + r.h / 2);
+          if (row.key === "codex" || row.key === "shop") {
+            ctx.fillStyle = col("text_secondary");
+            ctx.fillText("\u25B6", r.x + r.w - T.space.l, r.y + r.h / 2);
+          } else {
+            const tw = 96;
+            ctx.beginPath();
+            ctx.roundRect(r.x + r.w - tw - T.space.m, r.y + r.h / 2 - 24, tw, 48, 24);
+            ctx.fillStyle = withAlpha(col("success"), 0.3);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(r.x + r.w - tw - T.space.m + tw - 24, r.y + r.h / 2, 18, 0, Math.PI * 2);
+            ctx.fillStyle = col("success");
+            ctx.fill();
+          }
+        }
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText("\u5B58\u6863\u4E09\u68C0\u67E5\u70B9\uFF1A\u65E5\u95F4/\u9EC4\u660F/\u591C\u6218\uFF08fail-safe \u6062\u590D\uFF09", T.space.l, settingsRowRect(SETTINGS_ROWS.length - 1).y + 88 + 40);
+      }
+      void now;
+    }
+    bgBase(c) {
+      this.ctx.fillStyle = c;
+      this.ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
+    }
+    panel(x, y, w, h, r = T.radius.panel) {
+      const { ctx } = this;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      ctx.fillStyle = col("panel");
+      ctx.fill();
+      ctx.strokeStyle = col("panel_stroke");
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    drawHud(frame, now) {
+      const { ctx } = this;
+      const hud = hudRect();
+      ctx.fillStyle = col("panel");
+      ctx.fillRect(hud.x, hud.y, hud.w, hud.h);
+      ctx.strokeStyle = col("panel_stroke");
+      ctx.beginPath();
+      ctx.moveTo(0, hud.h);
+      ctx.lineTo(hud.w, hud.h);
+      ctx.stroke();
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.h2, { weight: "bold" });
+      ctx.fillText(`\u65E5\u6B21 D${frame.day}`, T.space.l, hud.h / 2);
+      ctx.font = font(T.typography.body);
+      ctx.fillText(`\u{1F319}${Math.ceil(frame.day / 7)}/4`, T.space.l + 180, hud.h / 2);
+      const st = settingsRect();
+      ctx.fillStyle = col("text_secondary");
+      ctx.fillText("\u2699", st.x + st.w / 2 - 14, st.y + st.h / 2);
+      if (frame.modifiers.length) {
+        const isBM = frame.modifiers.includes("BLOOD_MOON");
+        ctx.fillStyle = isBM ? col("alert_blood") : col("danger");
+        ctx.font = font(T.typography.caption);
+        const label = frame.modifiers.join("/");
+        const tw = ctx.measureText(label).width;
+        const threat = motion("threat");
+        const pulse = isBM ? 0.55 + 0.45 * Math.sin(now / (threat.dur * 2) * Math.PI * 2) : 1;
+        ctx.globalAlpha = pulse;
+        ctx.fillText(label, st.x - tw - T.space.s, hud.h / 2);
+        ctx.globalAlpha = 1;
+      }
+    }
+    drawResources(frame) {
+      const { ctx } = this;
+      const r = resourceRect();
+      ctx.textBaseline = "middle";
+      ctx.font = font(T.typography.body);
+      const items = [
+        { glyph: "\u{1FA99}", text: fmt(frame.gold), color: col("gold_primary") },
+        // 金色数字=货币（§二色彩角色）
+        { glyph: "\u{1F465}", text: `${frame.population}/${frame.roomsBuilt}`, color: col("text_primary") },
+        { glyph: "\u2694", text: fmt(frame.power), color: col("text_primary") },
+        { glyph: "\u{1F631}", text: `${frame.panicSum}`, color: col("panic") }
+        // 恐慌紫=恐慌系统视觉锚
+      ];
+      const colW = r.w / items.length;
+      items.forEach((it, i) => {
+        const x = r.x + colW * i + T.space.m;
+        ctx.fillStyle = col("text_secondary");
+        ctx.fillText(it.glyph, x, r.y + r.h / 2);
+        ctx.fillStyle = it.color;
+        ctx.fillText(it.text, x + 36, r.y + r.h / 2);
+      });
+    }
+    drawBuilding(frame, now) {
+      const { ctx } = this;
+      ctx.textBaseline = "middle";
       let occupied = frame.population;
+      const threat = motion("threat");
       for (let f = 0; f < FLOORS; f++) {
-        ctx.fillStyle = "#334";
-        ctx.fillText(`${FLOORS - f}F`, gx, gy + f * gh + gh / 2);
+        const label = floorLabelRect(f);
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText(`${FLOORS - f}F`, label.x, label.y + label.h / 2);
         for (let r = 0; r < ROOMS_PER_FLOOR; r++) {
-          const x = gx + 28 + r * gw, y = gy + f * gh;
-          const isOccupied = occupied > 0;
+          const rect = roomRect(f, r);
+          const roomId = `F${FLOORS - f}-R${r + 1}`;
+          const breached = frame.breachedRooms.includes(roomId);
+          const isPublic = f === FLOORS - 1 && r < 3;
+          const isTower = f === 0 && r === 0;
+          const isOccupied = !isPublic && !isTower && occupied > 0;
           if (isOccupied) occupied--;
-          ctx.strokeStyle = isOccupied ? "#7ec8ff" : "#2a2f45";
-          ctx.strokeRect(x + 4, y + 6, gw - 12, gh - 14);
-          if (isOccupied) {
-            ctx.fillStyle = "#7ec8ff33";
-            ctx.fillRect(x + 4, y + 6, gw - 12, gh - 14);
-            ctx.fillStyle = "#cfe8ff";
-            ctx.font = "12px sans-serif";
-            ctx.fillText("\u4F4F", x + gw / 2 - 6, y + gh / 2 + 4);
+          if (breached) {
+            const pulse = 0.5 + 0.5 * Math.sin(now / (threat.dur * 2) * Math.PI * 2);
+            ctx.fillStyle = withAlpha(col("alert_blood"), 0.25 + 0.35 * pulse);
+            ctx.beginPath();
+            ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip);
+            ctx.fill();
+            ctx.strokeStyle = col("alert_blood");
+            ctx.stroke();
+            ctx.fillStyle = col("text_primary");
+            ctx.font = font(T.typography.caption);
+            ctx.fillText("\u7834\u9632", rect.x + rect.w / 2 - 18, rect.y + rect.h / 2);
+          } else if (isPublic || isTower) {
+            ctx.strokeStyle = col("panel_stroke");
+            ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+            ctx.fillStyle = withAlpha(col("gold_deep"), 0.2);
+            ctx.beginPath();
+            ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip);
+            ctx.fill();
+            ctx.fillStyle = col("text_secondary");
+            ctx.font = font(T.typography.caption);
+            const name = isTower ? "\u77AD\u671B\u5854" : ["\u5927\u5385", "\u533B\u52A1", "\u4ED3"][r];
+            ctx.fillText(name, rect.x + rect.w / 2 - name.length * 9, rect.y + rect.h / 2);
+          } else if (isOccupied) {
+            ctx.fillStyle = withAlpha(col("success"), 0.15);
+            ctx.beginPath();
+            ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip);
+            ctx.fill();
+            ctx.strokeStyle = col("success");
+            ctx.beginPath();
+            ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip);
+            ctx.stroke();
+            ctx.fillStyle = col("text_primary");
+            ctx.font = font(T.typography.caption);
+            ctx.fillText("\u{1F9D1}", rect.x + 12, rect.y + rect.h / 2);
+            ctx.fillText("\u{1F6CF}", rect.x + rect.w - 34, rect.y + rect.h / 2);
+          } else {
+            ctx.strokeStyle = col("panel_stroke");
+            ctx.beginPath();
+            ctx.roundRect(rect.x, rect.y, rect.w, rect.h, T.radius.chip);
+            ctx.stroke();
           }
         }
       }
-      if (rain) {
-        ctx.fillStyle = "#ffd700";
-        for (let i = 0; i < 24; i++) {
-          const seed = (i * 97 + frame.day * 31) % 1e3 / 1e3;
-          const x = 30 + seed * (W - 70);
-          const y = (rainT * H * 1.4 + seed * 300) % (H * 0.9);
-          ctx.fillRect(x, y, 10, 16);
-        }
-        ctx.fillStyle = "#ffd700";
-        ctx.font = "bold 26px sans-serif";
-        ctx.fillText(`+${frame.income} \u7269\u8D44\u96E8`, W / 2 - 70, H / 2);
+    }
+    drawEventEntry(frame) {
+      const { ctx } = this;
+      const r = eventEntryRect();
+      this.panel(r.x, r.y, r.w, r.h, T.radius.btn);
+      ctx.textBaseline = "middle";
+      const top = frame.eventCards[0];
+      ctx.fillStyle = col("text_secondary");
+      ctx.font = font(T.typography.caption);
+      ctx.fillText("\u4ECA\u65E5\u4E8B\u4EF6", r.x + T.space.m, r.y + 30);
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.body, { weight: "bold" });
+      ctx.fillText(top ? top.title : "\u9759\u8C27 \xB7 \u65E0\u4E8B\u4EF6", r.x + T.space.m, r.y + 72);
+      if (frame.eventCards.length > 1) {
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText(`+${frame.eventCards.length - 1}`, r.x + r.w - T.space.l - 40, r.y + 30);
       }
-      ctx.fillStyle = "#889";
-      ctx.font = "13px sans-serif";
-      ctx.fillText(`\u591C\u6218: r\u5747=${frame.rAvg} \u6B7B\u4EA1${frame.deaths} \u8D1F\u4F24${frame.wounds} ${frame.modifiers.includes("BLOOD_MOON") ? "[\u8840\u6708]" : ""} hash=${frame.sessionHash}`, 16, H - 46);
-      ctx.fillText(`\u6050\u614C\u603B\u91CF ${frame.panicSum} \xB7 \u5E73\u5747\u7B49\u7EA7 ${frame.avgLevel}`, 16, H - 26);
+      ctx.fillStyle = col("gold_primary");
+      ctx.font = font(T.typography.h2);
+      ctx.fillText("\u25B6", r.x + r.w - T.space.l - 28, r.y + 72);
+    }
+    drawReport(frame) {
+      const { ctx } = this;
+      const r = reportRect();
+      this.panel(r.x, r.y, r.w, r.h);
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = col("text_secondary");
+      ctx.font = font(T.typography.caption);
+      ctx.fillText("\u6628\u591C\u6218\u62A5", r.x + T.space.m, r.y + 26);
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.body);
+      ctx.fillText(`r\u5747 ${frame.rAvg} \xB7 \u6B7B\u4EA1 ${frame.deaths} \xB7 \u8D1F\u4F24 ${frame.wounds}`, r.x + T.space.m, r.y + 62);
+      const barW = r.w - T.space.m * 2;
+      ctx.fillStyle = withAlpha(col("panic"), 0.2);
+      ctx.fillRect(r.x + T.space.m, r.y + r.h - 34, barW, 10);
+      const panicRatio = Math.min(1, frame.population > 0 ? frame.panicSum / (frame.population * 100) : 0);
+      ctx.fillStyle = col("panic");
+      ctx.fillRect(r.x + T.space.m, r.y + r.h - 34, barW * panicRatio, 10);
+      ctx.fillStyle = col("text_secondary");
+      ctx.font = font(T.typography.caption);
+      ctx.fillText(`hash=${frame.sessionHash}`, r.x + r.w - T.space.m - 220, r.y + 26);
+    }
+    drawDock() {
+      const { ctx } = this;
+      ctx.textBaseline = "middle";
+      dockRects().forEach((r, i) => {
+        const key = DOCK_KEYS[i];
+        const isNight = key.key === "night";
+        ctx.beginPath();
+        ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn);
+        ctx.fillStyle = isNight ? withAlpha(col("gold_primary"), 0.16) : col("panel");
+        ctx.fill();
+        ctx.strokeStyle = isNight ? col("gold_deep") : col("panel_stroke");
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = isNight ? col("gold_primary") : col("text_primary");
+        ctx.font = font(T.typography.body, { weight: "bold" });
+        const tw = ctx.measureText(key.label).width;
+        ctx.fillText(key.label, r.x + (r.w - tw) / 2, r.y + r.h / 2);
+      });
+    }
+    // ---- DUSK 夜战预告横幅（SILENT 时替换为「?」，§四）----
+    drawDuskBanner(frame, now) {
+      const { ctx } = this;
+      const b = duskBannerRect();
+      this.panel(b.x, b.y, b.w, b.h, T.radius.btn);
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = col("text_secondary");
+      ctx.font = font(T.typography.caption);
+      ctx.fillText("\u5165\u591C\u9884\u544A", b.x + T.space.m, b.y + 28);
+      const silent = frame.modifiers.includes("SILENT");
+      ctx.font = font(T.typography.h2, { weight: "bold" });
+      if (silent) {
+        ctx.fillStyle = col("text_secondary");
+        ctx.fillText("\uFF1F", b.x + T.space.m, b.y + 68);
+        ctx.font = font(T.typography.caption);
+        ctx.fillText("\u9759\u9ED8\u4E4B\u591C \xB7 \u60C5\u62A5\u7F3A\u5931", b.x + T.space.m + 44, b.y + 68);
+      } else {
+        const isBM = frame.modifiers.includes("BLOOD_MOON");
+        ctx.fillStyle = isBM ? col("alert_blood") : col("text_primary");
+        ctx.fillText(isBM ? "\u8840\u6708 \u{1F534}" : "\u5E38\u89C4\u591C\u88AD", b.x + T.space.m, b.y + 68);
+        if (frame.modifiers.includes("MIGRATE")) {
+          ctx.fillStyle = col("danger");
+          ctx.font = font(T.typography.caption);
+          ctx.fillText("\u602A\u7269\u8FC1\u79FB \xB7 \u5F00\u6218\u91CD\u6392", b.x + T.space.m + 150, b.y + 68);
+        }
+      }
+      const c = duskConfirmRect();
+      const threat = motion("threat");
+      const pulse = 0.7 + 0.3 * Math.sin(now / (threat.dur * 2) * Math.PI * 2);
+      ctx.globalAlpha = pulse;
+      this.button(c, "\u5E03\u9632", col("gold_primary"), withAlpha(col("gold_primary"), 0.16), col("gold_deep"));
+      ctx.globalAlpha = 1;
+    }
+    button(r, label, textColor, bg, stroke) {
+      const { ctx } = this;
+      ctx.beginPath();
+      ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn);
+      ctx.fillStyle = bg;
+      ctx.fill();
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = textColor;
+      ctx.font = font(T.typography.body, { weight: "bold" });
+      const tw = ctx.measureText(label).width;
+      ctx.fillText(label, r.x + (r.w - tw) / 2, r.y + r.h / 2);
+    }
+    // ---- NIGHT 全屏夜战面板（§3.3：血月 threat 红闪×2+震屏 / 路血条三态 / 技能 CD 环）----
+    drawNight(frame, now, pb2) {
+      const { ctx } = this;
+      ctx.save();
+      if (frame.modifiers.includes("BLOOD_MOON") && pb2.nightStart !== null) {
+        const burst = threatBurst(pb2.nightStart, now);
+        if (burst.shake > 0) ctx.translate(Math.sin(now / 16) * burst.shake, Math.cos(now / 13) * burst.shake);
+        this.bgBase(col("bg_night"));
+        if (burst.flash > 0) {
+          ctx.fillStyle = withAlpha(col("alert_blood"), 0.35 * burst.flash);
+          ctx.fillRect(-20, -20, DESIGN_W + 40, DESIGN_H + 40);
+        }
+      } else {
+        this.bgBase(col("bg_night"));
+      }
+      ctx.textBaseline = "middle";
+      const isBM = frame.modifiers.includes("BLOOD_MOON");
+      const waves = pb2.session && pb2.nightStart !== null ? nightWaves(pb2.session.routes, pb2.nightStart, now) : null;
+      ctx.fillStyle = isBM ? col("alert_blood") : col("text_primary");
+      ctx.font = font(T.typography.h1, { weight: "bold" });
+      ctx.fillText(isBM ? "\u8840\u6708 \u{1F534}" : "\u591C\u88AD", T.space.l, 120);
+      ctx.fillStyle = col("text_secondary");
+      ctx.font = font(T.typography.h2);
+      const total = pb2.session?.routes.length ?? 0;
+      ctx.fillText(`\u7B2C ${waves?.waveNo ?? 0}/${total} \u6CE2`, T.space.l + 260, 120);
+      if (pb2.session?.silent) {
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.body);
+        ctx.fillText("\uFF1F", T.space.l + 480, 120);
+      }
+      if (pb2.session && waves) {
+        pb2.session.routes.forEach((_, i) => {
+          const rv = waves.revealed[i];
+          const r = nightRouteRect(i);
+          const isCurrent = waves.waveNo === i + 1;
+          const fill = rv ? isCurrent ? waves.currentFill : 1 : 0;
+          ctx.fillStyle = col("text_secondary");
+          ctx.font = font(T.typography.caption);
+          ctx.fillText(`\u8DEF${WAVE_LETTERS[i]}`, r.x, r.y + r.h / 2);
+          const barX = r.x + 64, barW = r.w - 64 - 160;
+          ctx.fillStyle = withAlpha(col("panel_stroke"), 0.6);
+          ctx.beginPath();
+          ctx.roundRect(barX, r.y + r.h / 2 - 14, barW, 28, T.radius.chip);
+          ctx.fill();
+          if (fill > 0) {
+            const stateColor = rv.state === 0 ? col("alert_blood") : rv.state === 1 ? col("gold_deep") : col("success");
+            ctx.fillStyle = stateColor;
+            ctx.beginPath();
+            ctx.roundRect(barX, r.y + r.h / 2 - 14, Math.max(8, barW * fill), 28, T.radius.chip);
+            ctx.fill();
+          }
+          ctx.fillStyle = col("text_primary");
+          ctx.font = font(T.typography.body);
+          if (rv) {
+            const mon = pb2.monsterNames[rv.route.monsterId ?? ""] ?? "\u602A\u7269";
+            const warn = rv.state === 0 ? " \u26A0\u26A0" : rv.state === 1 ? " \u26A0" : "";
+            ctx.fillText(`${mon} ${Math.round(rv.route.r * 100)}%${warn}`, barX + barW + T.space.s, r.y + r.h / 2);
+          } else {
+            ctx.fillStyle = col("text_secondary");
+            ctx.fillText("\uFF1F\uFF1F", barX + barW + T.space.s, r.y + r.h / 2);
+          }
+        });
+      }
+      nightSkillRects().forEach((r, i) => {
+        const sk = pb2.skills[i];
+        if (!sk) return;
+        ctx.beginPath();
+        ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn);
+        ctx.fillStyle = col("panel");
+        ctx.fill();
+        ctx.strokeStyle = col("panel_stroke");
+        ctx.stroke();
+        ctx.fillStyle = col("text_primary");
+        ctx.font = font(T.typography.h2);
+        ctx.fillText(sk.glyph, r.x + r.w / 2 - 16, r.y + r.h / 2 - 8);
+        ctx.font = font(T.typography.caption);
+        ctx.fillStyle = col("text_secondary");
+        const lw = ctx.measureText(sk.label).width;
+        ctx.fillText(sk.label, r.x + (r.w - lw) / 2, r.y + r.h - 18);
+        const cdLeft = sk.cdUntil - now;
+        if (cdLeft > 0) {
+          const frac = cdLeft / (motion("normal").dur * 10);
+          ctx.beginPath();
+          ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 8, 30, -Math.PI / 2, -Math.PI / 2 + (1 - frac) * Math.PI * 2);
+          ctx.strokeStyle = col("gold_primary");
+          ctx.lineWidth = 4;
+          ctx.stroke();
+        }
+      });
+      ctx.restore();
+    }
+    /** 战况日志（路结果逐波追加 + 技能使用；body 字号可读） */
+    drawNightLog(frame, now, pb2) {
+      const { ctx } = this;
+      const r = nightLogRect();
+      this.panel(r.x, r.y, r.w, r.h);
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel);
+      ctx.clip();
+      ctx.textBaseline = "middle";
+      const lines = [];
+      if (pb2.session && pb2.nightStart !== null) {
+        const waves = nightWaves(pb2.session.routes, pb2.nightStart, now);
+        waves.revealed.forEach((rv, i) => {
+          const mon = pb2.monsterNames[rv.route.monsterId ?? ""] ?? "\u602A\u7269";
+          lines.push(`\u7B2C${i + 1}\u6CE2 \u8DEF${WAVE_LETTERS[i]} \xB7 ${rv.route.roomId} \xB7 ${mon} \xB7 r=${rv.route.r.toFixed(2)} \u2192 ${OUTCOME_LABEL[rv.route.outcome]}`);
+        });
+      }
+      lines.push(...pb2.logs);
+      ctx.font = font(T.typography.body);
+      const visible = lines.slice(-Math.floor((r.h - T.space.s * 2) / 36));
+      visible.forEach((ln, i) => {
+        ctx.fillStyle = i === visible.length - 1 ? col("text_primary") : col("text_secondary");
+        ctx.fillText(ln, r.x + T.space.m, r.y + 32 + i * 36);
+      });
+      if (pb2.session && pb2.nightStart !== null && nightWaves(pb2.session.routes, pb2.nightStart, now).done) {
+        const b = nightBackRect();
+        this.button(b, "\u5929\u4EAE\u4E86 \u2192", col("gold_primary"), withAlpha(col("gold_primary"), 0.16), col("gold_deep"));
+      }
+      ctx.restore();
+    }
+    // ---- DAWN 收租结算（§3.4 标志性瞬间：物资雨 rain 500ms → 计数器 counter 800ms → 逐户 stagger 60ms）----
+    drawSettle(frame, now, pb2) {
+      const { ctx } = this;
+      const start = pb2.settleStart;
+      ctx.textBaseline = "middle";
+      if (start !== null) {
+        const rainM = motion("rain");
+        const rainT = Math.min(1, (now - start) / rainM.dur);
+        if (rainT < 1) {
+          ctx.fillStyle = col("gold_primary");
+          for (let i = 0; i < 24; i++) {
+            const seed = (i * 97 + frame.day * 31) % 1e3 / 1e3;
+            const x = T.space.l + seed * (DESIGN_W - T.space.l * 2 - 24);
+            const y = rainM.fn(rainT) * DESIGN_H * 1.1 + seed * 300;
+            ctx.fillRect(x, y % (DESIGN_H * 0.9), 20, 30);
+          }
+        }
+      }
+      const r = settlePanelRect();
+      this.panel(r.x, r.y, r.w, r.h);
+      ctx.fillStyle = col("text_secondary");
+      ctx.font = font(T.typography.body);
+      ctx.fillText("\u5929\u4EAE \xB7 \u6536\u79DF\u7ED3\u7B97", r.x + T.space.m, r.y + 48);
+      const households = Math.min(frame.population, frame.roomsBuilt);
+      const shown = start !== null ? counterValue(frame.income, start + motion("rain").dur, now) : 0;
+      ctx.fillStyle = col("gold_primary");
+      ctx.font = font(T.typography.h1, { weight: "bold" });
+      ctx.fillText(`+${fmt(shown)}`, settleCounterRect().x + T.space.m, settleCounterRect().y + 40);
+      const perRoom = households > 0 ? Math.round(frame.income / households) : 0;
+      const popCount = Math.min(households, SETTLE_POP_MAX);
+      for (let i = 0; i < popCount; i++) {
+        const p = start !== null ? popProgress(i, start + motion("rain").dur + motion("counter").dur, now) : 0;
+        if (p <= 0) continue;
+        const pr = settlePopRect(i);
+        ctx.globalAlpha = p;
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText(`\u4F4F \xB7 F1-R${i + 1}`, pr.x, pr.y + pr.h / 2);
+        ctx.fillStyle = col("gold_primary");
+        ctx.font = font(T.typography.body);
+        ctx.fillText(`+${fmt(perRoom)}`, pr.x + 160, pr.y + pr.h / 2);
+        ctx.globalAlpha = 1;
+      }
+      if (households > SETTLE_POP_MAX) {
+        const pr = settlePopRect(SETTLE_POP_MAX - 1);
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText(`\u2026\u5171 ${households} \u6237`, pr.x, pr.y + pr.h + 24);
+      }
+      if (start !== null && now >= settleDoneAt(start, households)) {
+        this.button(settleContinueRect(), "\u7EE7\u7EED \u25B6", col("gold_primary"), withAlpha(col("gold_primary"), 0.16), col("gold_deep"));
+      }
+    }
+    // ---- 模态：事件卡模板（§3.2）/确认入夜/占位面板 ----
+    drawModal(ui2, frame, now, pb2) {
+      const { ctx } = this;
+      const top = topModal(ui2);
+      if (!top) {
+        this.modalOpenAt = null;
+        return;
+      }
+      if (this.modalOpenAt === null) this.modalOpenAt = now;
+      const m = motion("normal");
+      const eased = m.fn(Math.min(1, (now - this.modalOpenAt) / m.dur));
+      const r = modalRect();
+      const slide = (1 - eased) * (DESIGN_H - r.y);
+      ctx.fillStyle = withAlpha(col("bg_night"), 0.6 * eased);
+      ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
+      const y = r.y + slide;
+      this.panel(r.x, y, r.w, r.h);
+      ctx.textBaseline = "middle";
+      if (top.kind === "event" && top.card) {
+        this.drawEventCard(top, y, frame, now, pb2);
+        return;
+      }
+      const title = top.kind === "confirmNight" ? "\u786E\u8BA4\u5165\u591C\uFF1F" : { deploy: "\u5E03\u9632", recruit: "\u62DB\u52DF", upgrade: "\u5347\u7EA7", settings: "\u8BBE\u7F6E" }[top.id] ?? top.id;
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.h2, { weight: "bold" });
+      ctx.fillText(title, r.x + T.space.m, y + 48);
+      ctx.strokeStyle = col("panel_stroke");
+      ctx.beginPath();
+      ctx.moveTo(r.x + T.space.m, y + 80);
+      ctx.lineTo(r.x + r.w - T.space.m, y + 80);
+      ctx.stroke();
+      ctx.fillStyle = col("text_secondary");
+      ctx.font = font(T.typography.body);
+      const body = top.kind === "confirmNight" ? "\u5165\u591C\u540E\u4E0D\u53EF\u6253\u65AD\uFF08\u5168\u5C4F\u591C\u6218\uFF09" : "\u5360\u4F4D\u9762\u677F\uFF1AM3 \u63A5\u5165\u5BF9\u5E94\u7CFB\u7EDF\u64CD\u4F5C";
+      ctx.fillText(body, r.x + T.space.m, y + 120);
+      if (top.kind === "confirmNight") {
+        const cr = modalConfirmRect();
+        this.button({ ...cr, y: cr.y - r.y + y }, "\u5165\u591C \u25B6", col("gold_primary"), withAlpha(col("gold_primary"), 0.16), col("gold_deep"));
+      }
+      const c = modalCloseRect();
+      this.closeBtn(c, y - r.y, "\u5173\u95ED");
+    }
+    /** 事件卡（§3.2 模板：标题栏/正文 24px/选项按钮+风险星级/翻面→结果→图标飞资源栏） */
+    drawEventCard(top, y, frame, now, pb2) {
+      const { ctx } = this;
+      const r = modalRect();
+      const card = top.card;
+      if (!card) return;
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.h2, { weight: "bold" });
+      ctx.fillText(card.title, r.x + T.space.m, y + 48);
+      ctx.strokeStyle = col("panel_stroke");
+      ctx.beginPath();
+      ctx.moveTo(r.x + T.space.m, y + 80);
+      ctx.lineTo(r.x + r.w - T.space.m, y + 80);
+      ctx.stroke();
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.body);
+      if (card.text) ctx.fillText(card.text, r.x + T.space.m, y + 120, r.w - T.space.m * 2);
+      const opt = card.options[0];
+      const flipped = top.chosen !== void 0;
+      const flip = cardFlip(pb2.chosenAt, now);
+      if (opt && !flipped) {
+        const or = modalOptionRect();
+        const br = { ...or, y: or.y - r.y + y };
+        ctx.beginPath();
+        ctx.roundRect(br.x, br.y, br.w, br.h, T.radius.btn);
+        ctx.fillStyle = withAlpha(col("gold_primary"), 0.1);
+        ctx.fill();
+        ctx.strokeStyle = col("gold_deep");
+        ctx.stroke();
+        ctx.fillStyle = col("text_primary");
+        ctx.font = font(T.typography.body, { weight: "bold" });
+        ctx.fillText(`\u25B6 ${opt.label}`, br.x + T.space.m, br.y + 34);
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        const ps = opt.ps.map((p) => `${Math.round(p * 100)}%`).join("/");
+        const stars = "\u26A0".repeat(Math.min(3, opt.ps.length - 1));
+        ctx.fillText(`${ps} ${stars}`, br.x + T.space.m, br.y + 72);
+      }
+      if (flipped) {
+        const flyT = pb2.chosenAt !== null ? Math.min(1, Math.max(0, (now - (pb2.chosenAt + motion("normal").dur)) / motion("rain").dur)) : 0;
+        ctx.globalAlpha = flip;
+        ctx.fillStyle = col("success");
+        ctx.font = font(T.typography.body, { weight: "bold" });
+        ctx.fillText(`\u2713 ${top.chosen === 0 ? "\u5DF2\u6267\u884C" : "\u5DF2\u9009\u62E9"} \xB7 ${card.resultText}`, r.x + T.space.m, y + 170 + 40, r.w - T.space.m * 2);
+        ctx.globalAlpha = 1;
+        if (flyT > 0 && flyT < 1) {
+          const rainM = motion("rain");
+          const fx = r.x + T.space.m + (resourceRect().x + T.space.l - r.x) * rainM.fn(flyT);
+          const fy = y + 210 + (resourceRect().y + 20 - y - 210) * rainM.fn(flyT);
+          ctx.fillStyle = col("gold_primary");
+          ctx.beginPath();
+          ctx.arc(fx, fy, 14, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      const c = modalCloseRect();
+      this.closeBtn(c, y - r.y, flipped ? "\u7EE7\u7EED" : "\u7A0D\u540E");
+    }
+    closeBtn(c, dy, label) {
+      const { ctx } = this;
+      ctx.beginPath();
+      ctx.roundRect(c.x, c.y + dy, c.w, c.h, T.radius.btn);
+      ctx.fillStyle = withAlpha(col("text_secondary"), 0.15);
+      ctx.fill();
+      ctx.strokeStyle = col("panel_stroke");
+      ctx.stroke();
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.body);
+      const tw = ctx.measureText(label).width;
+      ctx.fillText(label, c.x + (c.w - tw) / 2, c.y + dy + c.h / 2);
     }
   };
+  function fpsReport(samples) {
+    const min = samples.length ? Math.min(...samples) : 0;
+    const avg = samples.length ? Math.round(samples.reduce((a, b) => a + b, 0) / samples.length) : 0;
+    return { min, avg, budgetOk: min >= 50 };
+  }
 
   // apps/client-cocos/whitebox/entry.ts
   var tables = {
@@ -1820,46 +2810,182 @@
     formula: createFormula({ dayCurve: tables.dayCurve, constants: loadConstants(tables.constants.entries) }),
     constants: loadConstants(tables.constants.entries),
     eventLib: event_lib_default,
+    // JSON 宽类型收窄（type 字面量联合）
     monsters: monster_default
   };
   var kernel = createKernel({ appName: "nl-whitebox", clock: { logicalDay: () => 0, wallMs: () => Date.now() } });
   kernel.register([]);
   var boot = kernel.boot(buildBundle(app));
   var canvas = document.getElementById("stage");
-  canvas.width = 400;
-  canvas.height = 720;
+  canvas.width = DESIGN_W;
+  canvas.height = DESIGN_H;
   var renderer = new WhiteboxRenderer(canvas, {
     onFps(fps, min, avg) {
       const el = document.getElementById("fps");
       el.textContent = `FPS ${fps}\uFF08min ${min} / avg ${avg}\uFF09\u9884\u7B97${min >= 50 ? "\u8FBE\u6807" : "\u672A\u8FBE\u6807"}`;
-      el.style.color = min >= 50 ? "#7fff9f" : "#ffb0b0";
+      el.style.color = min >= 50 ? col("success") : col("danger");
     }
   });
+  var frames = [];
   var idx = 0;
+  var ui = createUiState();
+  var SKILL_CD_MS = motion("normal").dur * 10;
+  var pb = {
+    session: null,
+    monsterNames: Object.fromEntries(monster_default.entries.map((m) => [m.id, m.name])),
+    nightStart: null,
+    settleStart: null,
+    chosenAt: null,
+    logs: [],
+    skills: [
+      { label: "\u7A7A\u6295\u7269\u8D44", glyph: "\u{1F48A}", cdUntil: 0 },
+      { label: "\u62A4\u76FE", glyph: "\u{1F6E1}", cdUntil: 0 }
+    ]
+  };
+  function enterDay(d) {
+    idx = d;
+    ui.phase = "DAY";
+    ui.page = "main";
+    pb.chosenAt = null;
+    for (const card of frames[d]?.eventCards ?? []) Object.assign(ui, pushEvent(ui, card));
+  }
+  canvas.addEventListener("click", (ev) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (ev.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
+    const now = performance.now();
+    const modalOpen = topModal(ui) !== void 0;
+    const hit = hitTest(x, y, { modalOpen, page: ui.page });
+    switch (hit.kind) {
+      case "pageBack":
+        Object.assign(ui, setPage(ui, "main"));
+        return;
+      case "nav":
+        Object.assign(ui, setPage(ui, hit.page));
+        return;
+      case "modalClose": {
+        const wasEvent = topModal(ui)?.kind === "event";
+        Object.assign(ui, closeModal(ui));
+        if (wasEvent) pb.chosenAt = null;
+        return;
+      }
+      case "modalOption": {
+        Object.assign(ui, { ...ui, eventQueue: [...ui.eventQueue.slice(0, -1), { ...topModal(ui), chosen: 0 }] });
+        pb.chosenAt = now;
+        return;
+      }
+      case "modalConfirm":
+        if (topModal(ui)?.kind === "confirmNight") {
+          Object.assign(ui, closeModal(ui));
+          ui.phase = "DUSK_FORECAST";
+        }
+        return;
+      case "modal":
+        return;
+      case "duskConfirm":
+        if (ui.phase === "DUSK_FORECAST") {
+          ui.phase = "NIGHT";
+          pb.nightStart = now;
+          pb.session = simSessions[idx + 1] ?? null;
+          pb.logs = [];
+        }
+        return;
+      case "skill":
+        if (ui.phase === "NIGHT") {
+          const sk = pb.skills[hit.index];
+          if (sk && now >= sk.cdUntil) {
+            sk.cdUntil = now + SKILL_CD_MS;
+            pb.logs.push(`\u4F7F\u7528\u4E3B\u52A8\u6280\u300C${sk.label}\u300D\uFF08\u5360\u4F4D\u6F14\u51FA\uFF09`);
+          }
+        }
+        return;
+      case "nightBack":
+        if (ui.phase === "NIGHT" && pb.session && pb.nightStart !== null && nightWaves(pb.session.routes, pb.nightStart, now).done) {
+          ui.phase = "DAWN_SETTLE";
+          pb.settleStart = now;
+          pb.logs = [];
+        }
+        return;
+      case "settleContinue":
+        if (ui.phase === "DAWN_SETTLE" && pb.settleStart !== null && now >= settleDoneAt(pb.settleStart, settleHouseholds())) {
+          pb.settleStart = null;
+          enterDay((idx + 1) % frames.length);
+        }
+        return;
+      case "dock":
+        if (hit.key === "night") Object.assign(ui, openModal(ui, { kind: "confirmNight", id: "night" }));
+        else Object.assign(ui, openModal(ui, { kind: "panel", id: hit.key }));
+        return;
+      case "settings":
+        Object.assign(ui, setPage(ui, "settings"));
+        return;
+      case "eventEntry": {
+        const card = frames[idx]?.eventCards[0];
+        if (card) Object.assign(ui, openModal(ui, { kind: "event", id: card.id, card }));
+        return;
+      }
+      default:
+        return;
+    }
+  });
+  function settleHouseholds() {
+    const f = frames[idx];
+    return f ? Math.min(f.population, f.roomsBuilt) : 0;
+  }
+  var simSessions = {};
   boot.then(() => {
     const sim = runSimulation(app, kernel, { days: 7, seed: 42 });
-    const frames = sim.records.map((r) => {
-      const row = tables.dayCurve.rows.find((x) => x.day === r.day);
-      return {
-        day: r.day,
-        population: r.population,
-        roomsBuilt: r.roomsBuilt,
-        gold: r.gold,
-        income: r.income,
-        power: r.power,
-        rAvg: r.rAvg,
-        deaths: r.deaths,
-        wounds: r.wounds,
-        sessionHash: r.sessionHash,
-        modifiers: r.modifiers,
-        avgLevel: r.avgLevel,
-        panicSum: r.panicSum
-      };
-    });
-    renderer.start(() => {
-      if (idx >= frames.length) idx = 0;
-      return frames[idx];
-    }, 1600);
+    simSessions = sim.sessions;
+    frames = sim.records.map((r) => ({
+      day: r.day,
+      population: r.population,
+      roomsBuilt: r.roomsBuilt,
+      gold: r.gold,
+      income: r.income,
+      power: r.power,
+      rAvg: r.rAvg,
+      deaths: r.deaths,
+      wounds: r.wounds,
+      sessionHash: r.sessionHash,
+      modifiers: r.modifiers,
+      avgLevel: r.avgLevel,
+      panicSum: r.panicSum,
+      // 表现层投影：破防房间（r<0.95）与今日事件（weight 高在前，完整元数据供事件卡模板）
+      breachedRooms: (sim.sessions[r.day]?.routes ?? []).filter((rt) => rt.r < 0.95).map((rt) => rt.roomId),
+      eventCards: [...sim.eventCards[r.day] ?? []].sort((a, b) => b.weight - a.weight)
+    }));
+    const want = new URLSearchParams(location.search).get("phase");
+    const wantPage = new URLSearchParams(location.search).get("page");
+    renderer.start(
+      () => {
+        const f = frames[idx];
+        if (!f) return null;
+        const now = performance.now();
+        const top = topModal(ui);
+        if (top?.kind === "event" && top.chosen !== void 0 && pb.chosenAt !== null && now - pb.chosenAt > motion("normal").dur + motion("rain").dur + motion("fast").dur) {
+          Object.assign(ui, closeModal(ui));
+          pb.chosenAt = null;
+        }
+        return f;
+      },
+      () => ui,
+      () => pb
+    );
+    globalThis.__fpsReport = () => fpsReport(renderer.getSamples());
+    if (want === "dusk") {
+      idx = 6;
+      ui.phase = "DUSK_FORECAST";
+    } else if (want === "night") {
+      idx = 6;
+      ui.phase = "NIGHT";
+      pb.nightStart = performance.now();
+      pb.session = simSessions[7] ?? null;
+    } else if (want === "dawn") {
+      idx = 6;
+      ui.phase = "DAWN_SETTLE";
+      pb.settleStart = performance.now();
+    } else enterDay(0);
+    if (wantPage === "codex" || wantPage === "shop" || wantPage === "settings") ui.page = wantPage;
     console.log(`\u767D\u76D2\u64AD\u653E\u5C31\u7EEA\uFF1A${frames.length} \u5929\uFF0C\u4E8B\u4EF6 ${sim.eventsFired} \u6B21\uFF0C\u72EC\u7ACB ${sim.distinctFired.length}`);
   });
 })();

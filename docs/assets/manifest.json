@@ -1,0 +1,121 @@
+{
+  "generatedBy": "scripts/gen-assets.mjs（M2.5 占位级确定性生成）",
+  "paletteSource": "config/theme.json",
+  "anchors": [
+    {
+      "file": "docs/assets/anchors/anchor_building_cutaway@2x.png",
+      "w": 1080,
+      "h": 1920,
+      "candidate": 1,
+      "score": 150
+    },
+    {
+      "file": "docs/assets/anchors/anchor_tenant_worker@2x.png",
+      "w": 192,
+      "h": 192,
+      "candidate": 1,
+      "score": 150
+    },
+    {
+      "file": "docs/assets/anchors/anchor_tenant_guard@2x.png",
+      "w": 192,
+      "h": 192,
+      "candidate": 0,
+      "score": 150
+    },
+    {
+      "file": "docs/assets/anchors/anchor_tenant_nurse@2x.png",
+      "w": 192,
+      "h": 192,
+      "candidate": 0,
+      "score": 150
+    },
+    {
+      "file": "docs/assets/anchors/anchor_monster_seeker@2x.png",
+      "w": 384,
+      "h": 384,
+      "candidate": 0,
+      "score": 150
+    },
+    {
+      "file": "docs/assets/anchors/anchor_rain_frame@2x.png",
+      "w": 540,
+      "h": 960,
+      "candidate": 0,
+      "score": 150
+    }
+  ],
+  "ui": [
+    {
+      "file": "docs/assets/ui/ui_panel_nine@2x.png",
+      "w": 192,
+      "h": 192,
+      "candidate": 0,
+      "score": 150
+    },
+    {
+      "file": "docs/assets/ui/ui_btn_normal@2x.png",
+      "w": 288,
+      "h": 96,
+      "candidate": 0,
+      "score": 150
+    },
+    {
+      "file": "docs/assets/ui/ui_btn_pressed@2x.png",
+      "w": 288,
+      "h": 96,
+      "candidate": 0,
+      "score": 150
+    },
+    {
+      "file": "docs/assets/ui/ui_btn_disabled@2x.png",
+      "w": 288,
+      "h": 96,
+      "candidate": 0,
+      "score": 150
+    },
+    {
+      "file": "docs/assets/ui/ui_bar_hp@2x.png",
+      "w": 288,
+      "h": 32,
+      "candidate": 0,
+      "score": 150
+    },
+    {
+      "file": "docs/assets/ui/ui_bar_panic@2x.png",
+      "w": 288,
+      "h": 32,
+      "candidate": 0,
+      "score": 150
+    },
+    {
+      "file": "docs/assets/ui/ui_resbar_gold@2x.png",
+      "w": 192,
+      "h": 96,
+      "candidate": 0,
+      "score": 150
+    },
+    {
+      "file": "docs/assets/ui/ui_switch_on@2x.png",
+      "w": 192,
+      "h": 96,
+      "candidate": 0,
+      "score": 150
+    },
+    {
+      "file": "docs/assets/ui/ui_avatar_frame@2x.png",
+      "w": 256,
+      "h": 256,
+      "candidate": 0,
+      "score": 150
+    },
+    {
+      "file": "docs/assets/ui/ui_badge_red@2x.png",
+      "w": 64,
+      "h": 64,
+      "candidate": 0,
+      "score": 150
+    }
+  ],
+  "atlas": "docs/assets/ui/ui_atlas@2x.png"
+}
