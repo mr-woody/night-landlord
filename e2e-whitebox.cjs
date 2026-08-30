@@ -60,20 +60,24 @@ function record(name, ok, detail = '') {
   record('T1 D1 事件卡弹出', hasEvent, `modal=${JSON.stringify(s1.modal)}`);
 
   // ═══ T2: 事件卡选择→锁定→自动收卡（队列最多 2 张，逐张处理）═══
-  // 收卡完成 = modal 归零 或 下一张卡接替（未选择态）
-  let evClosed = true;
-  for (let i = 0; i < 3; i++) {
-    const st = await state();
-    if (st.modal?.kind !== 'event' || st.modal.chosen !== undefined) break;
-    const R = await rects();
-    await clickRect(R.modalOption);
-    const advanced = await until(async () => {
-      const s = await state();
-      return s.modal === null || (s.modal.kind === 'event' && s.modal.chosen === undefined);
-    }, 6000);
-    if (advanced === null) { evClosed = false; break; }
-    await wait(300);
-  }
+  // 收卡完成 = modal 归零 或 下一张卡接替（未选择态）。DAY 相开场都可能
+  // 有事件卡排队——之后任何 dock/导航操作前都需先清场（drainEvents）。
+  const drainEvents = async () => {
+    for (let i = 0; i < 3; i++) {
+      const st = await state();
+      if (st.modal?.kind !== 'event' || st.modal.chosen !== undefined) break;
+      const R = await rects();
+      await clickRect(R.modalOption);
+      const advanced = await until(async () => {
+        const s = await state();
+        return s.modal === null || (s.modal.kind === 'event' && s.modal.chosen === undefined);
+      }, 6000);
+      if (advanced === null) return false;
+      await wait(300);
+    }
+    return true;
+  };
+  let evClosed = await drainEvents();
   const s2 = await state();
   record('T2 事件卡选择锁定+自动收卡', evClosed && s2.modal === null && s2.phase === 'DAY',
     `modal=${JSON.stringify(s2.modal)}`);
@@ -252,7 +256,7 @@ function record(name, ok, detail = '') {
       `phase=${(await state()).phase}`);
   }
 
-  // ═══ T14: 继续 → D2 循环（金币入账+日次推进+野外归队结算）═══
+  // ═══ T14: 继续 → D2 循环（金币入账+日次推进+D1 派出队伍归队战报）═══
   {
     const goldBefore = (await state()).gold;
     const R = await rects();
@@ -262,8 +266,37 @@ function record(name, ok, detail = '') {
       return st.phase === 'DAY' && st.day === 2 ? st : null;
     }, 5000);
     await shot('14-D2-loop');
-    record('T14 D2 循环推进', d2 !== null,
-      `day=${d2?.day} phase=${d2?.phase} gold ${goldBefore}→${d2?.gold}`);
+    record('T14 D2 循环推进+探索归队', d2 !== null && d2.wildReports >= 1,
+      `day=${d2?.day} phase=${d2?.phase} gold ${goldBefore}→${d2?.gold} wildReports=${d2?.wildReports} parties=${d2?.parties}`);
+  }
+
+  // ═══ T16: D2→D3 第二个完整昼夜循环（多日循环稳定性）═══
+  {
+    await drainEvents(); // D2 开场事件卡排队会以模态遮罩吞掉 dock 点击，先清场
+    const R = await rects();
+    await clickRect(R.dockNight); await wait(450);
+    const confirm = await state();
+    const Rc = await rects();
+    await clickRect(Rc.modalConfirm);
+    const dusk = await until(async () => (await state()).phase === 'DUSK_FORECAST', 3000);
+    const R2 = await rects();
+    await clickRect(R2.duskConfirm);
+    const night = await until(async () => (await state()).phase === 'NIGHT', 3000);
+    const wavesDone = await until(async () => (await state()).waves?.done === true, 12000, 300);
+    const R3 = await rects();
+    await clickRect(R3.nightBack);
+    const dawn = await until(async () => (await state()).phase === 'DAWN_SETTLE', 3000);
+    const settleDone = await until(async () => (await state()).settleDone === true, 10000, 300);
+    const R4 = await rects();
+    await clickRect(R4.settleContinue);
+    const d3 = await until(async () => {
+      const st = await state();
+      return st.phase === 'DAY' && st.day === 3 ? st : null;
+    }, 5000);
+    await shot('16-D3-loop');
+    record('T16 D2→D3 昼夜循环', confirm.modal?.kind === 'confirmNight' && dusk !== null &&
+      night !== null && wavesDone === true && dawn !== null && settleDone === true && d3 !== null,
+      `day=${d3?.day} gold=${d3?.gold} parties=${d3?.parties} weather=${d3?.weather}`);
   }
 
   // ═══ T15: Console 错误检查 ═══
