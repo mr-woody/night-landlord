@@ -3,7 +3,7 @@
 // + rAF 帧率采样。打包：npm run build:whitebox（esbuild → whitebox/bundle.js）
 import { createKernel } from '../../../packages/kernel/src/index.ts'
 import { createGameState, applyEffects, type Tables } from '../../../packages/systems/src/index.ts'
-import { createWorldState, dispatchParty, resolveDue, restoreStamina, type WorldTables } from '../../../packages/world/src/index.ts'
+import { createWorldState, dispatchParty, resolveDue, restoreStamina, worldCapacity, type WorldTables } from '../../../packages/world/src/index.ts'
 import { createFormula, loadConstants } from '../../../packages/formula/src/index.ts'
 import { buildBundle, runSimulation, type AppContext } from '../../../apps/headless/src/sim.ts'
 import dayCurveJson from '../../../config/day_curve.json'
@@ -90,6 +90,7 @@ function enterDay(d: number): void {
   const day = d + 1
   const reports = resolveDue(world, sideState, wtables, app.constants, day)
   restoreStamina(world, sideState, app.constants)
+  pb.capacity = worldCapacity(world)
   for (const rp of reports) {
     if (rp.loot.length > 0 || rp.encounters.length > 0) {
       pb.wildReports.push([
@@ -132,7 +133,7 @@ canvas.addEventListener('click', ev => {
     case 'lot': {
       const lot = hit.id
       if (lot === 'lot_bld_a') Object.assign(ui, openBuilding(ui, lot))
-      else if (lot === 'lot_gate') Object.assign(ui, openModal(ui, { kind: 'panel', id: '小区大门（野外 M3.3 开放）' }))
+      else if (lot === 'lot_gate') Object.assign(ui, setPage(ui, 'wild')) // 大门=野外入口（L2→L1）
       else Object.assign(ui, openModal(ui, { kind: 'panel', id: lot === 'lot_bld_b' ? 'B栋' : lot === 'lot_bld_c' ? 'C栋' : lot }))
       return
     }

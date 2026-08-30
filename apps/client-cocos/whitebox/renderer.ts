@@ -64,6 +64,8 @@ export interface Playback {
   parties: { zone: string; size: number; returnsDay: number }[]
   /** 房屋等级覆盖（M3.2 F7 升级交互；缺省=天数成长占位） */
   houseLevels: Record<number, number>
+  /** 住户容量（worldCapacity 投影：已解锁楼栋×30，招募面板/B/C 栋信息用） */
+  capacity?: number
   skills: { label: string; glyph: string; cdUntil: number; fxUntil: number; fxKind: 'supply' | 'shield' | 'wave' }[]
 }
 
@@ -1804,14 +1806,54 @@ export class WhiteboxRenderer {
         this.button({ ...cr, y: cr.y - r.y + y }, '升级 ▶', 'primary')
       }
     } else {
-      const body = top.kind === 'confirmNight' ? '入夜后不可打断（全屏夜战）' : '占位面板：M3 接入对应系统操作'
-      ctx.fillText(body, r.x + T.space.m, y + 120)
+      this.drawPanelBody(top, frame, pb, y, r)
     }
     if (top.kind === 'confirmNight') {
       const cr = modalConfirmRect()
       this.button({ ...cr, y: cr.y - r.y + y }, '入夜 ▶', 'primary')
     }
     this.closeBtn(y - r.y, top.kind === 'event' && top.chosen !== undefined ? '继续' : '关闭')
+  }
+
+  /** 常规面板正文（M4：dock/地块面板真实数据，取代 M2.5 占位文案） */
+  private drawPanelBody(
+    top: Modal, frame: DayFrame, pb: Playback,
+    y: number, r: { x: number; y: number; w: number; h: number }
+  ): void {
+    const { ctx } = this
+    const x = r.x + T.space.m
+    const line = (s: string, dy: number, c = col('text_secondary'), bold = false): void => {
+      ctx.fillStyle = c
+      ctx.font = font(T.typography.body, { weight: bold ? 'bold' : 'normal' })
+      ctx.fillText(s, x, y + dy, r.w - T.space.m * 2.4)
+    }
+    if (top.id === 'deploy') {
+      const forts = Object.values(pb.forts).filter(Boolean).length
+      line(`已布防工事位 ${forts} 处`, 120, col('text_primary'), true)
+      line('点击小屋或房间进入室内布置沙袋/箭塔', 160)
+      line('工事位提升夜战防线比值 r（越接近 1 越稳固）', 196)
+    } else if (top.id === 'recruit') {
+      line(`住户 ${frame.population} 人 · 容量 ${pb.capacity ?? 30} 人`, 120, col('text_primary'), true)
+      line('B 栋 / C 栋 D30 解锁后各 +30 容量', 160)
+      line('夜晚死亡与恐慌流失会减少住户，白天可补充', 196)
+    } else if (top.id === 'upgrade') {
+      const ups = Object.keys(pb.houseLevels).length
+      line(`已升级房屋 ${ups} 栋 · 等级影响日租金与耐久`, 120, col('text_primary'), true)
+      line('点击任意小屋查看当前等级与升级消耗', 160)
+      line('茅草屋 → 砖石堡垒共 6 级（房屋进化）', 196)
+    } else if (top.id === 'B栋' || top.id === 'C栋' || top.id === 'lot_bld_b' || top.id === 'lot_bld_c') {
+      const name = top.id.startsWith('lot_') ? (LOTS[top.id]?.name ?? top.id) : top.id
+      line(`${name} · D30 解锁`, 120, col('text_primary'), true)
+      line('解锁条件：主线推进至第 30 天', 160)
+      line(`解锁后住户容量 +30（当前 ${pb.capacity ?? 30}）`, 196)
+    } else if (top.id.startsWith('lot_')) {
+      const lot = LOTS[top.id]
+      line(lot ? `${lot.name}${lot.unlockDay > 1 ? ` · D${lot.unlockDay} 解锁` : ' · 已开放'}` : top.id, 120, col('text_primary'), true)
+      line('设施运营操作随后续里程碑逐步接入', 160)
+    } else {
+      // 运行时信息面板（派出结果等）：正文即信息文案
+      line(top.id, 120)
+    }
   }
 
   /** 事件卡（§3.2 模板） */

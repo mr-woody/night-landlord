@@ -781,6 +781,9 @@
       }
     }
   }
+  function worldCapacity(w) {
+    return Object.entries(w.buildings).filter(([, b]) => b.unlocked).length * 30;
+  }
   function dispatchParty(w, state, tables2, constants, opts) {
     const entry = tables2.exploreDef.entries.find((e) => e.zone === opts.zone);
     if (!entry) return { ok: false, reason: `\u672A\u77E5\u76EE\u7684\u5730 ${opts.zone}` };
@@ -8565,14 +8568,49 @@
           this.button({ ...cr, y: cr.y - r.y + y }, "\u5347\u7EA7 \u25B6", "primary");
         }
       } else {
-        const body = top.kind === "confirmNight" ? "\u5165\u591C\u540E\u4E0D\u53EF\u6253\u65AD\uFF08\u5168\u5C4F\u591C\u6218\uFF09" : "\u5360\u4F4D\u9762\u677F\uFF1AM3 \u63A5\u5165\u5BF9\u5E94\u7CFB\u7EDF\u64CD\u4F5C";
-        ctx.fillText(body, r.x + T.space.m, y + 120);
+        this.drawPanelBody(top, frame, pb2, y, r);
       }
       if (top.kind === "confirmNight") {
         const cr = modalConfirmRect();
         this.button({ ...cr, y: cr.y - r.y + y }, "\u5165\u591C \u25B6", "primary");
       }
       this.closeBtn(y - r.y, top.kind === "event" && top.chosen !== void 0 ? "\u7EE7\u7EED" : "\u5173\u95ED");
+    }
+    /** 常规面板正文（M4：dock/地块面板真实数据，取代 M2.5 占位文案） */
+    drawPanelBody(top, frame, pb2, y, r) {
+      const { ctx } = this;
+      const x = r.x + T.space.m;
+      const line = (s, dy, c = col("text_secondary"), bold = false) => {
+        ctx.fillStyle = c;
+        ctx.font = font(T.typography.body, { weight: bold ? "bold" : "normal" });
+        ctx.fillText(s, x, y + dy, r.w - T.space.m * 2.4);
+      };
+      if (top.id === "deploy") {
+        const forts = Object.values(pb2.forts).filter(Boolean).length;
+        line(`\u5DF2\u5E03\u9632\u5DE5\u4E8B\u4F4D ${forts} \u5904`, 120, col("text_primary"), true);
+        line("\u70B9\u51FB\u5C0F\u5C4B\u6216\u623F\u95F4\u8FDB\u5165\u5BA4\u5185\u5E03\u7F6E\u6C99\u888B/\u7BAD\u5854", 160);
+        line("\u5DE5\u4E8B\u4F4D\u63D0\u5347\u591C\u6218\u9632\u7EBF\u6BD4\u503C r\uFF08\u8D8A\u63A5\u8FD1 1 \u8D8A\u7A33\u56FA\uFF09", 196);
+      } else if (top.id === "recruit") {
+        line(`\u4F4F\u6237 ${frame.population} \u4EBA \xB7 \u5BB9\u91CF ${pb2.capacity ?? 30} \u4EBA`, 120, col("text_primary"), true);
+        line("B \u680B / C \u680B D30 \u89E3\u9501\u540E\u5404 +30 \u5BB9\u91CF", 160);
+        line("\u591C\u665A\u6B7B\u4EA1\u4E0E\u6050\u614C\u6D41\u5931\u4F1A\u51CF\u5C11\u4F4F\u6237\uFF0C\u767D\u5929\u53EF\u8865\u5145", 196);
+      } else if (top.id === "upgrade") {
+        const ups = Object.keys(pb2.houseLevels).length;
+        line(`\u5DF2\u5347\u7EA7\u623F\u5C4B ${ups} \u680B \xB7 \u7B49\u7EA7\u5F71\u54CD\u65E5\u79DF\u91D1\u4E0E\u8010\u4E45`, 120, col("text_primary"), true);
+        line("\u70B9\u51FB\u4EFB\u610F\u5C0F\u5C4B\u67E5\u770B\u5F53\u524D\u7B49\u7EA7\u4E0E\u5347\u7EA7\u6D88\u8017", 160);
+        line("\u8305\u8349\u5C4B \u2192 \u7816\u77F3\u5821\u5792\u5171 6 \u7EA7\uFF08\u623F\u5C4B\u8FDB\u5316\uFF09", 196);
+      } else if (top.id === "B\u680B" || top.id === "C\u680B" || top.id === "lot_bld_b" || top.id === "lot_bld_c") {
+        const name = top.id.startsWith("lot_") ? LOTS[top.id]?.name ?? top.id : top.id;
+        line(`${name} \xB7 D30 \u89E3\u9501`, 120, col("text_primary"), true);
+        line("\u89E3\u9501\u6761\u4EF6\uFF1A\u4E3B\u7EBF\u63A8\u8FDB\u81F3\u7B2C 30 \u5929", 160);
+        line(`\u89E3\u9501\u540E\u4F4F\u6237\u5BB9\u91CF +30\uFF08\u5F53\u524D ${pb2.capacity ?? 30}\uFF09`, 196);
+      } else if (top.id.startsWith("lot_")) {
+        const lot = LOTS[top.id];
+        line(lot ? `${lot.name}${lot.unlockDay > 1 ? ` \xB7 D${lot.unlockDay} \u89E3\u9501` : " \xB7 \u5DF2\u5F00\u653E"}` : top.id, 120, col("text_primary"), true);
+        line("\u8BBE\u65BD\u8FD0\u8425\u64CD\u4F5C\u968F\u540E\u7EED\u91CC\u7A0B\u7891\u9010\u6B65\u63A5\u5165", 160);
+      } else {
+        line(top.id, 120);
+      }
     }
     /** 事件卡（§3.2 模板） */
     drawEventCard(top, y, frame, now, pb2) {
@@ -8861,6 +8899,7 @@
     const day = d + 1;
     const reports = resolveDue(world, sideState, wtables, app.constants, day);
     restoreStamina(world, sideState, app.constants);
+    pb.capacity = worldCapacity(world);
     for (const rp of reports) {
       if (rp.loot.length > 0 || rp.encounters.length > 0) {
         pb.wildReports.push([
@@ -8900,7 +8939,7 @@
       case "lot": {
         const lot = hit.id;
         if (lot === "lot_bld_a") Object.assign(ui, openBuilding(ui, lot));
-        else if (lot === "lot_gate") Object.assign(ui, openModal(ui, { kind: "panel", id: "\u5C0F\u533A\u5927\u95E8\uFF08\u91CE\u5916 M3.3 \u5F00\u653E\uFF09" }));
+        else if (lot === "lot_gate") Object.assign(ui, setPage(ui, "wild"));
         else Object.assign(ui, openModal(ui, { kind: "panel", id: lot === "lot_bld_b" ? "B\u680B" : lot === "lot_bld_c" ? "C\u680B" : lot }));
         return;
       }
