@@ -871,6 +871,7 @@
     w.parties = w.parties.filter((p) => p.returnsDay > day);
     return reports;
   }
+  var serializeWorld = (w) => canonicalJson(w);
 
   // packages/diag/src/index.ts
   function createDiagPlugin(options = {}) {
@@ -1065,12 +1066,14 @@
               const modifiers = app2.formula.bloodMoon(day) ? ["BLOOD_MOON"] : [];
               if (!app2.formula.bloodMoon(day) && (day === 17 || day === 25)) modifiers.push("SILENT");
               if (day === 11 || day === 26) modifiers.push("MIGRATE");
+              const unlockedBlds = ["lot_bld_a", ...day >= 30 ? ["lot_bld_b", "lot_bld_c"] : []];
+              const lotId = unlockedBlds[(day - 1) % unlockedBlds.length];
               const candidates = app2.monsters.entries.filter((m) => m.active && m.unlockDay <= day && (m.usableNightMods.includes("NORMAL") || m.usableNightMods.some((x) => modifiers.includes(x))));
               const routes = Array.from({ length: row.routes }, (_, i) => {
                 const m = candidates.length ? candidates[Math.floor(rng.next() * candidates.length)] : void 0;
                 return { roomId: pool[Math.floor(rng.next() * pool.length)], hp: row.hp, monsterId: m?.id ?? "m_seeker" };
               });
-              return { day, routes, modifiers, seed: rng.next() };
+              return { day, routes, modifiers, seed: rng.next(), lotId };
             }
           });
         }
@@ -1141,6 +1144,7 @@
     return t.dayCurve.rows.find((r) => r.day === d)?.population ?? 30;
   }
   function runSimulation(app2, kernel2, options) {
+    if (options.explore && !app2.world) throw new Error("explore=true \u9700\u8981 AppContext.world\uFF08\u56DB\u5F20\u4E16\u754C\u8868\uFF09");
     const { tables: tables2, constants } = app2;
     const formula = kernel2.service("formula");
     const director = kernel2.service("director");
@@ -1148,6 +1152,19 @@
     const persistence = kernel2.service("persistence");
     const state = kernel2.service("game").createState(options.seed);
     const rng = createRngStreams(options.seed);
+    const exploreOn = options.explore === true;
+    const world2 = exploreOn ? createWorldState(options.seed, app2.world) : void 0;
+    let exploreYieldTotal = 0;
+    const explorePolicy = (d) => {
+      if (!world2) return null;
+      const order = ["zn_deep_forest", "zn_ruins", "zn_farm", "zn_forest_edge"];
+      const entry = order.map((z) => app2.world.exploreDef.entries.find((e) => e.zone === z)).find((e) => e.unlockDay <= d);
+      if (!entry) return null;
+      const cost = entry.staminaCost;
+      const members = [...state.tenants].filter((t) => t.hp > 30 && (world2.stamina[String(t.id)] ?? constants.EXPLORE_STAMINA_MAX) >= cost).sort((a, b) => (world2.stamina[String(b.id)] ?? 0) - (world2.stamina[String(a.id)] ?? 0) || a.id - b.id).slice(0, Math.min(constants.EXPLORE_PARTY_MAX ?? 3, entry.partyMax));
+      if (members.length === 0) return null;
+      return { zone: entry.zone, tenantIds: members.map((m) => m.id) };
+    };
     const records = [];
     const sessions = {};
     const findings = [];
@@ -1235,6 +1252,11 @@
         };
       });
       persistence.put(`ckpt_${d}_day`, serialize(state));
+      if (exploreOn && world2) {
+        restoreStamina(world2, state, constants);
+        const plan2 = explorePolicy(d);
+        if (plan2) dispatchParty(world2, state, app2.world, constants, { zone: plan2.zone, tenantIds: plan2.tenantIds, day: d });
+      }
       checkpoints++;
       state.phase = "DUSK_FORECAST";
       const plan = director.planNight(state, d);
@@ -1246,6 +1268,14 @@
       persistence.put(`ckpt_${d}_night`, serialize(state));
       checkpoints++;
       state.phase = "DAWN_SETTLE";
+      let dayExploreYield = 0;
+      if (exploreOn && world2) {
+        const before = { ...world2.totalYield };
+        resolveDue(world2, state, app2.world, constants, d);
+        dayExploreYield = world2.totalYield.food - before.food + (world2.totalYield.water - before.water) + (world2.totalYield.material - before.material) * 2;
+        exploreYieldTotal += dayExploreYield;
+        persistence.put(`ckpt_${d}_world`, serializeWorld(world2));
+      }
       const settle = settleDawn(state, { formula, constants, rng });
       const rAvg = session.routes.length ? session.routes.reduce((a, r) => a + r.r, 0) / session.routes.length : 9.99;
       const invariantErrors = checkInvariants(state, { canteenCap: canteenCap(state, tables2.buildingDef), warehouseCap: 3e4 });
@@ -1268,7 +1298,8 @@
         targetLevel: levelForU(row.u, constants.CFG_G_U),
         panicSum: state.tenants.reduce((a, t) => a + t.panic, 0),
         spend: spent,
-        wealth: state.resources.gold + state.resources.food + state.resources.material
+        wealth: state.resources.gold + state.resources.food + state.resources.material,
+        exploreYield: exploreOn ? dayExploreYield : 0
       });
       spent = 0;
     }
@@ -1281,7 +1312,7 @@
       }
     }
     const stabilizer = stabilizerL1(records);
-    return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, eventCards, stabilizer };
+    return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, eventCards, world: exploreOn ? world2 : void 0, stabilizer };
   }
   function stabilizerL1(records) {
     const windows = [[1, 7], [8, 14], [15, 21], [22, 28], [29, 30]];
@@ -1624,18 +1655,18 @@
       },
       {
         key: "EXPLORE_YIELD_TARGET_D8",
-        value: 180,
-        min: 120,
-        max: 240,
-        desc: "D8 \u7D2F\u8BA1\u91CE\u5916\u4EA7\u51FA\u671F\u671B\u951A\u70B9\uFF08\u516D\u8D44\u6E90\u6298\u7B97\uFF09",
+        value: 480,
+        min: 288,
+        max: 672,
+        desc: "D8 \u7D2F\u8BA1\u91CE\u5916\u4EA7\u51FA\u6298\u7B97\u951A\u70B9\uFF08\u98DF\u7269/\u6C34=1\u3001\u5EFA\u6750=2\uFF1B\u5B9E\u6D4B\u6821\u51C6 2026-08-31\uFF09",
         sourceDoc: "\u4E16\u754C\u89C2\u4E0E\u7A7A\u95F4\u7ED3\u6784\u8BBE\u8BA1 \xA79.6"
       },
       {
         key: "EXPLORE_YIELD_TARGET_D30",
-        value: 900,
-        min: 600,
-        max: 1200,
-        desc: "D30 \u7D2F\u8BA1\u91CE\u5916\u4EA7\u51FA\u671F\u671B\u951A\u70B9",
+        value: 2400,
+        min: 1440,
+        max: 3360,
+        desc: "D30 \u7D2F\u8BA1\u91CE\u5916\u4EA7\u51FA\u6298\u7B97\u951A\u70B9\uFF08\u5B9E\u6D4B\u6821\u51C6 2026-08-31\uFF09",
         sourceDoc: "\u4E16\u754C\u89C2\u4E0E\u7A7A\u95F4\u7ED3\u6784\u8BBE\u8BA1 \xA79.6"
       },
       {
