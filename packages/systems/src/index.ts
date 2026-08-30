@@ -250,7 +250,7 @@ export function settleDawn(state: GameState, deps: { formula: Formula; constants
 
 // ---- 夜战（路级判定 + BattleSession 可序列化）----
 export interface NightRoute { roomId: string; hp: number; monsterId?: string }
-export interface NightPlan { day: number; routes: NightRoute[]; modifiers: string[]; seed: number }
+export interface NightPlan { day: number; routes: NightRoute[]; modifiers: string[]; seed: number; /** 目标楼栋地块（M3.0 世界空间；缺省=默认栋 A） */ lotId?: string }
 export interface RouteResult { roomId: string; f: number; hp: number; r: number; outcome: RouteOutcome; monsterId?: string }
 export interface BattleSession {
   day: number

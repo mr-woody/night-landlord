@@ -141,6 +141,9 @@ export function buildBundle(app: AppContext, options: { devtools?: boolean } = {
             const modifiers: string[] = app.formula.bloodMoon(day) ? ['BLOOD_MOON'] : []
             if (!app.formula.bloodMoon(day) && (day === 17 || day === 25)) modifiers.push('SILENT')
             if (day === 11 || day === 26) modifiers.push('MIGRATE')
+            // M3.0 D5：目标楼栋按日轮换（不消耗 RNG 流——夜战结果与 M0 锚点逐字段不变）
+            const unlockedBlds = ['lot_bld_a', ...(day >= 30 ? ['lot_bld_b', 'lot_bld_c'] : [])]
+            const lotId = unlockedBlds[(day - 1) % unlockedBlds.length]
             const candidates = app.monsters.entries.filter(m =>
               m.active && m.unlockDay <= day &&
               (m.usableNightMods.includes('NORMAL') || m.usableNightMods.some(x => modifiers.includes(x))))
@@ -148,7 +151,7 @@ export function buildBundle(app: AppContext, options: { devtools?: boolean } = {
               const m = candidates.length ? candidates[Math.floor(rng.next() * candidates.length)] : undefined
               return { roomId: pool[Math.floor(rng.next() * pool.length)], hp: row.hp, monsterId: m?.id ?? 'm_seeker' }
             })
-            return { day, routes, modifiers, seed: rng.next() }
+            return { day, routes, modifiers, seed: rng.next(), lotId }
           }
         })
       }
