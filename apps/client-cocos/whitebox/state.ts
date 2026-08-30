@@ -82,3 +82,9 @@ const NEXT: Record<Phase, Phase> = {
 export function advancePhase(s: UiState): UiState {
   return { ...s, phase: NEXT[s.phase] }
 }
+
+/** 页面切换（M2.5 功能点4：图鉴/商店/设置占位页；非 DAY 相禁航——相位 UI 优先） */
+export function setPage(s: UiState, page: PageId): UiState {
+  if (s.phase !== 'DAY') return s
+  return { ...s, page }
+}

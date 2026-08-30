@@ -1830,6 +1830,10 @@
     if (s.modals.length > 0) return { ...s, modals: s.modals.slice(0, -1) };
     return s;
   }
+  function setPage(s, page) {
+    if (s.phase !== "DAY") return s;
+    return { ...s, page };
+  }
 
   // apps/client-cocos/whitebox/layout.ts
   var DESIGN_W = 750;
@@ -1946,13 +1950,55 @@
     const r = settlePanelRect();
     return { x: r.x + r.w - HIT_MIN - T.space.s, y: r.y + r.h - HIT_MIN - T.space.s, w: HIT_MIN + T.space.l, h: HIT_MIN };
   }
-  function hitTest(x, y, modalOpen = false) {
+  function pageBackRect() {
+    return { x: M, y: HUD_H + T.space.s, w: HIT_MIN, h: HIT_MIN };
+  }
+  function pageTitleRect() {
+    return { x: M + HIT_MIN + T.space.s, y: HUD_H + T.space.s, w: DESIGN_W - M * 2 - HIT_MIN - T.space.s, h: HIT_MIN };
+  }
+  var CODEX_COLS = 3;
+  var CODEX_ROWS = 3;
+  function codexCellRect(col2, row) {
+    const gx = M, gy = HUD_H + T.space.s * 2 + HIT_MIN;
+    const cw = (DESIGN_W - M * 2 - T.space.s * (CODEX_COLS - 1)) / CODEX_COLS;
+    const ch = 240;
+    return { x: gx + col2 * (cw + T.space.s), y: gy + row * (ch + T.space.s), w: cw, h: ch };
+  }
+  var SHOP_CARDS = 3;
+  function shopCardRect(i) {
+    const w = 420, h = 560;
+    return { x: M + i * (w + T.space.s), y: HUD_H + T.space.s * 2 + HIT_MIN, w, h };
+  }
+  var SETTINGS_ROWS = [
+    { key: "codex", label: "\u56FE\u9274" },
+    { key: "shop", label: "\u5546\u5E97" },
+    { key: "sfx", label: "\u97F3\u6548" },
+    { key: "bgm", label: "\u97F3\u4E50" },
+    { key: "notice", label: "\u63A8\u9001\u901A\u77E5" }
+  ];
+  function settingsRowRect(i) {
+    return { x: M, y: HUD_H + T.space.s * 2 + HIT_MIN + i * (88 + T.space.s), w: DESIGN_W - M * 2, h: 88 };
+  }
+  function hitTest(x, y, opts = {}) {
+    const modalOpen = opts.modalOpen ?? false;
+    const page = opts.page ?? "main";
     const inRect = (r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
     if (modalOpen) {
       if (inRect(modalCloseRect())) return { kind: "modalClose" };
       if (inRect(modalConfirmRect())) return { kind: "modalConfirm" };
       if (inRect(modalOptionRect())) return { kind: "modalOption" };
       return { kind: "modal" };
+    }
+    if (page !== "main") {
+      if (inRect(pageBackRect())) return { kind: "pageBack" };
+      if (page === "settings") {
+        for (const [i, row] of SETTINGS_ROWS.entries()) {
+          if (inRect(settingsRowRect(i)) && (row.key === "codex" || row.key === "shop")) {
+            return { kind: "nav", page: row.key };
+          }
+        }
+      }
+      return { kind: "none" };
     }
     if (inRect(duskConfirmRect())) return { kind: "duskConfirm" };
     for (const [i, r] of nightSkillRects().entries()) if (inRect(r)) return { kind: "skill", index: i };
@@ -2080,12 +2126,16 @@
         case "DAY":
           ctx.fillStyle = col("bg_dawn");
           ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
-          this.drawHud(frame, now);
-          this.drawResources(frame);
-          this.drawBuilding(frame, now);
-          this.drawEventEntry(frame);
-          this.drawReport(frame);
-          this.drawDock();
+          if (ui2.page === "main") {
+            this.drawHud(frame, now);
+            this.drawResources(frame);
+            this.drawBuilding(frame, now);
+            this.drawEventEntry(frame);
+            this.drawReport(frame);
+            this.drawDock();
+          } else {
+            this.drawPage(ui2.page, now);
+          }
           this.drawModal(ui2, frame, now, pb2);
           break;
         case "DUSK_FORECAST":
@@ -2105,6 +2155,108 @@
           this.drawNightLog(frame, now, pb2);
           break;
       }
+    }
+    /** 占位页（功能点4）：图鉴 3 列网格剪影 / 商店礼包横滑 / 设置列表 */
+    drawPage(page, now) {
+      const { ctx } = this;
+      ctx.textBaseline = "middle";
+      this.button(pageBackRect(), "\u25C0 \u8FD4\u56DE", col("text_primary"), col("panel"), col("panel_stroke"));
+      const titles = { codex: "\u56FE\u9274", shop: "\u5546\u5E97", settings: "\u8BBE\u7F6E" };
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.h1, { weight: "bold" });
+      ctx.fillText(titles[page] ?? "", pageTitleRect().x, pageTitleRect().y + pageTitleRect().h / 2);
+      if (page === "codex") {
+        for (let row = 0; row < CODEX_ROWS; row++) {
+          for (let c = 0; c < CODEX_COLS; c++) {
+            const r = codexCellRect(c, row);
+            const unlocked = row === 0 && c === 0;
+            ctx.beginPath();
+            ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel);
+            ctx.fillStyle = unlocked ? withAlpha(col("success"), 0.12) : withAlpha(col("bg_night"), 0.5);
+            ctx.fill();
+            ctx.strokeStyle = unlocked ? col("success") : col("panel_stroke");
+            ctx.stroke();
+            ctx.font = font(T.typography.h1);
+            ctx.fillStyle = unlocked ? col("text_primary") : col("text_secondary");
+            ctx.fillText(unlocked ? "\u{1F9DF}" : "\u{1F512}", r.x + r.w / 2 - 18, r.y + r.h / 2 - 16);
+            ctx.font = font(T.typography.caption);
+            ctx.fillText(unlocked ? "\u5FAA\u58F0\u8005" : "\u672A\u89E3\u9501", r.x + r.w / 2 - 24, r.y + r.h - 40);
+          }
+        }
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText("\u5360\u4F4D\uFF1AM3 \u6309\u602A\u7269\u8FDB\u5316\u6811/\u4F4F\u6237\u540D\u518C\u586B\u5145", T.space.l, codexCellRect(0, CODEX_ROWS - 1).y + 240 + 40);
+      } else if (page === "shop") {
+        const names = ["\u9996\u5145\u53CC\u500D", "\u7269\u8D44\u8865\u7ED9\u5305", "\u5929\u8D4B\u77F3\u793C\u5305"];
+        const prices = ["\xA56", "\xA530", "\xA568"];
+        const was = ["\xA512", "\xA545", "\xA598"];
+        for (let i = 0; i < SHOP_CARDS; i++) {
+          const r = shopCardRect(i);
+          ctx.beginPath();
+          ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel);
+          ctx.fillStyle = col("panel");
+          ctx.fill();
+          ctx.strokeStyle = i === 0 ? col("gold_deep") : col("panel_stroke");
+          ctx.stroke();
+          ctx.fillStyle = col("text_secondary");
+          ctx.font = font(T.typography.h1);
+          ctx.fillText("\u{1F381}", r.x + r.w / 2 - 20, r.y + 140);
+          ctx.fillStyle = col("text_primary");
+          ctx.font = font(T.typography.h2, { weight: "bold" });
+          ctx.fillText(names[i], r.x + T.space.m, r.y + 280);
+          ctx.fillStyle = col("text_secondary");
+          ctx.font = font(T.typography.body);
+          ctx.fillText(was[i], r.x + T.space.m, r.y + 340);
+          const ww = ctx.measureText(was[i]).width;
+          ctx.strokeStyle = col("danger");
+          ctx.beginPath();
+          ctx.moveTo(r.x + T.space.m, r.y + 340);
+          ctx.lineTo(r.x + T.space.m + ww, r.y + 340);
+          ctx.stroke();
+          ctx.fillStyle = col("gold_primary");
+          ctx.font = font(T.typography.h2, { weight: "bold" });
+          ctx.fillText(prices[i], r.x + T.space.m + ww + T.space.s, r.y + 340);
+          if (i === 0) {
+            ctx.fillStyle = col("alert_blood");
+            ctx.font = font(T.typography.caption, { weight: "bold" });
+            ctx.fillText("\u53CC\u500D", r.x + r.w - 96, r.y + 40);
+          }
+        }
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText("\u5360\u4F4D\uFF1ASKU \u8D70 iap_sku.json\uFF0CIAA/IAP \u5408\u89C4\u5BA1\u67E5\u540E\u63A5\u5165", T.space.l, shopCardRect(0).y + 560 + 40);
+      } else {
+        for (const [i, row] of SETTINGS_ROWS.entries()) {
+          const r = settingsRowRect(i);
+          ctx.beginPath();
+          ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn);
+          ctx.fillStyle = col("panel");
+          ctx.fill();
+          ctx.strokeStyle = col("panel_stroke");
+          ctx.stroke();
+          ctx.fillStyle = col("text_primary");
+          ctx.font = font(T.typography.body);
+          ctx.fillText(row.label, r.x + T.space.m, r.y + r.h / 2);
+          if (row.key === "codex" || row.key === "shop") {
+            ctx.fillStyle = col("text_secondary");
+            ctx.fillText("\u25B6", r.x + r.w - T.space.l, r.y + r.h / 2);
+          } else {
+            const tw = 96;
+            ctx.beginPath();
+            ctx.roundRect(r.x + r.w - tw - T.space.m, r.y + r.h / 2 - 24, tw, 48, 24);
+            ctx.fillStyle = withAlpha(col("success"), 0.3);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(r.x + r.w - tw - T.space.m + tw - 24, r.y + r.h / 2, 18, 0, Math.PI * 2);
+            ctx.fillStyle = col("success");
+            ctx.fill();
+          }
+        }
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText("\u5B58\u6863\u4E09\u68C0\u67E5\u70B9\uFF1A\u65E5\u95F4/\u9EC4\u660F/\u591C\u6218\uFF08fail-safe \u6062\u590D\uFF09", T.space.l, settingsRowRect(SETTINGS_ROWS.length - 1).y + 88 + 40);
+      }
+      void now;
     }
     bgBase(c) {
       this.ctx.fillStyle = c;
@@ -2695,8 +2847,14 @@
     const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
     const now = performance.now();
     const modalOpen = topModal(ui) !== void 0;
-    const hit = hitTest(x, y, modalOpen);
+    const hit = hitTest(x, y, { modalOpen, page: ui.page });
     switch (hit.kind) {
+      case "pageBack":
+        Object.assign(ui, setPage(ui, "main"));
+        return;
+      case "nav":
+        Object.assign(ui, setPage(ui, hit.page));
+        return;
       case "modalClose": {
         const wasEvent = topModal(ui)?.kind === "event";
         Object.assign(ui, closeModal(ui));
@@ -2751,7 +2909,7 @@
         else Object.assign(ui, openModal(ui, { kind: "panel", id: hit.key }));
         return;
       case "settings":
-        Object.assign(ui, openModal(ui, { kind: "panel", id: "settings" }));
+        Object.assign(ui, setPage(ui, "settings"));
         return;
       case "eventEntry": {
         const card = frames[idx]?.eventCards[0];
@@ -2789,6 +2947,7 @@
       eventCards: [...sim.eventCards[r.day] ?? []].sort((a, b) => b.weight - a.weight)
     }));
     const want = new URLSearchParams(location.search).get("phase");
+    const wantPage = new URLSearchParams(location.search).get("page");
     renderer.start(
       () => {
         const f = frames[idx];
@@ -2818,6 +2977,7 @@
       ui.phase = "DAWN_SETTLE";
       pb.settleStart = performance.now();
     } else enterDay(0);
+    if (wantPage === "codex" || wantPage === "shop" || wantPage === "settings") ui.page = wantPage;
     console.log(`\u767D\u76D2\u64AD\u653E\u5C31\u7EEA\uFF1A${frames.length} \u5929\uFF0C\u4E8B\u4EF6 ${sim.eventsFired} \u6B21\uFF0C\u72EC\u7ACB ${sim.distinctFired.length}`);
   });
 })();

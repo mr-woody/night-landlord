@@ -13,7 +13,7 @@ import type { BattleSession } from '../../../packages/systems/src/index.ts'
 import { WhiteboxRenderer, fpsReport, type DayFrame, type Playback } from './renderer.ts'
 import { col, motion } from './theme.ts'
 import {
-  createUiState, openModal, closeModal, topModal, pushEvent,
+  createUiState, openModal, closeModal, topModal, pushEvent, setPage,
   type UiState
 } from './state.ts'
 import { DESIGN_W, DESIGN_H, hitTest } from './layout.ts'
@@ -80,8 +80,14 @@ canvas.addEventListener('click', ev => {
   const y = (ev.clientY - rect.top) * (canvas.height / rect.height)
   const now = performance.now()
   const modalOpen = topModal(ui) !== undefined
-  const hit = hitTest(x, y, modalOpen)
+  const hit = hitTest(x, y, { modalOpen, page: ui.page })
   switch (hit.kind) {
+    case 'pageBack':
+      Object.assign(ui, setPage(ui, 'main'))
+      return
+    case 'nav':
+      Object.assign(ui, setPage(ui, hit.page))
+      return
     case 'modalClose': {
       const wasEvent = topModal(ui)?.kind === 'event'
       Object.assign(ui, closeModal(ui))
@@ -137,7 +143,7 @@ canvas.addEventListener('click', ev => {
       else Object.assign(ui, openModal(ui, { kind: 'panel', id: hit.key }))
       return
     case 'settings':
-      Object.assign(ui, openModal(ui, { kind: 'panel', id: 'settings' }))
+      Object.assign(ui, setPage(ui, 'settings'))
       return
     case 'eventEntry': {
       const card = frames[idx]?.eventCards[0]
@@ -168,8 +174,9 @@ boot.then(() => {
     breachedRooms: (sim.sessions[r.day]?.routes ?? []).filter(rt => rt.r < 0.95).map(rt => rt.roomId),
     eventCards: [...(sim.eventCards[r.day] ?? [])].sort((a, b) => b.weight - a.weight)
   }))
-  // 冒烟调试入口：?phase=day|dusk|night|dawn 直接进入对应相（供 headless 截图）
+  // 冒烟调试入口：?phase=day|dusk|night|dawn 进入对应相；?page=codex|shop|settings 直达占位页
   const want = new URLSearchParams(location.search).get('phase')
+  const wantPage = new URLSearchParams(location.search).get('page')
   renderer.start(
     () => {
       const f = frames[idx]
@@ -193,5 +200,6 @@ boot.then(() => {
   else if (want === 'night') { idx = 6; ui.phase = 'NIGHT'; pb.nightStart = performance.now(); pb.session = simSessions[7] ?? null }
   else if (want === 'dawn') { idx = 6; ui.phase = 'DAWN_SETTLE'; pb.settleStart = performance.now() }
   else enterDay(0)
+  if (wantPage === 'codex' || wantPage === 'shop' || wantPage === 'settings') ui.page = wantPage
   console.log(`白盒播放就绪：${frames.length} 天，事件 ${sim.eventsFired} 次，独立 ${sim.distinctFired.length}`)
 })

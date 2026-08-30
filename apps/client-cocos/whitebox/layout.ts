@@ -150,6 +150,38 @@ export function settleContinueRect(): Rect {
   return { x: r.x + r.w - HIT_MIN - T.space.s, y: r.y + r.h - HIT_MIN - T.space.s, w: HIT_MIN + T.space.l, h: HIT_MIN }
 }
 
+// ---- 占位页（M2.5 功能点4：图鉴 3 列网格 / 商店礼包横滑 / 设置列表）----
+export function pageBackRect(): Rect {
+  return { x: M, y: HUD_H + T.space.s, w: HIT_MIN, h: HIT_MIN }
+}
+export function pageTitleRect(): Rect {
+  return { x: M + HIT_MIN + T.space.s, y: HUD_H + T.space.s, w: DESIGN_W - M * 2 - HIT_MIN - T.space.s, h: HIT_MIN }
+}
+export const CODEX_COLS = 3
+export const CODEX_ROWS = 3
+export function codexCellRect(col: number, row: number): Rect {
+  const gx = M, gy = HUD_H + T.space.s * 2 + HIT_MIN
+  const cw = (DESIGN_W - M * 2 - T.space.s * (CODEX_COLS - 1)) / CODEX_COLS
+  const ch = 240
+  return { x: gx + col * (cw + T.space.s), y: gy + row * (ch + T.space.s), w: cw, h: ch }
+}
+export const SHOP_CARDS = 3
+export function shopCardRect(i: number): Rect {
+  // 礼包卡横滑：卡片宽 420，横向排列可滑动（白盒首卡对齐）
+  const w = 420, h = 560
+  return { x: M + i * (w + T.space.s), y: HUD_H + T.space.s * 2 + HIT_MIN, w, h }
+}
+export const SETTINGS_ROWS: { key: string; label: string }[] = [
+  { key: 'codex', label: '图鉴' },
+  { key: 'shop', label: '商店' },
+  { key: 'sfx', label: '音效' },
+  { key: 'bgm', label: '音乐' },
+  { key: 'notice', label: '推送通知' }
+]
+export function settingsRowRect(i: number): Rect {
+  return { x: M, y: HUD_H + T.space.s * 2 + HIT_MIN + i * (88 + T.space.s), w: DESIGN_W - M * 2, h: 88 }
+}
+
 // ---- 命中测试（点击 → 元素），自上而下优先（模态/dock 先于背景）----
 export type HitTarget =
   | { kind: 'dock'; key: DockKey }
@@ -164,9 +196,13 @@ export type HitTarget =
   | { kind: 'skill'; index: number }
   | { kind: 'nightBack' }
   | { kind: 'settleContinue' }
+  | { kind: 'pageBack' }
+  | { kind: 'nav'; page: 'codex' | 'shop' }
   | { kind: 'none' }
 
-export function hitTest(x: number, y: number, modalOpen = false): HitTarget {
+export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?: string } = {}): HitTarget {
+  const modalOpen = opts.modalOpen ?? false
+  const page = opts.page ?? 'main'
   const inRect = (r: Rect): boolean => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h
   if (modalOpen) {
     // 模态打开：确认/关闭可点，其余点击不穿透
@@ -174,6 +210,18 @@ export function hitTest(x: number, y: number, modalOpen = false): HitTarget {
     if (inRect(modalConfirmRect())) return { kind: 'modalConfirm' }
     if (inRect(modalOptionRect())) return { kind: 'modalOption' }
     return { kind: 'modal' }
+  }
+  // 占位页接管（图鉴/商店/设置）：返回键 + 站内导航
+  if (page !== 'main') {
+    if (inRect(pageBackRect())) return { kind: 'pageBack' }
+    if (page === 'settings') {
+      for (const [i, row] of SETTINGS_ROWS.entries()) {
+        if (inRect(settingsRowRect(i)) && (row.key === 'codex' || row.key === 'shop')) {
+          return { kind: 'nav', page: row.key }
+        }
+      }
+    }
+    return { kind: 'none' }
   }
   // 全屏接管面（DUSK 确认 / NIGHT 面板 / DAWN 结算）优先于主界面元素
   if (inRect(duskConfirmRect())) return { kind: 'duskConfirm' }

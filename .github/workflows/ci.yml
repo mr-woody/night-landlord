@@ -17,6 +17,7 @@ jobs:
       - run: npm test
       - run: node scripts/check-config.mjs
       - run: npm run check:theme
+      - run: npm run check:ui
       - run: npm run verify -- --design
       - run: npm run depgraph -- --check
       - run: npm run sync:cocos && npm run sync:cocos:check

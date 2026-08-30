@@ -12,7 +12,9 @@ import {
   modalRect, modalCloseRect, modalConfirmRect, modalOptionRect, FLOORS, ROOMS_PER_FLOOR,
   nightRouteRect, nightSkillRects, nightLogRect, nightBackRect,
   duskBannerRect, duskConfirmRect,
-  settlePanelRect, settleCounterRect, settlePopRect, settleContinueRect, SETTLE_POP_MAX
+  settlePanelRect, settleCounterRect, settlePopRect, settleContinueRect, SETTLE_POP_MAX,
+  pageBackRect, pageTitleRect, codexCellRect, CODEX_COLS, CODEX_ROWS, shopCardRect, SHOP_CARDS,
+  settingsRowRect, SETTINGS_ROWS
 } from './layout.ts'
 import {
   nightWaves, OUTCOME_LABEL, counterValue, popProgress, settleDoneAt,
@@ -111,12 +113,16 @@ export class WhiteboxRenderer {
       case 'DAY':
         ctx.fillStyle = col('bg_dawn')
         ctx.fillRect(0, 0, DESIGN_W, DESIGN_H)
-        this.drawHud(frame, now)
-        this.drawResources(frame)
-        this.drawBuilding(frame, now)
-        this.drawEventEntry(frame)
-        this.drawReport(frame)
-        this.drawDock()
+        if (ui.page === 'main') {
+          this.drawHud(frame, now)
+          this.drawResources(frame)
+          this.drawBuilding(frame, now)
+          this.drawEventEntry(frame)
+          this.drawReport(frame)
+          this.drawDock()
+        } else {
+          this.drawPage(ui.page, now)
+        }
         this.drawModal(ui, frame, now, pb)
         break
       case 'DUSK_FORECAST':
@@ -136,6 +142,110 @@ export class WhiteboxRenderer {
         this.drawNightLog(frame, now, pb)
         break
     }
+  }
+
+  /** 占位页（功能点4）：图鉴 3 列网格剪影 / 商店礼包横滑 / 设置列表 */
+  private drawPage(page: 'main' | 'codex' | 'shop' | 'settings', now: number): void {
+    const { ctx } = this
+    ctx.textBaseline = 'middle'
+    this.button(pageBackRect(), '◀ 返回', col('text_primary'), col('panel'), col('panel_stroke'))
+    const titles: Record<string, string> = { codex: '图鉴', shop: '商店', settings: '设置' }
+    ctx.fillStyle = col('text_primary')
+    ctx.font = font(T.typography.h1, { weight: 'bold' })
+    ctx.fillText(titles[page] ?? '', pageTitleRect().x, pageTitleRect().y + pageTitleRect().h / 2)
+    if (page === 'codex') {
+      // 3 列网格：首格解锁样例，其余未解锁剪影 + 锁图标（§3.5）
+      for (let row = 0; row < CODEX_ROWS; row++) {
+        for (let c = 0; c < CODEX_COLS; c++) {
+          const r = codexCellRect(c, row)
+          const unlocked = row === 0 && c === 0
+          ctx.beginPath()
+          ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel)
+          ctx.fillStyle = unlocked ? withAlpha(col('success'), 0.12) : withAlpha(col('bg_night'), 0.5)
+          ctx.fill()
+          ctx.strokeStyle = unlocked ? col('success') : col('panel_stroke')
+          ctx.stroke()
+          ctx.font = font(T.typography.h1)
+          ctx.fillStyle = unlocked ? col('text_primary') : col('text_secondary')
+          ctx.fillText(unlocked ? '🧟' : '🔒', r.x + r.w / 2 - 18, r.y + r.h / 2 - 16)
+          ctx.font = font(T.typography.caption)
+          ctx.fillText(unlocked ? '循声者' : '未解锁', r.x + r.w / 2 - 24, r.y + r.h - 40)
+        }
+      }
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.fillText('占位：M3 按怪物进化树/住户名册填充', T.space.l, codexCellRect(0, CODEX_ROWS - 1).y + 240 + 40)
+    } else if (page === 'shop') {
+      // 礼包卡横滑（§3.5）：首充双倍角标 alert_blood，价格锚点删除线对比
+      const names = ['首充双倍', '物资补给包', '天赋石礼包']
+      const prices = ['¥6', '¥30', '¥68']
+      const was = ['¥12', '¥45', '¥98']
+      for (let i = 0; i < SHOP_CARDS; i++) {
+        const r = shopCardRect(i)
+        ctx.beginPath()
+        ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel)
+        ctx.fillStyle = col('panel')
+        ctx.fill()
+        ctx.strokeStyle = i === 0 ? col('gold_deep') : col('panel_stroke')
+        ctx.stroke()
+        ctx.fillStyle = col('text_secondary')
+        ctx.font = font(T.typography.h1)
+        ctx.fillText('🎁', r.x + r.w / 2 - 20, r.y + 140)
+        ctx.fillStyle = col('text_primary')
+        ctx.font = font(T.typography.h2, { weight: 'bold' })
+        ctx.fillText(names[i], r.x + T.space.m, r.y + 280)
+        ctx.fillStyle = col('text_secondary')
+        ctx.font = font(T.typography.body)
+        ctx.fillText(was[i], r.x + T.space.m, r.y + 340)
+        const ww = ctx.measureText(was[i]).width
+        ctx.strokeStyle = col('danger')
+        ctx.beginPath(); ctx.moveTo(r.x + T.space.m, r.y + 340); ctx.lineTo(r.x + T.space.m + ww, r.y + 340); ctx.stroke()
+        ctx.fillStyle = col('gold_primary')
+        ctx.font = font(T.typography.h2, { weight: 'bold' })
+        ctx.fillText(prices[i], r.x + T.space.m + ww + T.space.s, r.y + 340)
+        if (i === 0) {
+          ctx.fillStyle = col('alert_blood')
+          ctx.font = font(T.typography.caption, { weight: 'bold' })
+          ctx.fillText('双倍', r.x + r.w - 96, r.y + 40)
+        }
+      }
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.fillText('占位：SKU 走 iap_sku.json，IAA/IAP 合规审查后接入', T.space.l, shopCardRect(0).y + 560 + 40)
+    } else {
+      // 设置列表：导航行 + 开关占位
+      for (const [i, row] of SETTINGS_ROWS.entries()) {
+        const r = settingsRowRect(i)
+        ctx.beginPath()
+        ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn)
+        ctx.fillStyle = col('panel')
+        ctx.fill()
+        ctx.strokeStyle = col('panel_stroke')
+        ctx.stroke()
+        ctx.fillStyle = col('text_primary')
+        ctx.font = font(T.typography.body)
+        ctx.fillText(row.label, r.x + T.space.m, r.y + r.h / 2)
+        if (row.key === 'codex' || row.key === 'shop') {
+          ctx.fillStyle = col('text_secondary')
+          ctx.fillText('▶', r.x + r.w - T.space.l, r.y + r.h / 2)
+        } else {
+          // 开关占位（on）
+          const tw = 96
+          ctx.beginPath()
+          ctx.roundRect(r.x + r.w - tw - T.space.m, r.y + r.h / 2 - 24, tw, 48, 24)
+          ctx.fillStyle = withAlpha(col('success'), 0.3)
+          ctx.fill()
+          ctx.beginPath()
+          ctx.arc(r.x + r.w - tw - T.space.m + tw - 24, r.y + r.h / 2, 18, 0, Math.PI * 2)
+          ctx.fillStyle = col('success')
+          ctx.fill()
+        }
+      }
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.fillText('存档三检查点：日间/黄昏/夜战（fail-safe 恢复）', T.space.l, settingsRowRect(SETTINGS_ROWS.length - 1).y + 88 + 40)
+    }
+    void now
   }
 
   private bgBase(c: string): void {

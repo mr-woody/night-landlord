@@ -92,9 +92,9 @@ test('命中测试：模态开启时不穿透、关闭按钮可点；dock/设置
   const st = settingsRect()
   assert.equal(hitTest(st.x + 10, st.y + 10).kind, 'settings')
   // 模态态
-  const close = hitTest(0, 0, true)
+  const close = hitTest(0, 0, { modalOpen: true })
   assert.equal(close.kind, 'modal', '模态外点击不穿透（左上角非关闭钮）')
-  const anyClose = hitTest(DESIGN_W - 90, DESIGN_H - 84, true)
+  const anyClose = hitTest(DESIGN_W - 90, DESIGN_H - 84, { modalOpen: true })
   assert.equal(anyClose.kind, 'modalClose', '模态右下关闭钮可命中')
   assert.equal(hitTest(1, DESIGN_H - 1).kind, 'none', 'dock 之下空白处无命中')
 })
