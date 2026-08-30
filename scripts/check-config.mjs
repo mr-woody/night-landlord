@@ -72,7 +72,9 @@ check(sku.entries.filter(s => s.type === 'firstCharge').length === 1, 'firstChar
 // ---- event_lib（M1 首版：scripted 组 8 条）----
 const ev = load('event_lib.json')
 const scripted = ev.entries.filter(e => e.type === 'scripted')
-check(scripted.length === 8, `M1 event_lib scripted 应为 8 条，实际 ${scripted.length}`)
+check(scripted.length === 8, `event_lib scripted 应为 8 条，实际 ${scripted.length}`)
+check(ev.entries.length === 50, `event_lib 总数应为 50，实际 ${ev.entries.length}`)
+check(ev.entries.every(e => e.weight >= 0 && e.cooldownDays >= 0), 'event_lib weight/cooldown 越界')
 const ids = new Set(ev.entries.map(e => e.id))
 check(ids.size === ev.entries.length, 'event_lib 存在重复 id')
 ev.entries.forEach(e => {
