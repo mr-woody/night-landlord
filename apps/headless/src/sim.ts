@@ -192,7 +192,7 @@ export interface DayRecord {
   day: number; population: number; roomsBuilt: number; gold: number; income: number; power: number
   rAvg: number; deaths: number; wounds: number; sessionHash: string; invariantErrors: string[]
   events: number; checkpoints: number; avgLevel: number; targetLevel: number
-  panicSum: number; spend: number; wealth: number
+  panicSum: number; spend: number; wealth: number; modifiers: string[]
 }
 
 function target(d: number, t: Tables): number {
@@ -201,7 +201,7 @@ function target(d: number, t: Tables): number {
 
 export function runSimulation(
   app: AppContext, kernel: Kernel, options: { days: number; seed: number }
-): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number; distinctFired: string[] } {
+): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number; distinctFired: string[]; eventCounts: Record<string, number> } {
   const { tables, constants } = app
   const formula = kernel.service<ReturnType<typeof createFormula>>('formula')
   const director = kernel.service<DirectorService>('director')
@@ -213,6 +213,7 @@ export function runSimulation(
   const sessions: Record<number, BattleSession> = {}
   const findings: string[] = []
   const distinctFired = new Set<string>()
+  const eventCounts: Record<string, number> = {}
   let eventsFired = 0
   let spent = 0
   let checkpoints = 0
@@ -279,6 +280,7 @@ export function runSimulation(
       applyEffects(state, ev.effects, { constants, buildingDef: tables.buildingDef })
       events++
       distinctFired.add(ev.id)
+      eventCounts[ev.id] = (eventCounts[ev.id] ?? 0) + 1
     }
     eventsFired += events
     persistence.put(`ckpt_${d}_day`, serialize(state))
@@ -303,7 +305,7 @@ export function runSimulation(
       day: d, population: state.tenants.length, roomsBuilt: state.roomsBuilt, gold: state.resources.gold,
       income: settle.income, power: state.defense.power, rAvg: Math.round(rAvg * 1000) / 1000,
       deaths: session.deaths, wounds: session.wounds, sessionHash: session.settlementHash,
-      invariantErrors, events, checkpoints: 3,
+      invariantErrors, events, checkpoints: 3, modifiers: plan.modifiers,
       avgLevel: state.tenants.length ? Math.round(state.tenants.reduce((a, t) => a + t.level, 0) / state.tenants.length * 10) / 10 : 0,
       targetLevel: levelForU(row.u, constants.CFG_G_U),
       panicSum: state.tenants.reduce((a, t) => a + t.panic, 0),
@@ -319,7 +321,7 @@ export function runSimulation(
       findings.push(`β_sim D${[1, 8, 15, 22][i]}-=${simBeta[i]}% vs 设计 ${designed[i]}%：升级线跟踪偏离（M2 FINDING-1 已闭环，此处为实际运行偏差）`)
     }
   }
-  return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired] }
+  return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts }
 }
 
 export function betaSim(records: DayRecord[], tables: Tables): number[] {

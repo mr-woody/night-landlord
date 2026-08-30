@@ -78,6 +78,13 @@ function cmdVerify(app: AppContext, kernel: Kernel, args: Record<string, string>
     const sumTable = app.tables.dayCurve.rows.filter((r: { day: number; income: number }) => r.day >= 1 && r.day <= 30).reduce((x: number, r: { income: number }) => x + r.income, 0)
     const sumSim = a.records.reduce((x, r) => x + r.income, 0)
     results.push({ name: 'V10 ΣI within ±10% of design', ok: Math.abs(sumSim - sumTable) / sumTable <= 0.1, detail: `sim=${sumSim} vs design=${sumTable}` })
+    // V11 特殊夜可复现：MIGRATE@D11/D26、SILENT@D17/D25
+    const modsAt = (d: number): string[] => a.records.find(r => r.day === d)?.modifiers ?? []
+    results.push({ name: 'V11 特殊夜调度', ok: modsAt(11).includes('MIGRATE') && modsAt(17).includes('SILENT') && modsAt(26).includes('MIGRATE') && modsAt(25).includes('SILENT'),
+      detail: `D11=${modsAt(11).join('/')} D17=${modsAt(17).join('/')} D25=${modsAt(25).join('/')} D26=${modsAt(26).join('/')}` })
+    // V12 事件频控：任一非 scripted 事件 30 天触发 ≤3 次
+    const maxFired = Math.max(0, ...Object.values(a.eventCounts))
+    results.push({ name: 'V12 事件频控 ≤3', ok: maxFired <= 3, detail: `最大触发 ${maxFired} 次` })
   }
 
   let ok = true
