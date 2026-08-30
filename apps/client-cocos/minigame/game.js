@@ -244,6 +244,46 @@ var constants_default = {
       max: 300,
       desc: "M1 \u767D\u76D2\u5EFA\u623F\u5355\u4EF7\uFF08\u91D1\u5E01/\u95F4\uFF09",
       sourceDoc: "M1 \u5B9E\u73B0"
+    },
+    {
+      key: "UPGRADE_BASE",
+      value: 1,
+      min: 1,
+      max: 10,
+      desc: "\u4F4F\u6237\u5347\u7EA7\u57FA\u7840\u6210\u672C\uFF08\u91D1\u5E01\uFF0CM2 FINDING-1 \u95ED\u73AF\uFF09",
+      sourceDoc: "M2 \u53EF\u6267\u884C\u76EE\u6807 \u529F\u80FD\u70B91"
+    },
+    {
+      key: "UPGRADE_GROWTH",
+      value: 1.18,
+      min: 1.18,
+      max: 1.18,
+      desc: "\u5347\u7EA7\u6210\u672C\u7EA7\u589E\u7CFB\u6570\uFF08\u5408\u540C\u56FA\u5B9A\uFF09",
+      sourceDoc: "M2 \u53EF\u6267\u884C\u76EE\u6807 \u529F\u80FD\u70B91"
+    },
+    {
+      key: "GUARD_POWER",
+      value: 15,
+      min: 10,
+      max: 25,
+      desc: "\u5B88\u536B\u5C97\u4F4D\u6218\u529B\u8D21\u732E",
+      sourceDoc: "M2 \u529F\u80FD\u70B94"
+    },
+    {
+      key: "CLINIC_HEAL_HP",
+      value: 10,
+      min: 5,
+      max: 20,
+      desc: "\u533B\u52A1\u5BA4\u6BCF\u7EA7\u6CBB\u7597 HP",
+      sourceDoc: "M2 \u529F\u80FD\u70B94"
+    },
+    {
+      key: "CURFEW_DECAY_BONUS",
+      value: 5,
+      min: 3,
+      max: 8,
+      desc: "\u5BB5\u7981\u516C\u7EA6\u6050\u614C\u8870\u51CF\u52A0\u6210",
+      sourceDoc: "M2 \u529F\u80FD\u70B94"
     }
   ]
 };
