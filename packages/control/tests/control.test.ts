@@ -1,7 +1,10 @@
-// @rn/control 单测：合并/拒绝非法键/类型守卫/回滚（base 不变）/留痕。
+// @rn/control 单测：覆盖合并/拒绝非法键/类型守卫/回滚（base 不变）/留痕 + OverlaySource 契约（E4）。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { applyOverlay, validateOverlayFile, MemoryOverlaySource, type OverlayFile } from '../src/index.ts'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { applyOverlay, validateOverlayFile, MemoryOverlaySource, FileOverlaySource, type OverlayFile } from '../src/index.ts'
 
 const base = { version: 1, entries: [{ key: 'CFG_R0', value: 100 }, { key: 'CFG_G_T', value: 1.15 }] }
 
@@ -26,18 +29,19 @@ test('拒绝：键不存在 / 类型不符（防手误注入新逻辑位）', ()
   assert.equal(r.merged.entries[1].value, 1.15)
 })
 
-test('OverlaySource：Memory 源加载 + 文件结构校验拒绝坏形状（E4 契约）', async () => {
-  const { MemoryOverlaySource, validateOverlayFile } = await import('../src/index.ts')
-  const src = new MemoryOverlaySource({ version: 2, patches: { constants: { 'entries.CFG_R0.value': 110 } } })
-  const file = await src.load()
-  const v = validateOverlayFile(file)
+test('OverlaySource 契约：Memory/File 源加载 + 结构校验 + 应用闭环', async () => {
+  const file: OverlayFile = { version: 2, patches: { constants: { 'entries.CFG_R0.value': 110 } } }
+  const loaded = await new MemoryOverlaySource(file).load()
+  const v = validateOverlayFile(loaded)
   assert.equal(v.ok, true)
+  if (v.ok) assert.equal(applyOverlay('constants', base, v.file).merged.entries[0].value, 110)
+
+  const dir = mkdtempSync(join(tmpdir(), 'ov-'))
+  const fp = join(dir, 'ov.json')
+  writeFileSync(fp, JSON.stringify(file))
+  const fromFile = await new FileOverlaySource(fp).load()
+  assert.equal(fromFile.version, 2)
+
   assert.equal(validateOverlayFile({ version: 0 }).ok, false)
   assert.equal(validateOverlayFile(null).ok, false)
-  // 应用契约闭环：load→validate→applyOverlay 生效
-  if (v.ok) {
-    const localBase = { version: 1, entries: [{ key: 'CFG_R0', value: 100 }, { key: 'CFG_G_T', value: 1.15 }] }
-    const r = applyOverlay('constants', localBase, v.file)
-    assert.equal(r.merged.entries[0].value, 110)
-  }
 })
