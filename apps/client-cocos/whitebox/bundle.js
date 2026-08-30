@@ -2886,7 +2886,7 @@
         if (ui.phase === "DUSK_FORECAST") {
           ui.phase = "NIGHT";
           pb.nightStart = now;
-          pb.session = simSessions[idx] ?? null;
+          pb.session = simSessions[idx + 1] ?? null;
           pb.logs = [];
         }
         return;

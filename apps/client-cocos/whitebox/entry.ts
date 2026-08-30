@@ -112,7 +112,7 @@ canvas.addEventListener('click', ev => {
       if (ui.phase === 'DUSK_FORECAST') {
         ui.phase = 'NIGHT'
         pb.nightStart = now
-        pb.session = simSessions[idx] ?? null
+        pb.session = simSessions[idx + 1] ?? null // frames[idx]=D{idx+1}，其夜战为 sessions[D]
         pb.logs = []
       }
       return

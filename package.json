@@ -18,6 +18,7 @@
     "check:ui": "node scripts/check-ui-compliance.mjs",
     "gen:assets": "node scripts/gen-assets.mjs",
     "check:assets": "node scripts/check-assets.mjs",
+    "sync:creator": "node scripts/sync-creator.mjs && node scripts/gen-creator-scene.mjs",
     "build:whitebox": "esbuild apps/client-cocos/whitebox/entry.ts --bundle --outfile=apps/client-cocos/whitebox/bundle.js",
     "sync:cocos": "node scripts/sync-cocos.mjs",
     "sync:cocos:check": "node scripts/sync-cocos.mjs --check",
