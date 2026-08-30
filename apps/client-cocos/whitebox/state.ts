@@ -6,7 +6,7 @@
 import type { EventCardMeta } from '../../../apps/headless/src/sim.ts'
 
 export type Phase = 'DAWN_SETTLE' | 'DAY' | 'DUSK_FORECAST' | 'NIGHT'
-export type PageId = 'main' | 'codex' | 'shop' | 'settings'
+export type PageId = 'map' | 'main' | 'interior' | 'codex' | 'shop' | 'settings'
 export type DockKey = 'deploy' | 'recruit' | 'upgrade' | 'night'
 
 export type ModalKind = 'panel' | 'event' | 'confirmNight'
@@ -22,6 +22,8 @@ export interface Modal {
 export interface UiState {
   phase: Phase
   page: PageId
+  /** 空间选中项：楼栋（L2→楼内）与楼层/房间（→L3 室内） */
+  sel: { lot?: string; floor?: number; room?: number }
   /** 常规模态栈（panel/confirmNight）：LIFO 恢复 */
   modals: Modal[]
   /** 事件卡打断队列：最多 2，先进后出恢复；展示优先级高于常规模态栈 */
@@ -31,7 +33,7 @@ export interface UiState {
 export const EVENT_QUEUE_MAX = 2
 
 export function createUiState(): UiState {
-  return { phase: 'DAY', page: 'main', modals: [], eventQueue: [] }
+  return { phase: 'DAY', page: 'map', sel: {}, modals: [], eventQueue: [] }
 }
 
 /** 当前应展示的模态：事件卡优先（打断），否则常规模态栈顶 */
@@ -83,8 +85,18 @@ export function advancePhase(s: UiState): UiState {
   return { ...s, phase: NEXT[s.phase] }
 }
 
-/** 页面切换（M2.5 功能点4：图鉴/商店/设置占位页；非 DAY 相禁航——相位 UI 优先） */
+/** 页面切换（M2.5 功能点4 + M3.0 三层空间；非 DAY 相禁航——相位 UI 优先） */
 export function setPage(s: UiState, page: PageId): UiState {
   if (s.phase !== 'DAY') return s
   return { ...s, page }
+}
+
+/** 进入楼栋（L2→楼内楼层视图）与房间（→L3 室内） */
+export function openBuilding(s: UiState, lotId: string): UiState {
+  if (s.phase !== 'DAY') return s
+  return { ...s, page: 'main', sel: { lot: lotId } }
+}
+export function openInterior(s: UiState, floor: number, room: number): UiState {
+  if (s.phase !== 'DAY') return s
+  return { ...s, page: 'interior', sel: { ...s.sel, floor, room } }
 }

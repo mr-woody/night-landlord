@@ -1230,8 +1230,8 @@
 
   // config/constants.json
   var constants_default = {
-    version: 1,
-    sourceDoc: "docs/M0-\u6570\u503C\u6A21\u578B-\u4E09\u66F2\u7EBF\u8C03\u53C2\u8868.md \xA72 / docs/\u6280\u672F\u67B6\u6784\u4E0E\u6A21\u5757\u89C4\u5212 v1.0 \xA75.3 / docs/\u6570\u636E\u914D\u7F6E\u8868\u7ED3\u6784\u8BBE\u8BA1 \xA73",
+    version: 2,
+    sourceDoc: "docs/M0-\u6570\u503C\u6A21\u578B-\u4E09\u66F2\u7EBF\u8C03\u53C2\u8868.md \xA72 / docs/\u6280\u672F\u67B6\u6784\u4E0E\u6A21\u5757\u89C4\u5212 v1.0 \xA75.3 / docs/\u6570\u636E\u914D\u7F6E\u8868\u7ED3\u6784\u8BBE\u8BA1 \xA73 / docs/\u6570\u636E\u914D\u7F6E\u8868\u7ED3\u6784\u8BBE\u8BA1.md \xA79.5",
     entries: [
       {
         key: "CFG_R0",
@@ -1472,6 +1472,70 @@
         max: 8,
         desc: "\u5BB5\u7981\u516C\u7EA6\u6050\u614C\u8870\u51CF\u52A0\u6210",
         sourceDoc: "M2 \u529F\u80FD\u70B94"
+      },
+      {
+        key: "EXPLORE_STAMINA_MAX",
+        value: 100,
+        min: 80,
+        max: 150,
+        desc: "\u4F4F\u6237\u4F53\u529B\u4E0A\u9650\uFF08\u5916\u51FA\u63A2\u7D22\u6D88\u8017\u6C60\uFF09",
+        sourceDoc: "\u4E16\u754C\u89C2\u4E0E\u7A7A\u95F4\u7ED3\u6784\u8BBE\u8BA1 \xA74"
+      },
+      {
+        key: "EXPLORE_STAMINA_COST_BASE",
+        value: 20,
+        min: 10,
+        max: 45,
+        desc: "\u5916\u51FA\u57FA\u7840\u4F53\u529B\u6D88\u8017\uFF08explore_def.staminaCost \u4E3A\u533A\u57DF\u52A0\u6210\u57FA\u51C6\uFF09",
+        sourceDoc: "\u4E16\u754C\u89C2\u4E0E\u7A7A\u95F4\u7ED3\u6784\u8BBE\u8BA1 \xA74"
+      },
+      {
+        key: "EXPLORE_TIME_BASE",
+        value: 1,
+        min: 1,
+        max: 2,
+        desc: "\u5916\u51FA\u57FA\u7840\u65F6\u95F4\u7247\u6D88\u8017",
+        sourceDoc: "\u4E16\u754C\u89C2\u4E0E\u7A7A\u95F4\u7ED3\u6784\u8BBE\u8BA1 \xA74"
+      },
+      {
+        key: "EXPLORE_NIGHT_DANGER_MUL",
+        value: 2,
+        min: 1.5,
+        max: 3,
+        desc: "\u591C\u665A\u91CE\u5916\u906D\u9047/\u5371\u9669\u500D\u7387",
+        sourceDoc: "\u4E16\u754C\u89C2\u4E0E\u7A7A\u95F4\u7ED3\u6784\u8BBE\u8BA1 \xA74.2"
+      },
+      {
+        key: "EXPLORE_YIELD_TARGET_D8",
+        value: 180,
+        min: 120,
+        max: 240,
+        desc: "D8 \u7D2F\u8BA1\u91CE\u5916\u4EA7\u51FA\u671F\u671B\u951A\u70B9\uFF08\u516D\u8D44\u6E90\u6298\u7B97\uFF09",
+        sourceDoc: "\u4E16\u754C\u89C2\u4E0E\u7A7A\u95F4\u7ED3\u6784\u8BBE\u8BA1 \xA79.6"
+      },
+      {
+        key: "EXPLORE_YIELD_TARGET_D30",
+        value: 900,
+        min: 600,
+        max: 1200,
+        desc: "D30 \u7D2F\u8BA1\u91CE\u5916\u4EA7\u51FA\u671F\u671B\u951A\u70B9",
+        sourceDoc: "\u4E16\u754C\u89C2\u4E0E\u7A7A\u95F4\u7ED3\u6784\u8BBE\u8BA1 \xA79.6"
+      },
+      {
+        key: "WILDLIFE_FIGHT_WIN_BASE",
+        value: 0.7,
+        min: 0.5,
+        max: 0.85,
+        desc: "\u5371\u9669\u91CE\u7269\u6218\u6597\u57FA\u7840\u80DC\u7387\uFF08\u6218\u529B\u4FEE\u6B63\u524D\uFF09",
+        sourceDoc: "\u4E16\u754C\u89C2\u4E0E\u7A7A\u95F4\u7ED3\u6784\u8BBE\u8BA1 \xA74.2"
+      },
+      {
+        key: "EXPLORE_PARTY_MAX",
+        value: 3,
+        min: 1,
+        max: 3,
+        desc: "\u5916\u51FA\u961F\u4F0D\u4EBA\u6570\u4E0A\u9650",
+        sourceDoc: "\u4E16\u754C\u89C2\u4E0E\u7A7A\u95F4\u7ED3\u6784\u8BBE\u8BA1 \xA74.2"
       }
     ]
   };
@@ -1820,7 +1884,7 @@
   // apps/client-cocos/whitebox/state.ts
   var EVENT_QUEUE_MAX = 2;
   function createUiState() {
-    return { phase: "DAY", page: "main", modals: [], eventQueue: [] };
+    return { phase: "DAY", page: "map", sel: {}, modals: [], eventQueue: [] };
   }
   function topModal(s) {
     return s.eventQueue[s.eventQueue.length - 1] ?? s.modals[s.modals.length - 1];
@@ -1844,6 +1908,14 @@
   function setPage(s, page) {
     if (s.phase !== "DAY") return s;
     return { ...s, page };
+  }
+  function openBuilding(s, lotId) {
+    if (s.phase !== "DAY") return s;
+    return { ...s, page: "main", sel: { lot: lotId } };
+  }
+  function openInterior(s, floor, room) {
+    if (s.phase !== "DAY") return s;
+    return { ...s, page: "interior", sel: { ...s.sel, floor, room } };
   }
 
   // apps/client-cocos/whitebox/layout.ts
@@ -2000,6 +2072,26 @@
       if (inRect(modalOptionRect())) return { kind: "modalOption" };
       return { kind: "modal" };
     }
+    if (page === "map") {
+      for (const [id, lot] of Object.entries(LOTS)) {
+        const base = isoToScreen(lot.gx, lot.gy);
+        const cx = base.x, cy = base.y + ISO_TILE_H / 2;
+        const bw = lot.kind === "bld" ? 100 : lot.kind === "wall" ? 140 : 80;
+        const bh = lot.kind === "bld" ? 230 : 90;
+        if (x >= cx - bw / 2 && x <= cx + bw / 2 && y >= cy - bh && y <= cy + 30) return { kind: "lot", id };
+      }
+      for (const [i, r] of dockRects().entries()) if (inRect(r)) return { kind: "dock", key: DOCK_KEYS[i].key };
+      if (inRect(settingsRect())) return { kind: "settings" };
+      return { kind: "none" };
+    }
+    if (page === "interior") {
+      if (inRect(interiorBackRect())) return { kind: "interiorBack" };
+      for (const [i, r] of [interiorSlotRect(0), interiorSlotRect(1)].entries()) {
+        if (inRect(r)) return { kind: "fortSlot", index: i };
+      }
+      return { kind: "none" };
+    }
+    if (page === "main" && inRect(mapBackRect())) return { kind: "mapBack" };
     if (page !== "main") {
       if (inRect(pageBackRect())) return { kind: "pageBack" };
       if (page === "settings") {
@@ -2026,6 +2118,37 @@
       }
     }
     return { kind: "none" };
+  }
+  var ISO_TILE_W = 110;
+  var ISO_TILE_H = 55;
+  var ISO_ORIGIN = { x: DESIGN_W / 2, y: 320 };
+  var ISO_FLOOR_H = 26;
+  function isoToScreen(gx, gy, z = 0) {
+    return { x: ISO_ORIGIN.x + (gx - gy) * (ISO_TILE_W / 2), y: ISO_ORIGIN.y + (gx + gy) * (ISO_TILE_H / 2) - z * ISO_FLOOR_H };
+  }
+  var LOTS = {
+    lot_gate: { gx: 3, gy: 7, name: "\u5927\u95E8", kind: "gate", unlockDay: 1 },
+    lot_wall: { gx: 2, gy: 6, name: "\u56F4\u5899", kind: "wall", unlockDay: 1 },
+    lot_plaza: { gx: 4, gy: 5, name: "\u5E7F\u573A", kind: "plaza", unlockDay: 1 },
+    lot_bld_a: { gx: 2, gy: 3, name: "A\u680B", kind: "bld", unlockDay: 1 },
+    lot_bld_b: { gx: 5, gy: 3, name: "B\u680B", kind: "bld", unlockDay: 30 },
+    lot_bld_c: { gx: 6, gy: 5, name: "C\u680B", kind: "bld", unlockDay: 30 },
+    lot_canteen: { gx: 3, gy: 4, name: "\u98DF\u5802", kind: "facility", unlockDay: 1 },
+    lot_warehouse: { gx: 4, gy: 4, name: "\u4ED3\u5E93", kind: "facility", unlockDay: 1 },
+    lot_clinic: { gx: 5, gy: 4, name: "\u533B\u52A1\u5BA4", kind: "facility", unlockDay: 1 },
+    lot_workshop: { gx: 2, gy: 5, name: "\u5DE5\u574A", kind: "facility", unlockDay: 3 },
+    lot_broadcast: { gx: 5, gy: 5, name: "\u5E7F\u64AD\u7AD9", kind: "facility", unlockDay: 2 },
+    lot_hall: { gx: 3, gy: 6, name: "\u8BAE\u4E8B\u5385", kind: "facility", unlockDay: 5 },
+    lot_watchtower: { gx: 6, gy: 6, name: "\u5C97\u54E8\u5854", kind: "facility", unlockDay: 4 }
+  };
+  function mapBackRect() {
+    return { x: M, y: HUD_H + T.space.xs, w: HIT_MIN, h: HIT_MIN };
+  }
+  function interiorBackRect() {
+    return { x: M, y: HUD_H + T.space.xs, w: HIT_MIN + 60, h: HIT_MIN };
+  }
+  function interiorSlotRect(i) {
+    return { x: DESIGN_W / 2 - 220 + i * 240, y: DESIGN_H / 2 - 210, w: 200, h: 120 };
   }
 
   // apps/client-cocos/whitebox/anim.ts
@@ -2353,7 +2476,10 @@
         }
         case "DAY":
           this.drawDayBg(now);
-          if (ui2.page === "main") {
+          if (ui2.page === "map") this.drawMapView(ui2, frame, now);
+          else if (ui2.page === "interior") this.drawInterior(ui2, frame, now, pb2);
+          else if (ui2.page === "main") {
+            this.button(mapBackRect(), "\u25C0 \u5C0F\u533A", "normal");
             this.drawHud(frame, now);
             this.drawResources(frame);
             this.drawBuilding(frame, now);
@@ -2986,6 +3112,341 @@
         this.button(settleContinueRect(), "\u7EE7\u7EED \u25B6", "primary");
       }
     }
+    // ---- L2 小区地图（等距；UI 规范 v2.0 §7.1）----
+    drawMapView(ui2, frame, now) {
+      const { ctx } = this;
+      ctx.textBaseline = "middle";
+      this.drawHudMini(frame, now);
+      for (let gx = 0; gx < 7; gx++) {
+        for (let gy = 0; gy < 8; gy++) {
+          const c = isoToScreen(gx, gy);
+          ctx.beginPath();
+          ctx.moveTo(c.x, c.y);
+          ctx.lineTo(c.x + ISO_TILE_W / 2, c.y + ISO_TILE_H / 2);
+          ctx.lineTo(c.x, c.y + ISO_TILE_H);
+          ctx.lineTo(c.x - ISO_TILE_W / 2, c.y + ISO_TILE_H / 2);
+          ctx.closePath();
+          ctx.fillStyle = (gx + gy) % 2 === 0 ? withAlpha(col("panel"), 0.5) : withAlpha(col("panel_stroke"), 0.25);
+          ctx.fill();
+        }
+      }
+      for (const [id, lot] of Object.entries(LOTS)) {
+        const locked = frame.day < lot.unlockDay;
+        const base = isoToScreen(lot.gx, lot.gy);
+        const cx = base.x, cy = base.y + ISO_TILE_H / 2;
+        if (lot.kind === "bld") this.drawIsoBuilding(cx, cy, locked, frame, id, now);
+        else if (lot.kind === "gate") this.drawIsoGate(cx, cy);
+        else if (lot.kind === "wall") this.drawIsoWall(cx, cy);
+        else if (lot.kind === "plaza") this.drawIsoPlaza(cx, cy);
+        else this.drawIsoFacility(cx, cy, locked);
+        ctx.font = font(T.typography.caption, { weight: "bold" });
+        ctx.textAlign = "center";
+        ctx.fillStyle = locked ? col("text_secondary") : col("text_primary");
+        ctx.fillText(locked ? `${lot.name} D${lot.unlockDay}` : lot.name, cx, cy + 36);
+        ctx.textAlign = "left";
+      }
+      const ex = { x: DESIGN_W / 2 - 140, y: 240, w: 280, h: 64 };
+      ctx.beginPath();
+      ctx.roundRect(ex.x, ex.y, ex.w, ex.h, T.radius.btn);
+      ctx.fillStyle = withAlpha(col("success"), 0.14);
+      ctx.fill();
+      ctx.strokeStyle = col("success");
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.body, { weight: "bold" });
+      ctx.textAlign = "center";
+      ctx.fillText("\u{1F332} \u51FA\u95E8\u63A2\u7D22\uFF08M3.3 \u5F00\u653E\uFF09", ex.x + ex.w / 2, ex.y + ex.h / 2 + 1);
+      ctx.textAlign = "left";
+      this.drawDock();
+      void ui2;
+    }
+    drawHudMini(frame, now) {
+      const { ctx } = this;
+      const hud = hudRect();
+      const g = ctx.createLinearGradient(0, 0, 0, hud.h);
+      g.addColorStop(0, mix(col("panel"), col("text_primary"), 0.07));
+      g.addColorStop(1, col("panel"));
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, hud.w, hud.h);
+      ctx.fillStyle = col("panel_stroke");
+      ctx.fillRect(0, hud.h - 3, hud.w, 3);
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = withAlpha(col("bg_night"), 0.5);
+      ctx.beginPath();
+      ctx.roundRect(T.space.s, 8, 150, hud.h - 16, T.radius.chip);
+      ctx.fill();
+      ctx.fillStyle = col("gold_primary");
+      ctx.font = this.numFont(T.typography.h2);
+      ctx.fillText(`D${frame.day}`, T.space.s + 16, hud.h / 2 + 1);
+      const cycle = Math.ceil(frame.day / 7);
+      for (let i = 0; i < 4; i++) {
+        const mx = T.space.s + 176 + i * 30;
+        ctx.beginPath();
+        ctx.arc(mx, hud.h / 2, 8, 0, Math.PI * 2);
+        ctx.fillStyle = i < cycle ? frame.modifiers.includes("BLOOD_MOON") ? col("alert_blood") : col("gold_primary") : withAlpha(col("panel_stroke"), 0.8);
+        ctx.fill();
+        ctx.strokeStyle = col("panel_stroke");
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      const st = settingsRect();
+      this.circleButton(st.x + st.w / 2, hud.h / 2, 26, () => this.iconGear(st.x + st.w / 2, hud.h / 2, 13, col("text_secondary")));
+      void now;
+    }
+    drawIsoBuilding(cx, cy, locked, frame, id, now) {
+      const { ctx } = this;
+      const w = ISO_TILE_W * 0.9, h = ISO_TILE_H * 0.9, floors = 6;
+      const topZ = floors * ISO_FLOOR_H;
+      const left = locked ? col("panel_stroke") : shade(col("panel"), 0.8);
+      const right = locked ? shade(col("panel_stroke"), 0.92) : col("panel");
+      const topFill = locked ? shade(col("panel_stroke"), 0.9) : mix(col("panel"), col("text_primary"), 0.12);
+      ctx.beginPath();
+      ctx.moveTo(cx - w / 2, cy - h / 2 - topZ);
+      ctx.lineTo(cx, cy - topZ);
+      ctx.lineTo(cx, cy - topZ + h / 2 + ISO_TILE_H / 2);
+      ctx.lineTo(cx - w / 2, cy - h / 2 + ISO_TILE_H / 2 + h / 2);
+      ctx.closePath();
+      ctx.fillStyle = left;
+      ctx.fill();
+      ctx.strokeStyle = col("bg_night");
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + w / 2, cy - h / 2 - topZ);
+      ctx.lineTo(cx, cy - topZ);
+      ctx.lineTo(cx, cy - topZ + h / 2 + ISO_TILE_H / 2);
+      ctx.lineTo(cx + w / 2, cy - h / 2 + ISO_TILE_H / 2 + h / 2);
+      ctx.closePath();
+      ctx.fillStyle = right;
+      ctx.fill();
+      ctx.strokeStyle = col("bg_night");
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - topZ - h / 2);
+      ctx.lineTo(cx + w / 2, cy - topZ);
+      ctx.lineTo(cx, cy - topZ + h / 2);
+      ctx.lineTo(cx - w / 2, cy - topZ);
+      ctx.closePath();
+      ctx.fillStyle = topFill;
+      ctx.fill();
+      ctx.strokeStyle = col("bg_night");
+      ctx.stroke();
+      if (!locked) {
+        const litTotal = id === "lot_bld_a" ? Math.min(30, frame.population) : 0;
+        for (let f = 0; f < floors; f++) {
+          const fy = cy - (f + 1) * ISO_FLOOR_H;
+          ctx.beginPath();
+          ctx.moveTo(cx - w / 2, fy - h / 2);
+          ctx.lineTo(cx + w / 2, fy - h / 2);
+          ctx.strokeStyle = withAlpha(col("bg_night"), 0.5);
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          for (let win = 0; win < 3; win++) {
+            const lit = f * 3 + win < litTotal;
+            const wx = cx + (win - 1) * (w / 4) + w / 8, wy = fy - ISO_FLOOR_H * 0.45;
+            ctx.fillStyle = lit ? withAlpha(col("gold_primary"), 0.9) : withAlpha(col("panel_stroke"), 0.6);
+            ctx.fillRect(wx - 5, wy - 5, 10, 10);
+          }
+        }
+        if (id === "lot_bld_a") {
+          const pulse = 0.5 + 0.5 * Math.sin(now / 700);
+          ctx.beginPath();
+          ctx.arc(cx, cy + 6, 12 + pulse * 5, 0, Math.PI * 2);
+          ctx.strokeStyle = withAlpha(col("success"), 0.5 + pulse * 0.4);
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+      }
+    }
+    drawIsoGate(cx, cy) {
+      const { ctx } = this;
+      ctx.beginPath();
+      ctx.roundRect(cx - 55, cy - 30, 110, 34, 6);
+      ctx.fillStyle = col("panel_stroke");
+      ctx.fill();
+      ctx.strokeStyle = col("bg_night");
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.roundRect(cx - 34, cy - 58, 68, 30, 6);
+      ctx.fillStyle = mix(col("panel_stroke"), col("gold_deep"), 0.35);
+      ctx.fill();
+      ctx.strokeStyle = col("bg_night");
+      ctx.stroke();
+      ctx.fillStyle = col("gold_primary");
+      ctx.font = font(T.typography.caption, { weight: "bold" });
+      ctx.textAlign = "center";
+      ctx.fillText("\u95E8", cx, cy - 42);
+      ctx.textAlign = "left";
+    }
+    drawIsoWall(cx, cy) {
+      const { ctx } = this;
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.roundRect(cx - 60 + i * 42, cy - 16, 36, 20, 4);
+        ctx.fillStyle = shade(col("panel_stroke"), 0.85);
+        ctx.fill();
+        ctx.strokeStyle = col("bg_night");
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+    drawIsoPlaza(cx, cy) {
+      const { ctx } = this;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 20);
+      ctx.lineTo(cx + 52, cy + 6);
+      ctx.lineTo(cx, cy + 32);
+      ctx.lineTo(cx - 52, cy + 6);
+      ctx.closePath();
+      ctx.fillStyle = withAlpha(col("panel"), 0.7);
+      ctx.fill();
+      ctx.strokeStyle = col("panel_stroke");
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.strokeStyle = col("text_secondary");
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 20);
+      ctx.lineTo(cx, cy - 58);
+      ctx.stroke();
+      ctx.fillStyle = col("alert_blood");
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 58);
+      ctx.lineTo(cx + 22, cy - 50);
+      ctx.lineTo(cx, cy - 42);
+      ctx.closePath();
+      ctx.fill();
+    }
+    drawIsoFacility(cx, cy, locked) {
+      const { ctx } = this;
+      const w = ISO_TILE_W * 0.66, h = ISO_TILE_H * 0.66;
+      const z = ISO_FLOOR_H * 1.4;
+      ctx.beginPath();
+      ctx.moveTo(cx - w / 2, cy - h / 2 - z);
+      ctx.lineTo(cx, cy - z);
+      ctx.lineTo(cx, cy - z + h / 2 + ISO_TILE_H / 2);
+      ctx.lineTo(cx - w / 2, cy - h / 2 + ISO_TILE_H / 2 + h / 2);
+      ctx.closePath();
+      ctx.fillStyle = locked ? col("panel_stroke") : shade(col("panel"), 0.85);
+      ctx.fill();
+      ctx.strokeStyle = col("bg_night");
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - h / 2 - z);
+      ctx.lineTo(cx + w / 2, cy - h / 2 - z + h / 2);
+      ctx.lineTo(cx + w / 2, cy - h / 2 + ISO_TILE_H / 2 + h / 2);
+      ctx.lineTo(cx, cy - z + h / 2 + ISO_TILE_H / 2);
+      ctx.closePath();
+      ctx.fillStyle = locked ? shade(col("panel_stroke"), 0.92) : col("panel");
+      ctx.fill();
+      ctx.strokeStyle = col("bg_night");
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - h / 2 - z - 14);
+      ctx.lineTo(cx + w / 2, cy - h / 2 - z + h / 2 - 7);
+      ctx.lineTo(cx, cy - h / 2 - z + h / 2);
+      ctx.lineTo(cx - w / 2, cy - h / 2 - z + h / 2 - 7);
+      ctx.closePath();
+      ctx.fillStyle = col("gold_deep");
+      ctx.fill();
+      ctx.strokeStyle = col("bg_night");
+      ctx.stroke();
+    }
+    // ---- L3 房屋内部（点击房间进入；UI 规范 v2.0 §7.2）----
+    drawInterior(ui2, frame, now, pb2) {
+      const { ctx } = this;
+      const floor = ui2.sel.floor ?? 0, room = ui2.sel.room ?? 0;
+      const roomIndex = floor * ROOMS_PER_FLOOR + room;
+      const occupied = roomIndex < frame.population;
+      ctx.fillStyle = col("bg_night");
+      ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
+      ctx.textBaseline = "middle";
+      this.button(interiorBackRect(), "\u25C0 \u697C\u5C42", "normal");
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.h2, { weight: "bold" });
+      ctx.fillText(`A\u680B \xB7 ${floor + 1}\u5C42 \xB7 ${room + 1}\u53F7\u623F`, interiorBackRect().x + interiorBackRect().w + T.space.m, interiorBackRect().y + interiorBackRect().h / 2);
+      const fx0 = 60, fx1 = DESIGN_W - 60, fy0 = 560, fy1 = 1180, wallTop = 270;
+      const g = ctx.createLinearGradient(0, fy0, 0, fy1);
+      g.addColorStop(0, mix(col("gold_deep"), col("bg_night"), 0.55));
+      g.addColorStop(1, mix(col("gold_deep"), col("bg_night"), 0.78));
+      ctx.beginPath();
+      ctx.moveTo(fx0, fy0);
+      ctx.lineTo(fx1, fy0);
+      ctx.lineTo(fx1 + 60, fy1);
+      ctx.lineTo(fx0 - 60, fy1);
+      ctx.closePath();
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = col("bg_night");
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.fillStyle = mix(col("panel"), col("bg_night"), 0.35);
+      ctx.fillRect(fx0, wallTop, fx1 - fx0, fy0 - wallTop);
+      ctx.strokeStyle = col("bg_night");
+      ctx.strokeRect(fx0, wallTop, fx1 - fx0, fy0 - wallTop);
+      const wx = fx0 + 40, wy = wallTop + 40, ww = 150, wh = 170;
+      ctx.fillStyle = withAlpha(col("gold_primary"), occupied ? 0.35 : 0.12);
+      ctx.fillRect(wx, wy, ww, wh);
+      ctx.strokeStyle = col("bg_night");
+      ctx.lineWidth = 5;
+      ctx.strokeRect(wx, wy, ww, wh);
+      ctx.beginPath();
+      ctx.moveTo(wx + ww / 2, wy);
+      ctx.lineTo(wx + ww / 2, wy + wh);
+      ctx.moveTo(wx, wy + wh / 2);
+      ctx.lineTo(wx + ww, wy + wh / 2);
+      ctx.stroke();
+      const dx = fx1 - 200;
+      ctx.fillStyle = mix(col("panel_stroke"), col("gold_deep"), 0.3);
+      ctx.fillRect(dx, wallTop + 60, 110, fy0 - wallTop - 60);
+      ctx.strokeStyle = col("bg_night");
+      ctx.strokeRect(dx, wallTop + 60, 110, fy0 - wallTop - 60);
+      ctx.beginPath();
+      ctx.arc(dx + 92, wallTop + 60 + (fy0 - wallTop - 60) / 2, 6, 0, Math.PI * 2);
+      ctx.fillStyle = col("gold_primary");
+      ctx.fill();
+      for (let i = 0; i < 2; i++) {
+        const sr = interiorSlotRect(i);
+        const fortified = pb2.forts[`${floor}:${room}:${i}`] ?? false;
+        ctx.setLineDash(fortified ? [] : [10, 8]);
+        ctx.beginPath();
+        ctx.roundRect(sr.x, sr.y, sr.w, sr.h, T.radius.chip);
+        ctx.fillStyle = fortified ? withAlpha(col("success"), 0.16) : withAlpha(col("bg_night"), 0.5);
+        ctx.fill();
+        ctx.strokeStyle = fortified ? col("success") : col("panel_stroke");
+        ctx.setLineDash([]);
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.fillStyle = fortified ? col("success") : col("text_secondary");
+        ctx.font = font(T.typography.body, { weight: fortified ? "bold" : void 0 });
+        ctx.textAlign = "center";
+        ctx.fillText(fortified ? "\u5DF2\u52A0\u56FA" : `\u5DE5\u4E8B\u4F4D ${i + 1}`, sr.x + sr.w / 2, sr.y + sr.h / 2);
+        ctx.textAlign = "left";
+      }
+      if (occupied) {
+        const px = DESIGN_W / 2, py = (fy0 + fy1) / 2 - 30;
+        const breathe = 1 + 0.02 * Math.sin(now / 800);
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.scale(breathe, breathe);
+        this.iconPerson(0, 0, 110, col("text_primary"));
+        ctx.restore();
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.textAlign = "center";
+        ctx.fillText("\u4F4F\u6237 \xB7 \u751F\u547D 100 \xB7 \u6050\u614C 0", px, py + 92);
+        ctx.textAlign = "left";
+      } else {
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.h2);
+        ctx.textAlign = "center";
+        ctx.fillText("\u7A7A\u623F \xB7 \u5F85\u5165\u4F4F", DESIGN_W / 2, (fy0 + fy1) / 2);
+        ctx.textAlign = "left";
+      }
+    }
     // ---- 模态 ----
     drawModal(ui2, frame, now, pb2) {
       const { ctx } = this;
@@ -3298,6 +3759,7 @@
     settleStart: null,
     chosenAt: null,
     logs: [],
+    forts: {},
     skills: [
       { label: "\u7A7A\u6295\u7269\u8D44", glyph: "\u{1F48A}", cdUntil: 0 },
       { label: "\u62A4\u76FE", glyph: "\u{1F6E1}", cdUntil: 0 }
@@ -3306,7 +3768,7 @@
   function enterDay(d) {
     idx = d;
     ui.phase = "DAY";
-    ui.page = "main";
+    ui.page = "map";
     pb.chosenAt = null;
     for (const card of frames[d]?.eventCards ?? []) Object.assign(ui, pushEvent(ui, card));
   }
@@ -3320,6 +3782,27 @@
     switch (hit.kind) {
       case "pageBack":
         Object.assign(ui, setPage(ui, "main"));
+        return;
+      case "mapBack":
+        Object.assign(ui, setPage(ui, "map"));
+        return;
+      case "interiorBack":
+        Object.assign(ui, setPage(ui, "main"));
+        return;
+      case "fortSlot": {
+        const key = `${ui.sel.floor ?? 0}:${ui.sel.room ?? 0}:${hit.index}`;
+        pb.forts[key] = !pb.forts[key];
+        return;
+      }
+      case "lot": {
+        const lot = hit.id;
+        if (lot === "lot_bld_a") Object.assign(ui, openBuilding(ui, lot));
+        else if (lot === "lot_gate") Object.assign(ui, openModal(ui, { kind: "panel", id: "\u5C0F\u533A\u5927\u95E8\uFF08\u91CE\u5916 M3.3 \u5F00\u653E\uFF09" }));
+        else Object.assign(ui, openModal(ui, { kind: "panel", id: lot === "lot_bld_b" ? "B\u680B" : lot === "lot_bld_c" ? "C\u680B" : lot }));
+        return;
+      }
+      case "room":
+        Object.assign(ui, openInterior(ui, hit.floor - 1, hit.room));
         return;
       case "nav":
         Object.assign(ui, setPage(ui, hit.page));
@@ -3451,7 +3934,7 @@
       ui.phase = "DAWN_SETTLE";
       pb.settleStart = performance.now();
     } else enterDay(0);
-    if (wantPage === "codex" || wantPage === "shop" || wantPage === "settings") ui.page = wantPage;
+    if (wantPage === "codex" || wantPage === "shop" || wantPage === "settings" || wantPage === "map" || wantPage === "main" || wantPage === "interior") ui.page = wantPage;
     console.log(`\u767D\u76D2\u64AD\u653E\u5C31\u7EEA\uFF1A${frames.length} \u5929\uFF0C\u4E8B\u4EF6 ${sim.eventsFired} \u6B21\uFF0C\u72EC\u7ACB ${sim.distinctFired.length}`);
   });
 })();

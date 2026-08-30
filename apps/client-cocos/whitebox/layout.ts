@@ -198,6 +198,10 @@ export type HitTarget =
   | { kind: 'settleContinue' }
   | { kind: 'pageBack' }
   | { kind: 'nav'; page: 'codex' | 'shop' }
+  | { kind: 'mapBack' }
+  | { kind: 'interiorBack' }
+  | { kind: 'fortSlot'; index: number }
+  | { kind: 'lot'; id: string }
   | { kind: 'none' }
 
 export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?: string } = {}): HitTarget {
@@ -211,6 +215,29 @@ export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?
     if (inRect(modalOptionRect())) return { kind: 'modalOption' }
     return { kind: 'modal' }
   }
+  // L2 小区地图：等距地块命中（楼栋/大门/设施）+ dock
+  if (page === 'map') {
+    for (const [id, lot] of Object.entries(LOTS)) {
+      const base = isoToScreen(lot.gx, lot.gy)
+      const cx = base.x, cy = base.y + ISO_TILE_H / 2
+      const bw = lot.kind === 'bld' ? 100 : lot.kind === 'wall' ? 140 : 80
+      const bh = lot.kind === 'bld' ? 230 : 90
+      if (x >= cx - bw / 2 && x <= cx + bw / 2 && y >= cy - bh && y <= cy + 30) return { kind: 'lot', id }
+    }
+    for (const [i, r] of dockRects().entries()) if (inRect(r)) return { kind: 'dock', key: DOCK_KEYS[i].key }
+    if (inRect(settingsRect())) return { kind: 'settings' }
+    return { kind: 'none' }
+  }
+  // L3 室内：返回 + 工事位
+  if (page === 'interior') {
+    if (inRect(interiorBackRect())) return { kind: 'interiorBack' }
+    for (const [i, r] of [interiorSlotRect(0), interiorSlotRect(1)].entries()) {
+      if (inRect(r)) return { kind: 'fortSlot', index: i }
+    }
+    return { kind: 'none' }
+  }
+  // 楼内楼层视图（main）：返回小区
+  if (page === 'main' && inRect(mapBackRect())) return { kind: 'mapBack' }
   // 占位页接管（图鉴/商店/设置）：返回键 + 站内导航
   if (page !== 'main') {
     if (inRect(pageBackRect())) return { kind: 'pageBack' }
@@ -239,4 +266,51 @@ export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?
     }
   }
   return { kind: 'none' }
+}
+
+
+// ---- L2 小区等距地图（UI 规范 v2.0 §7.1；地块落位=config/map_def.json 的布局投影）----
+export const ISO_TILE_W = 110
+export const ISO_TILE_H = 55
+export const ISO_ORIGIN = { x: DESIGN_W / 2, y: 320 }
+export const ISO_FLOOR_H = 26 // 楼栋每层像素高度
+
+export function isoToScreen(gx: number, gy: number, z = 0): { x: number; y: number } {
+  return { x: ISO_ORIGIN.x + (gx - gy) * (ISO_TILE_W / 2), y: ISO_ORIGIN.y + (gx + gy) * (ISO_TILE_H / 2) - z * ISO_FLOOR_H }
+}
+export function screenToIso(sx: number, sy: number): { gx: number; gy: number } {
+  const dx = sx - ISO_ORIGIN.x, dy = sy - ISO_ORIGIN.y
+  return {
+    gx: Math.floor((dy / (ISO_TILE_H / 2) + dx / (ISO_TILE_W / 2)) / 2),
+    gy: Math.floor((dy / (ISO_TILE_H / 2) - dx / (ISO_TILE_W / 2)) / 2)
+  }
+}
+
+/** 地块统一表（布局投影=config/map_def.json；kind 决定绘制形态与命中行为） */
+export const LOTS: Record<string, { gx: number; gy: number; name: string; kind: 'bld' | 'gate' | 'wall' | 'plaza' | 'facility'; unlockDay: number }> = {
+  lot_gate: { gx: 3, gy: 7, name: '大门', kind: 'gate', unlockDay: 1 },
+  lot_wall: { gx: 2, gy: 6, name: '围墙', kind: 'wall', unlockDay: 1 },
+  lot_plaza: { gx: 4, gy: 5, name: '广场', kind: 'plaza', unlockDay: 1 },
+  lot_bld_a: { gx: 2, gy: 3, name: 'A栋', kind: 'bld', unlockDay: 1 },
+  lot_bld_b: { gx: 5, gy: 3, name: 'B栋', kind: 'bld', unlockDay: 30 },
+  lot_bld_c: { gx: 6, gy: 5, name: 'C栋', kind: 'bld', unlockDay: 30 },
+  lot_canteen: { gx: 3, gy: 4, name: '食堂', kind: 'facility', unlockDay: 1 },
+  lot_warehouse: { gx: 4, gy: 4, name: '仓库', kind: 'facility', unlockDay: 1 },
+  lot_clinic: { gx: 5, gy: 4, name: '医务室', kind: 'facility', unlockDay: 1 },
+  lot_workshop: { gx: 2, gy: 5, name: '工坊', kind: 'facility', unlockDay: 3 },
+  lot_broadcast: { gx: 5, gy: 5, name: '广播站', kind: 'facility', unlockDay: 2 },
+  lot_hall: { gx: 3, gy: 6, name: '议事厅', kind: 'facility', unlockDay: 5 },
+  lot_watchtower: { gx: 6, gy: 6, name: '岗哨塔', kind: 'facility', unlockDay: 4 }
+}
+
+export function mapBackRect(): Rect {
+  return { x: M, y: HUD_H + T.space.xs, w: HIT_MIN, h: HIT_MIN }
+}
+
+// ---- L3 室内视图几何 ----
+export function interiorBackRect(): Rect {
+  return { x: M, y: HUD_H + T.space.xs, w: HIT_MIN + 60, h: HIT_MIN }
+}
+export function interiorSlotRect(i: number): Rect {
+  return { x: DESIGN_W / 2 - 220 + i * 240, y: DESIGN_H / 2 - 210, w: 200, h: 120 }
 }

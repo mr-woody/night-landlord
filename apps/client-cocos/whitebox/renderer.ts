@@ -16,7 +16,8 @@ import {
   duskBannerRect, duskConfirmRect,
   settlePanelRect, settleCounterRect, settlePopRect, settleContinueRect, SETTLE_POP_MAX,
   pageBackRect, pageTitleRect, codexCellRect, CODEX_COLS, CODEX_ROWS, shopCardRect, SHOP_CARDS,
-  settingsRowRect, SETTINGS_ROWS
+  settingsRowRect, SETTINGS_ROWS, LOTS, isoToScreen,
+  ISO_TILE_W, ISO_TILE_H, ISO_FLOOR_H, interiorBackRect, interiorSlotRect, mapBackRect
 } from './layout.ts'
 import {
   nightWaves, OUTCOME_LABEL, counterValue, popProgress, settleDoneAt,
@@ -48,6 +49,8 @@ export interface Playback {
   settleStart: number | null
   chosenAt: number | null
   logs: string[]
+  /** 室内工事位布置状态（key=`floor:room:slot`，视觉占位） */
+  forts: Record<string, boolean>
   skills: { label: string; glyph: string; cdUntil: number }[]
 }
 
@@ -276,7 +279,10 @@ export class WhiteboxRenderer {
       }
       case 'DAY':
         this.drawDayBg(now)
-        if (ui.page === 'main') {
+        if (ui.page === 'map') this.drawMapView(ui, frame, now)
+        else if (ui.page === 'interior') this.drawInterior(ui, frame, now, pb)
+        else if (ui.page === 'main') {
+          this.button(mapBackRect(), '◀ 小区', 'normal')
           this.drawHud(frame, now)
           this.drawResources(frame)
           this.drawBuilding(frame, now)
@@ -850,6 +856,255 @@ export class WhiteboxRenderer {
     }
     if (start !== null && now >= settleDoneAt(start, households)) {
       this.button(settleContinueRect(), '继续 ▶', 'primary')
+    }
+  }
+
+  // ---- L2 小区地图（等距；UI 规范 v2.0 §7.1）----
+  private drawMapView(ui: UiState, frame: DayFrame, now: number): void {
+    const { ctx } = this
+    ctx.textBaseline = 'middle'
+    this.drawHudMini(frame, now)
+    for (let gx = 0; gx < 7; gx++) {
+      for (let gy = 0; gy < 8; gy++) {
+        const c = isoToScreen(gx, gy)
+        ctx.beginPath()
+        ctx.moveTo(c.x, c.y)
+        ctx.lineTo(c.x + ISO_TILE_W / 2, c.y + ISO_TILE_H / 2)
+        ctx.lineTo(c.x, c.y + ISO_TILE_H)
+        ctx.lineTo(c.x - ISO_TILE_W / 2, c.y + ISO_TILE_H / 2)
+        ctx.closePath()
+        ctx.fillStyle = (gx + gy) % 2 === 0 ? withAlpha(col('panel'), 0.5) : withAlpha(col('panel_stroke'), 0.25)
+        ctx.fill()
+      }
+    }
+    for (const [id, lot] of Object.entries(LOTS)) {
+      const locked = frame.day < lot.unlockDay
+      const base = isoToScreen(lot.gx, lot.gy)
+      const cx = base.x, cy = base.y + ISO_TILE_H / 2
+      if (lot.kind === 'bld') this.drawIsoBuilding(cx, cy, locked, frame, id, now)
+      else if (lot.kind === 'gate') this.drawIsoGate(cx, cy)
+      else if (lot.kind === 'wall') this.drawIsoWall(cx, cy)
+      else if (lot.kind === 'plaza') this.drawIsoPlaza(cx, cy)
+      else this.drawIsoFacility(cx, cy, locked)
+      ctx.font = font(T.typography.caption, { weight: 'bold' })
+      ctx.textAlign = 'center'
+      ctx.fillStyle = locked ? col('text_secondary') : col('text_primary')
+      ctx.fillText(locked ? `${lot.name} D${lot.unlockDay}` : lot.name, cx, cy + 36)
+      ctx.textAlign = 'left'
+    }
+    const ex = { x: DESIGN_W / 2 - 140, y: 240, w: 280, h: 64 }
+    ctx.beginPath(); ctx.roundRect(ex.x, ex.y, ex.w, ex.h, T.radius.btn)
+    ctx.fillStyle = withAlpha(col('success'), 0.14); ctx.fill()
+    ctx.strokeStyle = col('success'); ctx.lineWidth = 2; ctx.stroke()
+    ctx.fillStyle = col('text_primary')
+    ctx.font = font(T.typography.body, { weight: 'bold' })
+    ctx.textAlign = 'center'
+    ctx.fillText('🌲 出门探索（M3.3 开放）', ex.x + ex.w / 2, ex.y + ex.h / 2 + 1)
+    ctx.textAlign = 'left'
+    this.drawDock()
+    void ui
+  }
+
+  private drawHudMini(frame: DayFrame, now: number): void {
+    const { ctx } = this
+    const hud = hudRect()
+    const g = ctx.createLinearGradient(0, 0, 0, hud.h)
+    g.addColorStop(0, mix(col('panel'), col('text_primary'), 0.07))
+    g.addColorStop(1, col('panel'))
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, hud.w, hud.h)
+    ctx.fillStyle = col('panel_stroke'); ctx.fillRect(0, hud.h - 3, hud.w, 3)
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = withAlpha(col('bg_night'), 0.5)
+    ctx.beginPath(); ctx.roundRect(T.space.s, 8, 150, hud.h - 16, T.radius.chip); ctx.fill()
+    ctx.fillStyle = col('gold_primary')
+    ctx.font = this.numFont(T.typography.h2)
+    ctx.fillText(`D${frame.day}`, T.space.s + 16, hud.h / 2 + 1)
+    const cycle = Math.ceil(frame.day / 7)
+    for (let i = 0; i < 4; i++) {
+      const mx = T.space.s + 176 + i * 30
+      ctx.beginPath(); ctx.arc(mx, hud.h / 2, 8, 0, Math.PI * 2)
+      ctx.fillStyle = i < cycle ? (frame.modifiers.includes('BLOOD_MOON') ? col('alert_blood') : col('gold_primary')) : withAlpha(col('panel_stroke'), 0.8)
+      ctx.fill()
+      ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 2; ctx.stroke()
+    }
+    const st = settingsRect()
+    this.circleButton(st.x + st.w / 2, hud.h / 2, 26, () => this.iconGear(st.x + st.w / 2, hud.h / 2, 13, col('text_secondary')))
+    void now
+  }
+
+  private drawIsoBuilding(cx: number, cy: number, locked: boolean, frame: DayFrame, id: string, now: number): void {
+    const { ctx } = this
+    const w = ISO_TILE_W * 0.9, h = ISO_TILE_H * 0.9, floors = 6
+    const topZ = floors * ISO_FLOOR_H
+    const left = locked ? col('panel_stroke') : shade(col('panel'), 0.8)
+    const right = locked ? shade(col('panel_stroke'), 0.92) : col('panel')
+    const topFill = locked ? shade(col('panel_stroke'), 0.9) : mix(col('panel'), col('text_primary'), 0.12)
+    ctx.beginPath()
+    ctx.moveTo(cx - w / 2, cy - h / 2 - topZ); ctx.lineTo(cx, cy - topZ)
+    ctx.lineTo(cx, cy - topZ + h / 2 + ISO_TILE_H / 2); ctx.lineTo(cx - w / 2, cy - h / 2 + ISO_TILE_H / 2 + h / 2)
+    ctx.closePath(); ctx.fillStyle = left; ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2.5; ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(cx + w / 2, cy - h / 2 - topZ); ctx.lineTo(cx, cy - topZ)
+    ctx.lineTo(cx, cy - topZ + h / 2 + ISO_TILE_H / 2); ctx.lineTo(cx + w / 2, cy - h / 2 + ISO_TILE_H / 2 + h / 2)
+    ctx.closePath(); ctx.fillStyle = right; ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(cx, cy - topZ - h / 2); ctx.lineTo(cx + w / 2, cy - topZ)
+    ctx.lineTo(cx, cy - topZ + h / 2); ctx.lineTo(cx - w / 2, cy - topZ)
+    ctx.closePath(); ctx.fillStyle = topFill; ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.stroke()
+    if (!locked) {
+      const litTotal = id === 'lot_bld_a' ? Math.min(30, frame.population) : 0
+      for (let f = 0; f < floors; f++) {
+        const fy = cy - (f + 1) * ISO_FLOOR_H
+        ctx.beginPath(); ctx.moveTo(cx - w / 2, fy - h / 2); ctx.lineTo(cx + w / 2, fy - h / 2)
+        ctx.strokeStyle = withAlpha(col('bg_night'), 0.5); ctx.lineWidth = 1.5; ctx.stroke()
+        for (let win = 0; win < 3; win++) {
+          const lit = f * 3 + win < litTotal
+          const wx = cx + (win - 1) * (w / 4) + w / 8, wy = fy - ISO_FLOOR_H * 0.45
+          ctx.fillStyle = lit ? withAlpha(col('gold_primary'), 0.9) : withAlpha(col('panel_stroke'), 0.6)
+          ctx.fillRect(wx - 5, wy - 5, 10, 10)
+        }
+      }
+      if (id === 'lot_bld_a') {
+        const pulse = 0.5 + 0.5 * Math.sin(now / 700)
+        ctx.beginPath(); ctx.arc(cx, cy + 6, 12 + pulse * 5, 0, Math.PI * 2)
+        ctx.strokeStyle = withAlpha(col('success'), 0.5 + pulse * 0.4); ctx.lineWidth = 3; ctx.stroke()
+      }
+    }
+  }
+
+  private drawIsoGate(cx: number, cy: number): void {
+    const { ctx } = this
+    ctx.beginPath(); ctx.roundRect(cx - 55, cy - 30, 110, 34, 6)
+    ctx.fillStyle = col('panel_stroke'); ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2.5; ctx.stroke()
+    ctx.beginPath(); ctx.roundRect(cx - 34, cy - 58, 68, 30, 6)
+    ctx.fillStyle = mix(col('panel_stroke'), col('gold_deep'), 0.35); ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.stroke()
+    ctx.fillStyle = col('gold_primary')
+    ctx.font = font(T.typography.caption, { weight: 'bold' })
+    ctx.textAlign = 'center'
+    ctx.fillText('门', cx, cy - 42)
+    ctx.textAlign = 'left'
+  }
+
+  private drawIsoWall(cx: number, cy: number): void {
+    const { ctx } = this
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath(); ctx.roundRect(cx - 60 + i * 42, cy - 16, 36, 20, 4)
+      ctx.fillStyle = shade(col('panel_stroke'), 0.85); ctx.fill()
+      ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2; ctx.stroke()
+    }
+  }
+
+  private drawIsoPlaza(cx: number, cy: number): void {
+    const { ctx } = this
+    ctx.beginPath()
+    ctx.moveTo(cx, cy - 20); ctx.lineTo(cx + 52, cy + 6); ctx.lineTo(cx, cy + 32); ctx.lineTo(cx - 52, cy + 6)
+    ctx.closePath()
+    ctx.fillStyle = withAlpha(col('panel'), 0.7); ctx.fill()
+    ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 2; ctx.stroke()
+    ctx.strokeStyle = col('text_secondary'); ctx.lineWidth = 3
+    ctx.beginPath(); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy - 58); ctx.stroke()
+    ctx.fillStyle = col('alert_blood')
+    ctx.beginPath(); ctx.moveTo(cx, cy - 58); ctx.lineTo(cx + 22, cy - 50); ctx.lineTo(cx, cy - 42)
+    ctx.closePath(); ctx.fill()
+  }
+
+  private drawIsoFacility(cx: number, cy: number, locked: boolean): void {
+    const { ctx } = this
+    const w = ISO_TILE_W * 0.66, h = ISO_TILE_H * 0.66
+    const z = ISO_FLOOR_H * 1.4
+    ctx.beginPath()
+    ctx.moveTo(cx - w / 2, cy - h / 2 - z); ctx.lineTo(cx, cy - z)
+    ctx.lineTo(cx, cy - z + h / 2 + ISO_TILE_H / 2); ctx.lineTo(cx - w / 2, cy - h / 2 + ISO_TILE_H / 2 + h / 2)
+    ctx.closePath(); ctx.fillStyle = locked ? col('panel_stroke') : shade(col('panel'), 0.85); ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2; ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(cx, cy - h / 2 - z); ctx.lineTo(cx + w / 2, cy - h / 2 - z + h / 2)
+    ctx.lineTo(cx + w / 2, cy - h / 2 + ISO_TILE_H / 2 + h / 2); ctx.lineTo(cx, cy - z + h / 2 + ISO_TILE_H / 2)
+    ctx.closePath(); ctx.fillStyle = locked ? shade(col('panel_stroke'), 0.92) : col('panel'); ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(cx, cy - h / 2 - z - 14); ctx.lineTo(cx + w / 2, cy - h / 2 - z + h / 2 - 7)
+    ctx.lineTo(cx, cy - h / 2 - z + h / 2); ctx.lineTo(cx - w / 2, cy - h / 2 - z + h / 2 - 7)
+    ctx.closePath(); ctx.fillStyle = col('gold_deep'); ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.stroke()
+  }
+
+  // ---- L3 房屋内部（点击房间进入；UI 规范 v2.0 §7.2）----
+  private drawInterior(ui: UiState, frame: DayFrame, now: number, pb: Playback): void {
+    const { ctx } = this
+    const floor = ui.sel.floor ?? 0, room = ui.sel.room ?? 0
+    const roomIndex = floor * ROOMS_PER_FLOOR + room
+    const occupied = roomIndex < frame.population
+    ctx.fillStyle = col('bg_night'); ctx.fillRect(0, 0, DESIGN_W, DESIGN_H)
+    ctx.textBaseline = 'middle'
+    this.button(interiorBackRect(), '◀ 楼层', 'normal')
+    ctx.fillStyle = col('text_primary')
+    ctx.font = font(T.typography.h2, { weight: 'bold' })
+    ctx.fillText(`A栋 · ${floor + 1}层 · ${room + 1}号房`, interiorBackRect().x + interiorBackRect().w + T.space.m, interiorBackRect().y + interiorBackRect().h / 2)
+    const fx0 = 60, fx1 = DESIGN_W - 60, fy0 = 560, fy1 = 1180, wallTop = 270
+    const g = ctx.createLinearGradient(0, fy0, 0, fy1)
+    g.addColorStop(0, mix(col('gold_deep'), col('bg_night'), 0.55))
+    g.addColorStop(1, mix(col('gold_deep'), col('bg_night'), 0.78))
+    ctx.beginPath()
+    ctx.moveTo(fx0, fy0); ctx.lineTo(fx1, fy0); ctx.lineTo(fx1 + 60, fy1); ctx.lineTo(fx0 - 60, fy1)
+    ctx.closePath(); ctx.fillStyle = g; ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 3; ctx.stroke()
+    ctx.fillStyle = mix(col('panel'), col('bg_night'), 0.35)
+    ctx.fillRect(fx0, wallTop, fx1 - fx0, fy0 - wallTop)
+    ctx.strokeStyle = col('bg_night'); ctx.strokeRect(fx0, wallTop, fx1 - fx0, fy0 - wallTop)
+    const wx = fx0 + 40, wy = wallTop + 40, ww = 150, wh = 170
+    ctx.fillStyle = withAlpha(col('gold_primary'), occupied ? 0.35 : 0.12)
+    ctx.fillRect(wx, wy, ww, wh)
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 5
+    ctx.strokeRect(wx, wy, ww, wh)
+    ctx.beginPath(); ctx.moveTo(wx + ww / 2, wy); ctx.lineTo(wx + ww / 2, wy + wh)
+    ctx.moveTo(wx, wy + wh / 2); ctx.lineTo(wx + ww, wy + wh / 2); ctx.stroke()
+    const dx = fx1 - 200
+    ctx.fillStyle = mix(col('panel_stroke'), col('gold_deep'), 0.3)
+    ctx.fillRect(dx, wallTop + 60, 110, fy0 - wallTop - 60)
+    ctx.strokeStyle = col('bg_night'); ctx.strokeRect(dx, wallTop + 60, 110, fy0 - wallTop - 60)
+    ctx.beginPath(); ctx.arc(dx + 92, wallTop + 60 + (fy0 - wallTop - 60) / 2, 6, 0, Math.PI * 2)
+    ctx.fillStyle = col('gold_primary'); ctx.fill()
+    for (let i = 0; i < 2; i++) {
+      const sr = interiorSlotRect(i)
+      const fortified = pb.forts[`${floor}:${room}:${i}`] ?? false
+      ctx.setLineDash(fortified ? [] : [10, 8])
+      ctx.beginPath(); ctx.roundRect(sr.x, sr.y, sr.w, sr.h, T.radius.chip)
+      ctx.fillStyle = fortified ? withAlpha(col('success'), 0.16) : withAlpha(col('bg_night'), 0.5)
+      ctx.fill()
+      ctx.strokeStyle = fortified ? col('success') : col('panel_stroke')
+      ctx.setLineDash([])
+      ctx.lineWidth = 3; ctx.stroke()
+      ctx.fillStyle = fortified ? col('success') : col('text_secondary')
+      ctx.font = font(T.typography.body, { weight: fortified ? 'bold' : undefined })
+      ctx.textAlign = 'center'
+      ctx.fillText(fortified ? '已加固' : `工事位 ${i + 1}`, sr.x + sr.w / 2, sr.y + sr.h / 2)
+      ctx.textAlign = 'left'
+    }
+    if (occupied) {
+      const px = DESIGN_W / 2, py = (fy0 + fy1) / 2 - 30
+      const breathe = 1 + 0.02 * Math.sin(now / 800)
+      ctx.save()
+      ctx.translate(px, py); ctx.scale(breathe, breathe)
+      this.iconPerson(0, 0, 110, col('text_primary'))
+      ctx.restore()
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.textAlign = 'center'
+      ctx.fillText('住户 · 生命 100 · 恐慌 0', px, py + 92)
+      ctx.textAlign = 'left'
+    } else {
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.h2)
+      ctx.textAlign = 'center'
+      ctx.fillText('空房 · 待入住', DESIGN_W / 2, (fy0 + fy1) / 2)
+      ctx.textAlign = 'left'
     }
   }
 

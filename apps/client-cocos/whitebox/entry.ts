@@ -14,7 +14,7 @@ import { WhiteboxRenderer, fpsReport, type DayFrame, type Playback } from './ren
 import { col, motion } from './theme.ts'
 import {
   createUiState, openModal, closeModal, topModal, pushEvent, setPage,
-  type UiState
+  openBuilding, openInterior, type UiState
 } from './state.ts'
 import { DESIGN_W, DESIGN_H, hitTest } from './layout.ts'
 import { settleDoneAt, nightWaves } from './anim.ts'
@@ -58,6 +58,7 @@ const pb: Playback = {
   settleStart: null,
   chosenAt: null,
   logs: [],
+  forts: {},
   skills: [
     { label: '空投物资', glyph: '💊', cdUntil: 0 },
     { label: '护盾', glyph: '🛡', cdUntil: 0 }
@@ -68,7 +69,7 @@ const pb: Playback = {
 function enterDay(d: number): void {
   idx = d
   ui.phase = 'DAY'
-  ui.page = 'main'
+  ui.page = 'map'
   pb.chosenAt = null
   for (const card of frames[d]?.eventCards ?? []) Object.assign(ui, pushEvent(ui, card))
 }
@@ -84,6 +85,27 @@ canvas.addEventListener('click', ev => {
   switch (hit.kind) {
     case 'pageBack':
       Object.assign(ui, setPage(ui, 'main'))
+      return
+    case 'mapBack':
+      Object.assign(ui, setPage(ui, 'map'))
+      return
+    case 'interiorBack':
+      Object.assign(ui, setPage(ui, 'main'))
+      return
+    case 'fortSlot': {
+      const key = `${ui.sel.floor ?? 0}:${ui.sel.room ?? 0}:${hit.index}`
+      pb.forts[key] = !pb.forts[key]
+      return
+    }
+    case 'lot': {
+      const lot = hit.id
+      if (lot === 'lot_bld_a') Object.assign(ui, openBuilding(ui, lot))
+      else if (lot === 'lot_gate') Object.assign(ui, openModal(ui, { kind: 'panel', id: '小区大门（野外 M3.3 开放）' }))
+      else Object.assign(ui, openModal(ui, { kind: 'panel', id: lot === 'lot_bld_b' ? 'B栋' : lot === 'lot_bld_c' ? 'C栋' : lot }))
+      return
+    }
+    case 'room':
+      Object.assign(ui, openInterior(ui, hit.floor - 1, hit.room))
       return
     case 'nav':
       Object.assign(ui, setPage(ui, hit.page))
@@ -207,6 +229,6 @@ boot.then(async () => {
   else if (want === 'night') { idx = 6; ui.phase = 'NIGHT'; pb.nightStart = performance.now(); pb.session = simSessions[7] ?? null }
   else if (want === 'dawn') { idx = 6; ui.phase = 'DAWN_SETTLE'; pb.settleStart = performance.now() }
   else enterDay(0)
-  if (wantPage === 'codex' || wantPage === 'shop' || wantPage === 'settings') ui.page = wantPage
+  if (wantPage === 'codex' || wantPage === 'shop' || wantPage === 'settings' || wantPage === 'map' || wantPage === 'main' || wantPage === 'interior') ui.page = wantPage
   console.log(`白盒播放就绪：${frames.length} 天，事件 ${sim.eventsFired} 次，独立 ${sim.distinctFired.length}`)
 })
