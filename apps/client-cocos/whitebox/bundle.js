@@ -1339,7 +1339,7 @@
       }
     }
     const stabilizer = stabilizerL1(records);
-    return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, eventCards, world: exploreOn ? world2 : void 0, stabilizer };
+    return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, eventCards, world: exploreOn ? world2 : void 0, finalState: exploreOn ? state : void 0, stabilizer };
   }
   function stabilizerL1(records) {
     const windows = [[1, 7], [8, 14], [15, 21], [22, 28], [29, 30]];
@@ -5979,7 +5979,10 @@
     { key: "shop", label: "\u5546\u5E97" },
     { key: "sfx", label: "\u97F3\u6548" },
     { key: "bgm", label: "\u97F3\u4E50" },
-    { key: "notice", label: "\u63A8\u9001\u901A\u77E5" }
+    { key: "notice", label: "\u63A8\u9001\u901A\u77E5" },
+    { key: "privacy", label: "\u9690\u79C1\u534F\u8BAE" },
+    { key: "minors", label: "\u672A\u6210\u5E74\u4FDD\u62A4" },
+    { key: "odds", label: "\u6982\u7387\u516C\u793A" }
   ];
   function settingsRowRect(i) {
     return { x: M, y: HUD_H + T.space.s * 2 + HIT_MIN + i * (88 + T.space.s), w: DESIGN_W - M * 2, h: 88 };
@@ -8770,6 +8773,11 @@
             ctx.lineTo(r.x + r.w - T.space.l, r.y + r.h / 2 + 12);
             ctx.closePath();
             ctx.fill();
+          } else if (row.key === "privacy" || row.key === "minors" || row.key === "odds") {
+            ctx.fillStyle = col("text_secondary");
+            ctx.font = font(T.typography.caption);
+            ctx.fillText("\u67E5\u770B", r.x + r.w - T.space.l - 60, r.y + r.h / 2);
+            ctx.fillText("\u25B8", r.x + r.w - T.space.l, r.y + r.h / 2);
           } else {
             const tw = 96;
             const tx = r.x + r.w - tw - T.space.m;

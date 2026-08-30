@@ -1982,6 +1982,12 @@ export class WhiteboxRenderer {
           ctx.lineTo(r.x + r.w - T.space.l + 16, r.y + r.h / 2)
           ctx.lineTo(r.x + r.w - T.space.l, r.y + r.h / 2 + 12)
           ctx.closePath(); ctx.fill()
+        } else if (row.key === 'privacy' || row.key === 'minors' || row.key === 'odds') {
+          // 合规行（E5 骨架）：入口+说明；真实内容页/实名能力接平台（M4）
+          ctx.fillStyle = col('text_secondary')
+          ctx.font = font(T.typography.caption)
+          ctx.fillText('查看', r.x + r.w - T.space.l - 60, r.y + r.h / 2)
+          ctx.fillText('▸', r.x + r.w - T.space.l, r.y + r.h / 2)
         } else {
           const tw = 96
           const tx = r.x + r.w - tw - T.space.m
