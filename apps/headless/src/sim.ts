@@ -236,6 +236,15 @@ export function runSimulation(
       state.resources.gold -= constants.M1_ROOM_GOLD
       state.roomsBuilt++
     }
+    // 医务室升级（clinic 等级→治疗量；有伤员时自动购买）
+    const wounded = state.tenants.filter(t => t.hp < 100).length
+    if (wounded > 0 && state.clinicLevel < 3) {
+      const next = tables.buildingDef.entries.find(b => b.type === 'clinic' && b.level === state.clinicLevel + 1)
+      if (next && state.resources.gold >= (next.cost.gold ?? 0)) {
+        state.resources.gold -= next.cost.gold ?? 0
+        state.clinicLevel++
+      }
+    }
     // 防御投资（优先级 1：fReq(d)，守卫贡献抵扣；单日封顶剩余金币 60% 留发展预算）
     const effPower = defensePower(state, constants)
     const need = Math.max(0, formula.fReq(d) - effPower)
