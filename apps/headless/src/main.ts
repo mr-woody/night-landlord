@@ -38,11 +38,44 @@ export function loadApp(): AppContext {
 }
 
 interface DirectorService {
-  scriptedEffectsFor(day: number): EffectOp[][]
+  scriptedEffectsFor(day: number, state: GameState): { id: string; effects: EffectOp[] }[]
+  selectDay(state: GameState, day: number): { id: string; effects: EffectOp[] }[]
   planNight(state: GameState, day: number): { day: number; routes: { roomId: string; hp: number }[]; modifiers: string[]; seed: number }
 }
 interface BattleService { run(state: GameState, plan: Parameters<typeof runNight>[1]): BattleSession }
 interface GameService { tables: Tables; createState(seed: number): GameState }
+
+
+interface EventLibEntry {
+  id: string; ver: number; type: 'scripted' | 'choice' | 'mission'; title: string
+  weight: number; cooldownDays: number; maxPerRun: number
+  prereq?: { dayMin?: number; dayMax?: number; panicMin?: number; panicMax?: number; reputationMin?: number; flags?: Record<string, number> }
+  triggerDay?: number
+  text?: string
+  options: { label: string; outcomes: { p: number; text?: string; effects: EffectOp[] }[] }[]
+}
+
+/** outcome 按 p 掷骰（日域确定性 RNG）；tenantId=-1 解析为随机住户。 */
+function rollOutcome(e: EventLibEntry, state: GameState, day: number, rng: { next(): number }): EffectOp[] {
+  const option = e.options[0]
+  if (!option) return []
+  let roll = rng.next()
+  let picked = option.outcomes[option.outcomes.length - 1]
+  for (const oc of option.outcomes) { roll -= oc.p; if (roll > 0) continue; picked = oc; break }
+  const resolve = (op: EffectOp): EffectOp => {
+    if ((op.op === 'KILL_TENANT' || op.op === 'WOUND_TENANT') && op.tenantId === -1) {
+      if (state.tenants.length === 0) return { op: 'SET_FLAG', key: 'noop', v: 1 }
+      const victim = state.tenants[Math.floor(rng.next() * state.tenants.length)]
+      return { ...op, tenantId: victim.id } as EffectOp
+    }
+    return op
+  }
+  const bookkeep: EffectOp[] = [
+    { op: 'SET_FLAG', key: `fired_${e.id}`, v: (state.flags[`fired_${e.id}`] ?? 0) + 1 },
+    { op: 'SET_FLAG', key: `last_${e.id}`, v: day }
+  ]
+  return [...picked.effects.map(resolve), ...bookkeep]
+}
 
 // ---- M1 bundle（内核档 §2.5 headlessBundle 子集；+devtools 为 devBundle）----
 export function buildBundle(app: AppContext, options: { devtools?: boolean } = {}): PluginDeclaration[] {
@@ -94,27 +127,60 @@ export function buildBundle(app: AppContext, options: { devtools?: boolean } = {
     }
   })
   const director = definePlugin({
-    name: 'rn.director', version: '0.1.0', hotplug: 'standard',
+    name: 'rn.director', version: '0.2.0', hotplug: 'standard',
     depends: [{ service: 'game' }, { service: 'formula' }],
     provides: ['director'], produces: ['event/fired', 'night/plan'],
     hooks: {
       setup(ctx) {
         ctx.provide('director', {
-          scriptedEffectsFor(day: number): EffectOp[][] {
-            const lib = loadJson<{ entries: { type: string; triggerDay: number; options: { outcomes: { effects: EffectOp[] }[] }[] }[] }>('config/event_lib.json')
-            // D0 教学事件并入 D1 执行（模拟自 D1 起）
+          scriptedEffectsFor(day: number, state: GameState): { id: string; effects: EffectOp[] }[] {
+            const lib = loadJson<{ entries: EventLibEntry[] }>('config/event_lib.json')
             return lib.entries
-              .filter(e => e.type === 'scripted' && (e.triggerDay === day || (day === 1 && e.triggerDay === 0)))
-              .map(e => e.options[0]?.outcomes[0]?.effects ?? [])
+              .filter(e => e.type === 'scripted' && (e.triggerDay ?? 0) === day || (day === 1 && (e.triggerDay ?? 99) === 0))
+              .map(e => ({ id: e.id, effects: rollOutcome(e, state, day, createDayRng(app.tables.dayCurve.version, 'event', day * 100 + (e.triggerDay ?? 0))) }))
           },
           planNight(state: GameState, day: number) {
             const row = app.formula.row(day)
             const rng = createDayRng(state.seed, 'monster', day)
-            // 怪物三段式 AI 最简版：感知（有住户的房间）→ 决策（M1 均匀分散，血月 +1 路由 W 表达）→ 执行（破门点即房间）
             const occupied = Array.from({ length: Math.min(state.tenants.length, state.roomsBuilt) }, (_, i) => `F1-R${i + 1}`)
             const pool = occupied.length > 0 ? occupied : ['F1-R1']
             const routes = Array.from({ length: row.routes }, (_, i) => ({ roomId: pool[Math.floor(rng.next() * pool.length)], hp: row.hp }))
             return { day, routes, modifiers: app.formula.bloodMoon(day) ? ['BLOOD_MOON'] : [], seed: rng.next() }
+          },
+          /** M2 条件触发版：权重×频控×prereq 抽取 + 保底池（内核档 §5.4） */
+          selectDay(state: GameState, day: number): { id: string; effects: EffectOp[] }[] {
+            const lib = loadJson<{ entries: EventLibEntry[] }>('config/event_lib.json')
+            const slots = 1 + (day % 2)
+            const rng = createDayRng(app.tables.dayCurve.version, 'director', day)
+            const avgPanic = state.tenants.length ? state.tenants.reduce((a, t) => a + t.panic, 0) / state.tenants.length : 0
+            const eligible = (e: EventLibEntry): boolean => {
+              if (e.type === 'scripted') return false
+              const pr = e.prereq ?? {}
+              if (day < (pr.dayMin ?? 0) || (pr.dayMax !== undefined && day > pr.dayMax)) return false
+              if (pr.panicMax !== undefined && avgPanic > pr.panicMax) return false
+              if (pr.panicMin !== undefined && avgPanic < pr.panicMin) return false
+              if (pr.reputationMin !== undefined && (state.flags.reputation ?? 0) < pr.reputationMin) return false
+              for (const [k, v] of Object.entries(pr.flags ?? {})) if ((state.flags[k] ?? 0) < v) return false
+              if ((state.flags[`fired_${e.id}`] ?? 0) >= e.maxPerRun) return false
+              const last = state.flags[`last_${e.id}`] ?? -99
+              if (day - last < e.cooldownDays) return false
+              return true
+            }
+            const pool = lib.entries.filter(e => eligible(e)).map(e => ({ e, w: e.weight }))
+            const chosen: EventLibEntry[] = []
+            for (let s = 0; s < slots && pool.length > 0; s++) {
+              const total = pool.reduce((a, x) => a + x.w, 0)
+              let roll = rng.next() * total
+              let picked = pool[pool.length - 1]
+              for (const x of pool) { roll -= x.w; if (roll <= 0) { picked = x; break } }
+              pool.splice(pool.indexOf(picked), 1)
+              chosen.push(picked.e)
+            }
+            if (chosen.length === 0) {
+              const fb = lib.entries.filter(e => ['evt_ord_207', 'evt_box_003', 'evt_birthday_013'].includes(e.id) && eligible(e))
+              if (fb.length) chosen.push(fb[Math.floor(rng.next() * fb.length)])
+            }
+            return chosen.map(e => ({ id: e.id, effects: rollOutcome(e, state, day, rng) }))
           }
         })
       }
@@ -159,7 +225,7 @@ function target(d: number, t: Tables): number {
 
 export function runSimulation(
   app: AppContext, kernel: Kernel, options: { days: number; seed: number }
-): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number } {
+): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number; distinctFired: string[] } {
   const { tables, constants } = app
   const formula = kernel.service<ReturnType<typeof createFormula>>('formula')
   const director = kernel.service<DirectorService>('director')
@@ -170,6 +236,7 @@ export function runSimulation(
   const records: DayRecord[] = []
   const sessions: Record<number, BattleSession> = {}
   const findings: string[] = []
+  const distinctFired = new Set<string>()
   let eventsFired = 0
   let checkpoints = 0
 
@@ -229,12 +296,13 @@ export function runSimulation(
       if (r.applied === 0) break
       bought++
     }
-    // 教学事件（M2 起为条件触发版接口，保留函数形状）
-    const scripted = director.scriptedEffectsFor(d)
+    // 事件：scripted（A 组 triggerDay 特权）+ selectDay（条件触发版）
+    const todays = [...director.scriptedEffectsFor(d, state), ...director.selectDay(state, d)]
     let events = 0
-    for (const effects of scripted) {
-      applyEffects(state, effects, { constants, buildingDef: tables.buildingDef })
+    for (const ev of todays) {
+      applyEffects(state, ev.effects, { constants, buildingDef: tables.buildingDef })
       events++
+      distinctFired.add(ev.id)
     }
     eventsFired += events
     persistence.put(`ckpt_${d}_day`, serialize(state))
@@ -275,7 +343,7 @@ export function runSimulation(
       findings.push(`β_sim D${[1, 8, 15, 22][i]}-=${simBeta[i]}% vs 设计 ${designed[i]}%：白盒基础经济无 u 线深度（M0 §3.2 部件，M2 实现住户升级线），见证据台账 FINDING-1`)
     }
   }
-  return { records, finalHash, findings, sessions, eventsFired }
+  return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired] }
 }
 
 function betaSim(records: DayRecord[], tables: Tables): number[] {
@@ -326,7 +394,7 @@ function cmdVerify(app: AppContext, kernel: Kernel, args: Record<string, string>
     results.push({ name: 'V6 deaths ≤ GUARD_DEATH_30D', ok: deaths <= app.constants.GUARD_DEATH_30D, detail: `deaths=${deaths}` })
     const bad = a.records.filter(r => r.invariantErrors.length > 0)
     results.push({ name: 'V7 invariants clean', ok: bad.length === 0, detail: bad.length ? bad.map(r => `D${r.day}:${r.invariantErrors.join(',')}`).join('; ') : 'clean' })
-    results.push({ name: 'V8 事件引擎', ok: a.eventsFired >= 6, detail: `30 天触发事件 ${a.eventsFired} 次（≥6）` })
+    results.push({ name: 'V8 事件覆盖 ≥80%', ok: a.distinctFired.length >= 34, detail: `独立触发 ${a.distinctFired.length}/42，总次数 ${a.eventsFired}` })
     // M2 硬门：β_sim 四周期 ±5pp（FINDING-1 闭环）
     const simBeta = betaSim(a.records, app.tables)
     const designedBeta = [17, 27, 42, 58]
