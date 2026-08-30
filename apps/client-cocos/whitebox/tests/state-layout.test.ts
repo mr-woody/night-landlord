@@ -98,3 +98,16 @@ test('命中测试：模态开启时不穿透、关闭按钮可点；dock/设置
   assert.equal(anyClose.kind, 'modalClose', '模态右下关闭钮可命中')
   assert.equal(hitTest(1, DESIGN_H - 1).kind, 'none', 'dock 之下空白处无命中')
 })
+
+test('命中测试：小区地图上探索横幅与 30 栋小屋可达（M3.3 回归——此前 hitTest 死分支致入口失效）', () => {
+  // 探索横幅中心（EXPLORE_ENTRY: x 235-515, y 240-304）
+  const ex = hitTest(DESIGN_W / 2, 240 + 32, { page: 'map' })
+  assert.equal(ex.kind, 'explore', '探索横幅必须可命中（L1 野外唯一入口）')
+  // 小屋群落：i=0 屋（x 96-158, y 680-730）与末排 row4（偶数行无错位，col3 → x 396-458）
+  assert.equal(hitTest(100, 700, { page: 'map' }).kind, 'house', '首排小屋可命中')
+  const last = hitTest(416, 726 + 4 * 84 - 20, { page: 'map' })
+  assert.equal(last.kind, 'house', '末排小屋可命中')
+  // 地块/浮层层序：横幅与小屋命中优先于等距地块
+  const lot = hitTest(DESIGN_W / 2 + 110, 540, { page: 'map' })
+  assert.ok(['lot', 'house', 'explore'].includes(lot.kind), `地块区域命中应属 lot/house/explore，实得 ${lot.kind}`)
+})

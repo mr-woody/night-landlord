@@ -145,9 +145,6 @@ canvas.addEventListener('click', ev => {
     case 'house':
       Object.assign(ui, openModal(ui, { kind: 'panel', id: `house:${hit.index}` }))
       return
-    case 'house':
-      Object.assign(ui, openModal(ui, { kind: 'panel', id: `house:${hit.index}` }))
-      return
     case 'wildBack':
       Object.assign(ui, setPage(ui, 'map'))
       return

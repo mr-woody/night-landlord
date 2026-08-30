@@ -5998,6 +5998,12 @@
       return { kind: "modal" };
     }
     if (page === "map") {
+      const ex = EXPLORE_ENTRY;
+      if (x >= ex.x && x < ex.x + ex.w && y >= ex.y && y < ex.y + ex.h) return { kind: "explore" };
+      for (let i = 29; i >= 0; i--) {
+        const r = houseHitRect(i);
+        if (inRect(r)) return { kind: "house", index: i };
+      }
       for (const [id, lot] of Object.entries(LOTS)) {
         const base = isoToScreen(lot.gx, lot.gy);
         const cx = base.x, cy = base.y + ISO_TILE_H / 2;
@@ -6008,12 +6014,6 @@
       for (const [i, r] of dockRects().entries()) if (inRect(r)) return { kind: "dock", key: DOCK_KEYS[i].key };
       if (inRect(settingsRect())) return { kind: "settings" };
       return { kind: "none" };
-    }
-    if (page === "map") {
-      for (let i = 29; i >= 0; i--) {
-        const r = houseHitRect(i);
-        if (inRect(r)) return { kind: "house", index: i };
-      }
     }
     if (page === "wild") {
       if (inRect(wildBackRect())) return { kind: "wildBack" };
@@ -8909,9 +8909,6 @@
         return;
       case "explore":
         Object.assign(ui, setPage(ui, "wild"));
-        return;
-      case "house":
-        Object.assign(ui, openModal(ui, { kind: "panel", id: `house:${hit.index}` }));
         return;
       case "house":
         Object.assign(ui, openModal(ui, { kind: "panel", id: `house:${hit.index}` }));
