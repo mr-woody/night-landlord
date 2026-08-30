@@ -25,6 +25,7 @@ import {
   threatBurst, dissolveAlpha, cardFlip
 } from './anim.ts'
 import { tutorialBoard, type TutRow } from './tutorial.ts'
+import { monsterProgress, monsterVisual } from './battle.ts'
 import weatherJson from '../../../config/weather.json' with { type: 'json' }
 
 export interface DayFrame {
@@ -866,6 +867,47 @@ export class WhiteboxRenderer {
         }
       })
     }
+    // 夜战实体（差异化呈现，设计 §2.4）：怪物沿路行进→守卫反击→结果标记
+    if (pb.session && waves) {
+      pb.session.routes.forEach((_, i) => {
+        const rv = waves.revealed[i]
+        if (!rv) return
+        const r = nightRouteRect(i)
+        const isCurrent = waves.waveNo === i + 1
+        const prog = isCurrent
+          ? monsterProgress(waves.waveNo, pb.nightStart ?? 0, now)
+          : waves.waveNo > i + 1 ? 1 : 0
+        const barX = r.x + 64, barW = r.w - 64 - 160
+        const visual = monsterVisual(rv.route.monsterId ?? '')
+        const mx = barX + 14 + (barW - 60) * prog
+        const my = r.y + r.h / 2 + (visual === 'flyer' ? -12 : 0) + (isCurrent ? Math.sin(now / 90) * 2 : 0)
+        const scale = visual === 'elite' ? 1.3 : 1
+        const gx = barX + barW - 18
+        this.iconPerson(gx, r.y + r.h / 2 + 2, 26, col('text_primary'))
+        ctx.fillStyle = col('alert_blood')
+        ctx.fillRect(gx - 3, r.y + r.h / 2 - 2, 8, 5)
+        if (prog <= 0) return
+        const lunge = isCurrent && prog > 0.85 ? Math.sin(now / 60) * 6 : 0
+        const bobY = visual === 'flyer' ? Math.sin(now / 120) * 4 : Math.abs(Math.sin(now / 110)) * -3
+        ctx.save()
+        ctx.translate(mx + lunge, my + bobY)
+        ctx.scale(scale, scale)
+        this.drawMonster(visual, now)
+        ctx.restore()
+        if (!isCurrent && waves.waveNo > i + 1) {
+          if (rv.state === 2) {
+            for (let p = 0; p < 5; p++) {
+              const a = prand(i * 7 + p) * Math.PI * 2
+              ctx.beginPath(); ctx.arc(gx - 10 + Math.cos(a) * (6 + p * 3), r.y + r.h / 2 - Math.sin(a) * (4 + p * 2), 2.5, 0, Math.PI * 2)
+              ctx.fillStyle = withAlpha(col('text_primary'), 0.6); ctx.fill()
+            }
+          } else {
+            ctx.fillStyle = withAlpha(col('alert_blood'), 0.4 + 0.3 * Math.sin(now / 150))
+            ctx.beginPath(); ctx.arc(gx, r.y + r.h / 2, 16, 0, Math.PI * 2); ctx.fill()
+          }
+        }
+      })
+    }
     // 主动技
     nightSkillRects().forEach((r, i) => {
       const sk = pb.skills[i]
@@ -891,6 +933,48 @@ export class WhiteboxRenderer {
       }
     })
     ctx.restore()
+  }
+
+  /** 怪物绘制（差异化：循声者爬行+声波圈/破窗者携梯/攀楼种挂钩/飞行种悬停/精英红眼尖刺） */
+  private drawMonster(visual: 'crawler' | 'breaker' | 'climber' | 'flyer' | 'elite', now: number): void {
+    const { ctx } = this
+    const body = shade(col('panel_stroke'), 0.55)
+    const legSwing = Math.sin(now / 90) * 3
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 3
+    if (visual === 'flyer') {
+      const flap = Math.sin(now / 60) * 6
+      ctx.beginPath()
+      ctx.moveTo(0, -8); ctx.lineTo(-14, -14 + flap); ctx.moveTo(0, -8); ctx.lineTo(14, -14 - flap)
+      ctx.stroke()
+    }
+    if (visual === 'crawler' || visual === 'elite') {
+      ctx.beginPath()
+      ctx.moveTo(-8, 8); ctx.lineTo(-12, 14 + legSwing)
+      ctx.moveTo(8, 8); ctx.lineTo(12, 14 - legSwing)
+      ctx.stroke()
+    }
+    ctx.beginPath()
+    if (visual === 'flyer') ctx.ellipse(0, 0, 12, 9, 0, 0, Math.PI * 2)
+    else ctx.ellipse(0, 0, 14, 10, 0, 0, Math.PI * 2)
+    ctx.fillStyle = body; ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2; ctx.stroke()
+    if (visual === 'breaker') {
+      ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 3
+      ctx.beginPath(); ctx.moveTo(10, -6); ctx.lineTo(20, 4); ctx.stroke()
+    }
+    if (visual === 'climber') {
+      ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2
+      ctx.beginPath(); ctx.arc(-12, -4, 4, 0, Math.PI * 2); ctx.stroke()
+    }
+    if (visual === 'elite') {
+      ctx.beginPath()
+      ctx.moveTo(-10, -10); ctx.lineTo(-14, -16); ctx.moveTo(10, -10); ctx.lineTo(14, -16)
+      ctx.stroke()
+    }
+    const er = visual === 'elite' ? 4 : 3
+    ctx.fillStyle = col('alert_blood')
+    ctx.beginPath(); ctx.arc(-5, -3, er, 0, Math.PI * 2); ctx.fill()
+    ctx.beginPath(); ctx.arc(5, -3, er, 0, Math.PI * 2); ctx.fill()
   }
 
   /** 战况日志 + 战毕返回 */
