@@ -2,7 +2,7 @@
 // 红线：一切游戏状态变更必须经 applyEffects；确定性哈希用 canonicalJson+hash32。
 import { createRngStreams, hash32, canonicalJson, type Phase } from '@rn/core'
 import {
-  createFormula, loadConstants, type Quality, type DayCurveTable,
+  createFormula, loadConstants, upgradeCost, type Quality, type DayCurveTable,
   type ConstantsTable, type RouteOutcome
 } from '@rn/formula'
 
@@ -119,6 +119,7 @@ export type EffectOp =
   | { op: 'SPAWN_TENANT'; quality: Quality }
   | { op: 'KILL_TENANT'; tenantId: number }
   | { op: 'WOUND_TENANT'; tenantId: number }
+  | { op: 'UPGRADE_TENANT'; tenantId: number }
   | { op: 'ADD_PANIC'; n: number }
   | { op: 'SET_FLAG'; key: string; v: number }
   | { op: 'GRANT_BUFF'; buff: string; days: number }
@@ -168,6 +169,15 @@ export function applyEffects(state: GameState, ops: EffectOp[], deps: EffectDeps
       case 'WOUND_TENANT': {
         const t = state.tenants.find(t => t.id === op.tenantId)
         if (!t) { ok = false; reason = '住户不存在' } else t.hp = Math.max(20, t.hp - 40)
+        break
+      }
+      case 'UPGRADE_TENANT': {
+        const t = state.tenants.find(t => t.id === op.tenantId)
+        if (!t) { ok = false; reason = '住户不存在' } else {
+          const cost = upgradeCost(t.level, deps.constants.UPGRADE_BASE, deps.constants.UPGRADE_GROWTH)
+          if (state.resources.gold < cost) { ok = false; reason = `金币不足（升级需 ${cost}）` }
+          else { state.resources.gold -= cost; t.level++ }
+        }
         break
       }
       case 'ADD_PANIC': {

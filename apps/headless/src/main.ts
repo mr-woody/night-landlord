@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process'
 import { createKernel, definePlugin, type Kernel, type PluginDeclaration } from '@rn/kernel'
 import { createDiagPlugin } from '@rn/diag'
 import { createDayRng, createRngStreams, hash32, canonicalJson } from '@rn/core'
-import { createFormula, loadConstants, type Quality } from '@rn/formula'
+import { createFormula, loadConstants, levelForU, type Quality } from '@rn/formula'
 import {
   createGameState, serialize, deserialize, checkInvariants, applyEffects,
   settleDawn, runNight, canteenCap, type GameState, type Tables, type BattleSession, type EffectOp
@@ -141,7 +141,16 @@ export function buildBundle(app: AppContext, options: { devtools?: boolean } = {
 interface DayRecord {
   day: number; population: number; gold: number; income: number; power: number
   rAvg: number; deaths: number; wounds: number; sessionHash: string; invariantErrors: string[]
-  events: number; checkpoints: number
+  events: number; checkpoints: number; avgLevel: number; targetLevel: number
+}
+
+/** 招募池权重求解：在 {N:1,R:1.5,SR:2.5,SSR:5} 上两两混合出期望品质 E（确定性）。 */
+function weightsFor(E: number): Record<Quality, number> {
+  const e = Math.max(1, Math.min(5, E))
+  if (e <= 1.5) { const wR = (e - 1) / 0.5; return { N: 1 - wR, R: wR, SR: 0, SSR: 0 } }
+  if (e <= 2.5) { const wR = 2.5 - e, wSR = e - 1.5; return { N: 0, R: wR, SR: wSR, SSR: 0 } }
+  const wSR = (5 - e) / 2.5, wSSR = (e - 2.5) / 2.5
+  return { N: 0, R: 0, SR: wSR, SSR: wSSR }
 }
 
 function target(d: number, t: Tables): number {
@@ -184,9 +193,17 @@ export function runSimulation(
       state.resources.gold -= constants.M1_ROOM_GOLD
       state.roomsBuilt++
     }
-    // 招募（品质按池权重 roll，权重随 q(d) 线性插值）
-    const t = Math.max(0, Math.min(1, (row.q - 1) / 0.7))
-    const w: Record<Quality, number> = { N: 1 - 0.58 * t, R: 0.32 * t, SR: 0.2 * t, SSR: 0.06 * t }
+    // 防御投资（优先级 1：目标 fReq(d)）
+    const need = Math.max(0, formula.fReq(d) - state.defense.power)
+    const invest = Math.min(Math.ceil(need * constants.CFG_K_POWER), state.resources.gold)
+    state.resources.gold -= invest
+    state.defense.power += Math.floor(invest / constants.CFG_K_POWER)
+    // 招募补位至人口目标（优先级 2；品质池权重按“存量品质缺口”求解，使结构平均跟踪 q(d)）
+    const stockQ = state.tenants.reduce((a, x) => a + constants.CFG_QUALITY_MUL_N * 0 + ({ N: 1, R: 1.5, SR: 2.5, SSR: 5 } as Record<Quality, number>)[x.quality], 0)
+    const popTarget2 = target(d, tables)
+    const newRecruits = Math.max(1, popTarget2 - state.tenants.length)
+    const needE = Math.max(1, Math.min(5, (row.q * popTarget2 - stockQ) / newRecruits))
+    const w = weightsFor(needE)
     while (
       state.tenants.length < Math.min(target(d, tables), state.roomsBuilt, canteenCap(state, tables.buildingDef)) &&
       state.resources.gold >= constants.M1_RECRUIT_GOLD
@@ -202,7 +219,17 @@ export function runSimulation(
       const r = applyEffects(state, [{ op: 'SPAWN_TENANT', quality: q }], { constants, buildingDef: tables.buildingDef })
       if (r.applied === 0) break
     }
-    // 教学事件（Director 固定脚本版，A 组）
+    // 住户升级（优先级 3：跟踪设计 u 曲线，最便宜优先——FINDING-1 闭环）
+    const targetLevel = levelForU(row.u, constants.CFG_G_U)
+    let bought = 0
+    for (;;) {
+      const needy = [...state.tenants].filter(x => x.level < targetLevel).sort((a, b) => a.level - b.level)[0]
+      if (!needy) break
+      const r = applyEffects(state, [{ op: 'UPGRADE_TENANT', tenantId: needy.id }], { constants, buildingDef: tables.buildingDef })
+      if (r.applied === 0) break
+      bought++
+    }
+    // 教学事件（M2 起为条件触发版接口，保留函数形状）
     const scripted = director.scriptedEffectsFor(d)
     let events = 0
     for (const effects of scripted) {
@@ -210,11 +237,6 @@ export function runSimulation(
       events++
     }
     eventsFired += events
-    // 防御投资（目标 fReq(d)）
-    const need = Math.max(0, formula.fReq(d) - state.defense.power)
-    const invest = Math.min(Math.ceil(need * constants.CFG_K_POWER), state.resources.gold)
-    state.resources.gold -= invest
-    state.defense.power += Math.floor(invest / constants.CFG_K_POWER)
     persistence.put(`ckpt_${d}_day`, serialize(state))
     checkpoints++
 
@@ -240,7 +262,8 @@ export function runSimulation(
       day: d, population: state.tenants.length, gold: state.resources.gold,
       income: settle.income, power: state.defense.power, rAvg: Math.round(rAvg * 1000) / 1000,
       deaths: session.deaths, wounds: session.wounds, sessionHash: session.settlementHash,
-      invariantErrors, events, checkpoints: 3
+      invariantErrors, events, checkpoints: 3,
+      avgLevel: state.tenants.length ? Math.round(state.tenants.reduce((a, t) => a + t.level, 0) / state.tenants.length * 10) / 10 : 0, targetLevel
     })
     void checkpoints
   }
@@ -303,8 +326,17 @@ function cmdVerify(app: AppContext, kernel: Kernel, args: Record<string, string>
     results.push({ name: 'V6 deaths ≤ GUARD_DEATH_30D', ok: deaths <= app.constants.GUARD_DEATH_30D, detail: `deaths=${deaths}` })
     const bad = a.records.filter(r => r.invariantErrors.length > 0)
     results.push({ name: 'V7 invariants clean', ok: bad.length === 0, detail: bad.length ? bad.map(r => `D${r.day}:${r.invariantErrors.join(',')}`).join('; ') : 'clean' })
-    results.push({ name: 'V8 事件引擎', ok: a.eventsFired >= 6, detail: `30 天触发 scripted 事件 ${a.eventsFired} 次（≥6）` })
-    a.findings.forEach(f => results.push({ name: 'FINDING', ok: true, detail: f }))
+    results.push({ name: 'V8 事件引擎', ok: a.eventsFired >= 6, detail: `30 天触发事件 ${a.eventsFired} 次（≥6）` })
+    // M2 硬门：β_sim 四周期 ±5pp（FINDING-1 闭环）
+    const simBeta = betaSim(a.records, app.tables)
+    const designedBeta = [17, 27, 42, 58]
+    simBeta.forEach((bv, i) => {
+      results.push({ name: `V9 β_sim ${['D1-7', 'D8-14', 'D15-21', 'D22-28'][i]}=${designedBeta[i]}±5pp`, ok: Math.abs(bv - designedBeta[i]) <= 5, detail: `β_sim=${bv}%` })
+    })
+    // M2 硬门：模拟收入回落至设计曲线 ±10%（聚合 ΣI）
+    const sumTable = app.tables.dayCurve.rows.filter((r: { day: number; income: number }) => r.day >= 1 && r.day <= 30).reduce((x: number, r: { income: number }) => x + r.income, 0)
+    const sumSim = a.records.reduce((x, r) => x + r.income, 0)
+    results.push({ name: 'V10 ΣI within ±10% of design', ok: Math.abs(sumSim - sumTable) / sumTable <= 0.1, detail: `sim=${sumSim} vs design=${sumTable}` })
   }
 
   let ok = true

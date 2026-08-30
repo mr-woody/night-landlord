@@ -31,6 +31,21 @@ export function devMul(level: number, gU: number): number {
   return m
 }
 
+/** 升级到 level+1 的成本：UPGRADE_BASE × G^(level-1)，向上取整（禁 Math.pow，循环实现）。 */
+export function upgradeCost(level: number, base: number, growth: number): number {
+  let m = 1
+  for (let i = 1; i < level; i++) m *= growth
+  return Math.ceil(base * m)
+}
+
+/** 由设计 u 系数反推目标等级（最小满足 devMul ≥ u 的 L），循环实现无超越函数。 */
+export function levelForU(u: number, gU: number): number {
+  let m = 1
+  let level = 1
+  while (m < u && level < 60) { m *= gU; level++ }
+  return level
+}
+
 export function createFormula(tables: { dayCurve: DayCurveTable; constants: Record<string, number> }) {
   const rows = tables.dayCurve.rows
   const C = tables.constants
