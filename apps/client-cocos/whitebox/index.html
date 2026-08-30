@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌙</text></svg>">
-  <title>M2.5 白盒渲染 · 永夜收租人</title>
+  <title>白盒验收台 · 永夜收租人（M4）</title>
   <!-- 内联样式与 config/theme.json tokens 同步（M2.5 功能点1，scripts/check-theme.mjs 断言色值合规）：
        bg_night=#0B1020 / text_secondary=#8892B0 / panel_stroke=#2A3555 -->
   <style>
@@ -27,9 +27,11 @@
 <body>
   <div id="fps">FPS 采样中…</div>
   <canvas id="stage" width="750" height="1624" style="width: 375px; height: 812px;"></canvas>
-  <p>M2.5 白盒渲染：主界面风格化（§3.1 线框：HUD/资源栏/剖面楼栋/dock 四键/事件卡入口），
-     tokens 驱动（色板/字号/动效全部取自 config/theme.json），点击可交互（布防/招募/升级/▶夜/⚙/事件入口）。
-     控制台执行 __fpsReport() 可导出帧率报告（性能预算：min ≥50fps）。</p>
+  <p>白盒验收台（M4）：L1 野外探索 / L2 小区地图 / L3 室内三层空间 + 一天循环四相
+     （DAY→DUSK→NIGHT→DAWN），tokens 驱动（色板/字号/动效全部取自 config/theme.json）。
+     全部界面真实可交互：探索横幅/小屋升级/地块/布防/招募/升级/▶夜/⚙/事件卡。
+     控制台：__fpsReport() 导出帧率报告；__nlState()/__nlRects() 供 E2E v3 真实断言
+     （node e2e-whitebox.cjs，17 项全站功能验收）。</p>
   <script src="./bundle.js"></script>
 </body>
 </html>
