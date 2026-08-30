@@ -335,6 +335,25 @@ function record(name, ok, detail = '') {
       `waves=${wavesDone ? 'done' : 'timeout'} d8=${d8?.day}`);
   }
 
+  // ═══ T18: D30 B/C 栋解锁验收——unlockProgress 生产接线（扩容 30→90）+ 面板解锁态 ═══
+  {
+    await page.goto(BASE + '?day=30', { waitUntil: 'load' });
+    await wait(2500);
+    await drainEvents();
+    const d30 = await state();
+    const R = await rects();
+    await clickRect(R.lot_bld_b);
+    await wait(450);
+    const panel = await state();
+    await shot('18-d30-bcd-unlock');
+    const Rc = await rects();
+    await clickRect(Rc.modalClose);
+    const closed = await until(async () => (await state()).modal === null, 3000);
+    record('T18 D30 B/C 栋解锁', d30.day === 30 && d30.capacity === 90 &&
+      panel.modal?.id === 'B栋' && closed !== null,
+      `day=${d30.day} capacity=${d30.capacity} panel=${JSON.stringify(panel.modal)}`);
+  }
+
   // ═══ T15: Console 错误检查 ═══
   record('T15 Console 无 JS 错误', consoleErrors.length === 0, consoleErrors.join('; ').slice(0, 200));
 

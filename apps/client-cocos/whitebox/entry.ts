@@ -3,7 +3,7 @@
 // + rAF 帧率采样。打包：npm run build:whitebox（esbuild → whitebox/bundle.js）
 import { createKernel } from '../../../packages/kernel/src/index.ts'
 import { createGameState, applyEffects, type Tables } from '../../../packages/systems/src/index.ts'
-import { createWorldState, dispatchParty, resolveDue, restoreStamina, worldCapacity, type WorldTables } from '../../../packages/world/src/index.ts'
+import { createWorldState, dispatchParty, resolveDue, restoreStamina, unlockProgress, worldCapacity, type WorldTables } from '../../../packages/world/src/index.ts'
 import { createFormula, loadConstants } from '../../../packages/formula/src/index.ts'
 import { buildBundle, runSimulation, type AppContext } from '../../../apps/headless/src/sim.ts'
 import dayCurveJson from '../../../config/day_curve.json'
@@ -25,7 +25,8 @@ import {
 import { DESIGN_W, DESIGN_H, hitTest, dockRects, dockRect, modalCloseRect, modalConfirmRect, modalOptionRect,
   duskConfirmRect, nightSkillRects, nightBackRect, settleContinueRect,
   EXPLORE_ENTRY, wildZoneRect, wildDispatchRect, wildBackRect, wildMinusRect, wildPlusRect,
-  settingsRect, settingsRowRect, pageBackRect, houseHitRect, mapBackRect, SETTINGS_ROWS } from './layout.ts'
+  settingsRect, settingsRowRect, pageBackRect, houseHitRect, mapBackRect, SETTINGS_ROWS,
+  LOTS, isoToScreen, ISO_TILE_H } from './layout.ts'
 import { settleDoneAt, nightWaves } from './anim.ts'
 import { WILD_ZONE_NAME } from './layout.ts'
 import { weatherOfDay } from '@rn/weather'
@@ -93,6 +94,7 @@ function enterDay(d: number): void {
   const day = d + 1
   const reports = resolveDue(world, sideState, wtables, app.constants, day)
   restoreStamina(world, sideState, app.constants)
+  unlockProgress(world, day, wtables) // 楼栋/地块按 unlockDay 推进解锁（D30 → B/C 栋）
   pb.capacity = worldCapacity(world)
   for (const rp of reports) {
     if (rp.loot.length > 0 || rp.encounters.length > 0) {
@@ -330,7 +332,10 @@ boot.then(async () => {
     wildZones: [0, 1, 2, 3].map(wildZoneRect), wildDispatch: wildDispatchRect(),
     wildBack: wildBackRect(), wildMinus: wildMinusRect(), wildPlus: wildPlusRect(),
     settings: settingsRect(), settingsRows: SETTINGS_ROWS.map((_, i) => settingsRowRect(i)),
-    pageBack: pageBackRect(), house0: houseHitRect(0), mapBack: mapBackRect()
+    pageBack: pageBackRect(), house0: houseHitRect(0), mapBack: mapBackRect(),
+    // 等距地块命中框（与 layout.hitTest map 分支同几何：bld bw=100/bh=230）
+    lot_bld_b: (() => { const l = LOTS.lot_bld_b; const c = isoToScreen(l.gx, l.gy); const cy = c.y + ISO_TILE_H / 2; return { x: c.x - 50, y: cy - 230, w: 100, h: 260 } })(),
+    lot_bld_c: (() => { const l = LOTS.lot_bld_c; const c = isoToScreen(l.gx, l.gy); const cy = c.y + ISO_TILE_H / 2; return { x: c.x - 50, y: cy - 230, w: 100, h: 260 } })()
   })
   g.__nlState = () => {
     const f = frames[idx]

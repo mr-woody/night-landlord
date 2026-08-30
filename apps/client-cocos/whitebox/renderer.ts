@@ -1845,9 +1845,10 @@ export class WhiteboxRenderer {
       line('茅草屋 → 砖石堡垒共 6 级（房屋进化）', 196)
     } else if (top.id === 'B栋' || top.id === 'C栋' || top.id === 'lot_bld_b' || top.id === 'lot_bld_c') {
       const name = top.id.startsWith('lot_') ? (LOTS[top.id]?.name ?? top.id) : top.id
-      line(`${name} · D30 解锁`, 120, col('text_primary'), true)
-      line('解锁条件：主线推进至第 30 天', 160)
-      line(`解锁后住户容量 +30（当前 ${pb.capacity ?? 30}）`, 196)
+      const unlocked = frame.day >= 30
+      line(`${name} · ${unlocked ? '已解锁' : 'D30 解锁'}`, 120, col('text_primary'), true)
+      line(unlocked ? '新开放角标已亮起，夜战目标轮换纳入本栋' : '解锁条件：主线推进至第 30 天', 160)
+      line(`每栋住户容量 +30（当前 ${pb.capacity ?? 30}）`, 196)
     } else if (top.id.startsWith('lot_')) {
       const lot = LOTS[top.id]
       line(lot ? `${lot.name}${lot.unlockDay > 1 ? ` · D${lot.unlockDay} 解锁` : ' · 已开放'}` : top.id, 120, col('text_primary'), true)

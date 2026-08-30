@@ -8,7 +8,7 @@ import {
 } from '@rn/systems'
 import { createFormula, levelForU } from '@rn/formula'
 import {
-  createWorldState, dispatchParty, resolveDue, restoreStamina, serializeWorld,
+  createWorldState, dispatchParty, resolveDue, restoreStamina, serializeWorld, unlockProgress,
   type WorldState, type WorldTables
 } from '@rn/world'
 import { weatherOfDay, weatherMuls, type WeatherEntry } from '@rn/weather'
@@ -372,6 +372,7 @@ export function runSimulation(
     })
     persistence.put(`ckpt_${d}_day`, serialize(state))
     if (exploreOn && world) {
+      unlockProgress(world, d, app.world!) // 楼栋/地块按 unlockDay 推进解锁（D30 → B/C 栋，扩容 30→90）
       restoreStamina(world, state, constants)
       const plan = explorePolicy(d)
       if (plan) dispatchParty(world, state, app.world!, constants, { zone: plan.zone, tenantIds: plan.tenantIds, day: d })

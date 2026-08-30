@@ -1282,6 +1282,7 @@
       });
       persistence.put(`ckpt_${d}_day`, serialize(state));
       if (exploreOn && world2) {
+        unlockProgress(world2, d, app2.world);
         restoreStamina(world2, state, constants);
         const plan2 = explorePolicy(d);
         if (plan2) dispatchParty(world2, state, app2.world, constants, { zone: plan2.zone, tenantIds: plan2.tenantIds, day: d });
@@ -8637,9 +8638,10 @@
         line("\u8305\u8349\u5C4B \u2192 \u7816\u77F3\u5821\u5792\u5171 6 \u7EA7\uFF08\u623F\u5C4B\u8FDB\u5316\uFF09", 196);
       } else if (top.id === "B\u680B" || top.id === "C\u680B" || top.id === "lot_bld_b" || top.id === "lot_bld_c") {
         const name = top.id.startsWith("lot_") ? LOTS[top.id]?.name ?? top.id : top.id;
-        line(`${name} \xB7 D30 \u89E3\u9501`, 120, col("text_primary"), true);
-        line("\u89E3\u9501\u6761\u4EF6\uFF1A\u4E3B\u7EBF\u63A8\u8FDB\u81F3\u7B2C 30 \u5929", 160);
-        line(`\u89E3\u9501\u540E\u4F4F\u6237\u5BB9\u91CF +30\uFF08\u5F53\u524D ${pb2.capacity ?? 30}\uFF09`, 196);
+        const unlocked = frame.day >= 30;
+        line(`${name} \xB7 ${unlocked ? "\u5DF2\u89E3\u9501" : "D30 \u89E3\u9501"}`, 120, col("text_primary"), true);
+        line(unlocked ? "\u65B0\u5F00\u653E\u89D2\u6807\u5DF2\u4EAE\u8D77\uFF0C\u591C\u6218\u76EE\u6807\u8F6E\u6362\u7EB3\u5165\u672C\u680B" : "\u89E3\u9501\u6761\u4EF6\uFF1A\u4E3B\u7EBF\u63A8\u8FDB\u81F3\u7B2C 30 \u5929", 160);
+        line(`\u6BCF\u680B\u4F4F\u6237\u5BB9\u91CF +30\uFF08\u5F53\u524D ${pb2.capacity ?? 30}\uFF09`, 196);
       } else if (top.id.startsWith("lot_")) {
         const lot = LOTS[top.id];
         line(lot ? `${lot.name}${lot.unlockDay > 1 ? ` \xB7 D${lot.unlockDay} \u89E3\u9501` : " \xB7 \u5DF2\u5F00\u653E"}` : top.id, 120, col("text_primary"), true);
@@ -8963,6 +8965,7 @@
     const day = d + 1;
     const reports = resolveDue(world, sideState, wtables, app.constants, day);
     restoreStamina(world, sideState, app.constants);
+    unlockProgress(world, day, wtables);
     pb.capacity = worldCapacity(world);
     for (const rp of reports) {
       if (rp.loot.length > 0 || rp.encounters.length > 0) {
@@ -9208,7 +9211,20 @@
       settingsRows: SETTINGS_ROWS.map((_, i) => settingsRowRect(i)),
       pageBack: pageBackRect(),
       house0: houseHitRect(0),
-      mapBack: mapBackRect()
+      mapBack: mapBackRect(),
+      // 等距地块命中框（与 layout.hitTest map 分支同几何：bld bw=100/bh=230）
+      lot_bld_b: (() => {
+        const l = LOTS.lot_bld_b;
+        const c = isoToScreen(l.gx, l.gy);
+        const cy = c.y + ISO_TILE_H / 2;
+        return { x: c.x - 50, y: cy - 230, w: 100, h: 260 };
+      })(),
+      lot_bld_c: (() => {
+        const l = LOTS.lot_bld_c;
+        const c = isoToScreen(l.gx, l.gy);
+        const cy = c.y + ISO_TILE_H / 2;
+        return { x: c.x - 50, y: cy - 230, w: 100, h: 260 };
+      })()
     });
     g.__nlState = () => {
       const f = frames[idx];
