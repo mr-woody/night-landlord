@@ -17,7 +17,8 @@ import {
   settlePanelRect, settleCounterRect, settlePopRect, settleContinueRect, SETTLE_POP_MAX,
   pageBackRect, pageTitleRect, codexCellRect, CODEX_COLS, CODEX_ROWS, shopCardRect, SHOP_CARDS,
   settingsRowRect, SETTINGS_ROWS, LOTS, isoToScreen,
-  ISO_TILE_W, ISO_TILE_H, ISO_FLOOR_H, interiorBackRect, interiorSlotRect, mapBackRect
+  ISO_TILE_W, ISO_TILE_H, ISO_FLOOR_H, interiorBackRect, interiorSlotRect, mapBackRect, HIT_MIN,
+  wildZoneRect, wildBackRect, wildDetailRect, wildDispatchRect, wildMinusRect, wildPlusRect, WILD_ZONES, WILD_ZONE_NAME, EXPLORE_ENTRY
 } from './layout.ts'
 import {
   nightWaves, OUTCOME_LABEL, counterValue, popProgress, settleDoneAt,
@@ -51,6 +52,10 @@ export interface Playback {
   logs: string[]
   /** 室内工事位布置状态（key=`floor:room:slot`，视觉占位） */
   forts: Record<string, boolean>
+  /** 野外探索战报（最近一次归来结算的表现层投影） */
+  wildReports: string[][]
+  /** 在外队伍（表现层投影） */
+  parties: { zone: string; size: number; returnsDay: number }[]
   skills: { label: string; glyph: string; cdUntil: number }[]
 }
 
@@ -281,6 +286,7 @@ export class WhiteboxRenderer {
         this.drawDayBg(now)
         if (ui.page === 'map') this.drawMapView(ui, frame, now)
         else if (ui.page === 'interior') this.drawInterior(ui, frame, now, pb)
+        else if (ui.page === 'wild') this.drawWildView(ui, frame, now, pb)
         else if (ui.page === 'main') {
           this.button(mapBackRect(), '◀ 小区', 'normal')
           this.drawHud(frame, now)
@@ -859,6 +865,90 @@ export class WhiteboxRenderer {
     }
   }
 
+  // ---- L1 野外地图（探索；UI 规范 v2.0 §7.3）----
+  private drawWildView(ui: UiState, frame: DayFrame, now: number, pb: Playback): void {
+    const { ctx } = this
+    ctx.fillStyle = col('bg_night'); ctx.fillRect(0, 0, DESIGN_W, DESIGN_H)
+    ctx.textBaseline = 'middle'
+    this.button(wildBackRect(), '◀ 小区', 'normal')
+    ctx.fillStyle = col('text_primary')
+    ctx.font = font(T.typography.h2, { weight: 'bold' })
+    ctx.fillText('野外 · 大区域地图', wildBackRect().x + wildBackRect().w + T.space.m, wildBackRect().y + wildBackRect().h / 2)
+    // 队伍徽标（在外队伍）
+    const parties = pb.parties ?? []
+    let px = wildBackRect().x + wildBackRect().w + T.space.l + 240
+    for (const p of parties) {
+      ctx.fillStyle = withAlpha(col('success'), 0.15)
+      ctx.beginPath(); ctx.roundRect(px, wildBackRect().y + 8, 190, wildBackRect().h - 16, T.radius.chip); ctx.fill()
+      ctx.strokeStyle = col('success'); ctx.lineWidth = 2; ctx.stroke()
+      ctx.fillStyle = col('text_primary')
+      ctx.font = font(T.typography.caption)
+      ctx.fillText(`${WILD_ZONE_NAME(p.zone)} · ${p.size}人`, px + 12, wildBackRect().y + wildBackRect().h / 2 - 12)
+      ctx.fillStyle = col('text_secondary')
+      ctx.fillText(`D${p.returnsDay} 归来`, px + 12, wildBackRect().y + wildBackRect().h / 2 + 14)
+      px += 205
+    }
+    // 区域卡 ×4
+    WILD_ZONES.forEach((z, i) => {
+      const r = wildZoneRect(i)
+      const locked = frame.day < z.unlockDay
+      const sel = ui.sel.wildZone === z.zone
+      this.panel(r.x, r.y, r.w, r.h, T.radius.btn)
+      if (sel) { ctx.strokeStyle = col('gold_primary'); ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn); ctx.lineWidth = 3; ctx.stroke() }
+      // 区域剪影
+      ctx.fillStyle = locked ? withAlpha(col('panel_stroke'), 0.5) : z.danger === 'high' ? withAlpha(col('alert_blood'), 0.3) : z.danger === 'mid' ? withAlpha(col('gold_deep'), 0.25) : withAlpha(col('success'), 0.2)
+      for (let t = 0; t < 3; t++) {
+        const tx = r.x + 40 + t * 70, ty = r.y + 60
+        ctx.beginPath()
+        ctx.moveTo(tx, ty - 30); ctx.lineTo(tx + 26, ty + 26); ctx.lineTo(tx - 26, ty + 26)
+        ctx.closePath(); ctx.fill()
+        ctx.fillRect(tx - 4, ty + 26, 8, 12)
+      }
+      ctx.fillStyle = col('text_primary')
+      ctx.font = font(T.typography.h2, { weight: 'bold' })
+      ctx.fillText(locked ? `${z.name} D${z.unlockDay}` : z.name, r.x + T.space.m, r.y + 130)
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.fillText(`路程 ${z.travelTime} 分钟 · 危险 ${z.danger === 'low' ? '低' : z.danger === 'mid' ? '中' : '高'}`, r.x + T.space.m, r.y + 165)
+    })
+    // 详情 + 派出
+    const sel = WILD_ZONES.find(z => z.zone === ui.sel.wildZone)
+    const d = wildDetailRect()
+    this.panel(d.x, d.y, d.w, d.h)
+    if (!sel) {
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.body)
+      ctx.fillText('点击上方区域查看探索详情', d.x + T.space.m, d.y + 40)
+    } else {
+      const locked = frame.day < sel.unlockDay
+      ctx.fillStyle = col('text_primary')
+      ctx.font = font(T.typography.body, { weight: 'bold' })
+      ctx.fillText(`${sel.name}${locked ? `（D${sel.unlockDay} 解锁）` : ''}`, d.x + T.space.m, d.y + 40)
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.fillText('队伍人数', d.x + T.space.m, d.y + 100)
+      ctx.fillStyle = col('text_primary')
+      ctx.font = this.numFont(T.typography.h2)
+      ctx.fillText(`${ui.sel.partySize ?? 1}`, wildMinusRect().x + wildMinusRect().w + HIT_MIN + 20, wildMinusRect().y + wildMinusRect().h / 2)
+      this.button(wildMinusRect(), '－', 'normal')
+      this.button(wildPlusRect(), '＋', 'normal')
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.fillText(`体力 ${sel.travelTime > 20 ? 35 : sel.travelTime > 10 ? 25 : 20}/人 · ${sel.travelTime > 20 ? '跨夜风险（夜晚危险 ×2）' : '当日归来'}`, d.x + T.space.m, d.y + 220)
+      if (!locked) this.button(wildDispatchRect(), '派出 ▶', 'primary')
+    }
+    // 最近归来的野外战报
+    if ((pb.wildReports?.length ?? 0) > 0) {
+      const rr = pb.wildReports[pb.wildReports.length - 1]
+      ctx.fillStyle = withAlpha(col('panel'), 0.9)
+      ctx.beginPath(); ctx.roundRect(d.x, d.y + 240, d.w, 48, T.radius.chip); ctx.fill()
+      ctx.fillStyle = col('gold_primary')
+      ctx.font = font(T.typography.caption, { weight: 'bold' })
+      ctx.fillText(`归来战报：${rr.join(' · ')}`, d.x + T.space.m, d.y + 264)
+    }
+    void now
+  }
+
   // ---- L2 小区地图（等距；UI 规范 v2.0 §7.1）----
   private drawMapView(ui: UiState, frame: DayFrame, now: number): void {
     const { ctx } = this
@@ -892,7 +982,7 @@ export class WhiteboxRenderer {
       ctx.fillText(locked ? `${lot.name} D${lot.unlockDay}` : lot.name, cx, cy + 36)
       ctx.textAlign = 'left'
     }
-    const ex = { x: DESIGN_W / 2 - 140, y: 240, w: 280, h: 64 }
+    const ex = EXPLORE_ENTRY
     ctx.beginPath(); ctx.roundRect(ex.x, ex.y, ex.w, ex.h, T.radius.btn)
     ctx.fillStyle = withAlpha(col('success'), 0.14); ctx.fill()
     ctx.strokeStyle = col('success'); ctx.lineWidth = 2; ctx.stroke()

@@ -6,7 +6,7 @@
 import type { EventCardMeta } from '../../../apps/headless/src/sim.ts'
 
 export type Phase = 'DAWN_SETTLE' | 'DAY' | 'DUSK_FORECAST' | 'NIGHT'
-export type PageId = 'map' | 'main' | 'interior' | 'codex' | 'shop' | 'settings'
+export type PageId = 'map' | 'main' | 'interior' | 'wild' | 'codex' | 'shop' | 'settings'
 export type DockKey = 'deploy' | 'recruit' | 'upgrade' | 'night'
 
 export type ModalKind = 'panel' | 'event' | 'confirmNight'
@@ -23,7 +23,7 @@ export interface UiState {
   phase: Phase
   page: PageId
   /** 空间选中项：楼栋（L2→楼内）与楼层/房间（→L3 室内） */
-  sel: { lot?: string; floor?: number; room?: number }
+  sel: { lot?: string; floor?: number; room?: number; wildZone?: string; partySize?: number }
   /** 常规模态栈（panel/confirmNight）：LIFO 恢复 */
   modals: Modal[]
   /** 事件卡打断队列：最多 2，先进后出恢复；展示优先级高于常规模态栈 */

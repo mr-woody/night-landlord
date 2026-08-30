@@ -2,6 +2,8 @@
 // （DAWN_SETTLE→DAY→DUSK_FORECAST→NIGHT，门②）+ 主界面/事件卡/夜战/结算渲染
 // + rAF 帧率采样。打包：npm run build:whitebox（esbuild → whitebox/bundle.js）
 import { createKernel } from '../../../packages/kernel/src/index.ts'
+import { createGameState } from '../../../packages/systems/src/index.ts'
+import { createWorldState, dispatchParty, resolveDue, restoreStamina, type WorldTables } from '../../../packages/world/src/index.ts'
 import { createFormula, loadConstants } from '../../../packages/formula/src/index.ts'
 import { buildBundle, runSimulation, type AppContext } from '../../../apps/headless/src/sim.ts'
 import dayCurveJson from '../../../config/day_curve.json'
@@ -9,6 +11,10 @@ import constantsJson from '../../../config/constants.json'
 import buildingDefJson from '../../../config/building_def.json'
 import eventLibJson from '../../../config/event_lib.json'
 import monstersJson from '../../../config/monster.json'
+import mapDefJson from '../../../config/map_def.json'
+import exploreDefJson from '../../../config/explore_def.json'
+import gatherTableJson from '../../../config/gather_table.json'
+import wildlifeJson from '../../../config/wildlife.json'
 import type { BattleSession } from '../../../packages/systems/src/index.ts'
 import { WhiteboxRenderer, fpsReport, type DayFrame, type Playback } from './renderer.ts'
 import { col, motion } from './theme.ts'
@@ -18,6 +24,7 @@ import {
 } from './state.ts'
 import { DESIGN_W, DESIGN_H, hitTest } from './layout.ts'
 import { settleDoneAt, nightWaves } from './anim.ts'
+import { WILD_ZONE_NAME } from './layout.ts'
 
 const tables = {
   dayCurve: dayCurveJson,
@@ -59,6 +66,8 @@ const pb: Playback = {
   chosenAt: null,
   logs: [],
   forts: {},
+  parties: [],
+  wildReports: [],
   skills: [
     { label: '空投物资', glyph: '💊', cdUntil: 0 },
     { label: '护盾', glyph: '🛡', cdUntil: 0 }
@@ -71,7 +80,23 @@ function enterDay(d: number): void {
   ui.phase = 'DAY'
   ui.page = 'map'
   pb.chosenAt = null
+  const day = d + 1
+  const reports = resolveDue(world, sideState, wtables, app.constants, day)
+  restoreStamina(world, sideState, app.constants)
+  for (const rp of reports) {
+    if (rp.loot.length > 0 || rp.encounters.length > 0) {
+      pb.wildReports.push([
+        ...rp.loot.map(l => `${l.resource}+${l.amount}`),
+        ...rp.encounters
+      ])
+    }
+  }
+  syncParties()
   for (const card of frames[d]?.eventCards ?? []) Object.assign(ui, pushEvent(ui, card))
+}
+
+function syncParties(): void {
+  pb.parties = world.parties.map(p => ({ zone: p.zone, size: p.members.length, returnsDay: p.returnsDay }))
 }
 
 // 点击 → 命中 → 相位/模态分发（CSS 像素 → 750 逻辑坐标换算）
@@ -107,6 +132,35 @@ canvas.addEventListener('click', ev => {
     case 'room':
       Object.assign(ui, openInterior(ui, hit.floor - 1, hit.room))
       return
+    case 'explore':
+      Object.assign(ui, setPage(ui, 'wild'))
+      return
+    case 'wildBack':
+      Object.assign(ui, setPage(ui, 'map'))
+      return
+    case 'wildZone':
+      ui.sel.wildZone = hit.zone
+      ui.sel.partySize = 1
+      return
+    case 'partyMinus':
+      ui.sel.partySize = Math.max(1, (ui.sel.partySize ?? 1) - 1)
+      return
+    case 'partyPlus':
+      ui.sel.partySize = Math.min(3, (ui.sel.partySize ?? 1) + 1)
+      return
+    case 'wildDispatch': {
+      const zone = ui.sel.wildZone
+      if (!zone) { Object.assign(ui, openModal(ui, { kind: 'panel', id: '请先选择目的地' })); return }
+      const size = ui.sel.partySize ?? 1
+      const day = idx + 1
+      const r = dispatchParty(world, sideState, wtables, app.constants, { zone, tenantIds: [1, 2, 3].slice(0, size), day })
+      syncParties()
+      Object.assign(ui, openModal(ui, {
+        kind: 'panel',
+        id: r.ok ? `派出成功：${size} 人前往${WILD_ZONE_NAME(zone)}${r.partyId !== undefined ? `（队伍#${r.partyId}）` : ''}` : `派出失败：${r.reason ?? ''}`
+      }))
+      return
+    }
     case 'nav':
       Object.assign(ui, setPage(ui, hit.page))
       return
@@ -183,6 +237,13 @@ function settleHouseholds(): number {
 }
 
 let simSessions: Record<number, BattleSession> = {}
+// 野外探索（@rn/world 真实逻辑；独立副状态，M3.3 与主经济深度咬合）
+const wtables: WorldTables = {
+  mapDef: mapDefJson, exploreDef: exploreDefJson, gatherTable: gatherTableJson,
+  wildlife: wildlifeJson, buildingDef: buildingDefJson
+} as unknown as WorldTables
+const sideState = createGameState(42)
+const world = createWorldState(42, wtables)
 
 // 字体就绪（@font-face 子集；失败时回退系统字体不阻塞）
 const fontsReady = Promise.all([
@@ -229,6 +290,6 @@ boot.then(async () => {
   else if (want === 'night') { idx = 6; ui.phase = 'NIGHT'; pb.nightStart = performance.now(); pb.session = simSessions[7] ?? null }
   else if (want === 'dawn') { idx = 6; ui.phase = 'DAWN_SETTLE'; pb.settleStart = performance.now() }
   else enterDay(0)
-  if (wantPage === 'codex' || wantPage === 'shop' || wantPage === 'settings' || wantPage === 'map' || wantPage === 'main' || wantPage === 'interior') ui.page = wantPage
+  if (wantPage) ui.page = wantPage as UiState['page']
   console.log(`白盒播放就绪：${frames.length} 天，事件 ${sim.eventsFired} 次，独立 ${sim.distinctFired.length}`)
 })

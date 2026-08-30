@@ -389,6 +389,56 @@
     return new Kernel(options);
   }
 
+  // packages/core/src/index.ts
+  function hash32(input) {
+    let h = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+      h ^= input.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0).toString(16).padStart(8, "0");
+  }
+  function mulberry32(a) {
+    let s = a | 0;
+    return () => {
+      s = s + 1831565813 | 0;
+      let t = Math.imul(s ^ s >>> 15, 1 | s);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function mixHash(seed, stream, counter) {
+    let h = seed >>> 0;
+    const key = `${stream}#${counter}`;
+    for (let i = 0; i < key.length; i++) {
+      h ^= key.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function createRngStreams(seed, saved) {
+    const counters = { ...saved ?? {} };
+    return {
+      next(stream) {
+        const c = (counters[stream] ?? 0) + 1;
+        counters[stream] = c;
+        return mulberry32(mixHash(seed, stream, c))();
+      },
+      counters: () => ({ ...counters })
+    };
+  }
+  function createDayRng(seed, stream, day) {
+    let k = 0;
+    return { next: () => mulberry32(mixHash(seed, `${stream}@d${day}`, ++k))() };
+  }
+  function canonicalJson(value) {
+    if (value === null || typeof value !== "object") return JSON.stringify(value);
+    if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+    const obj = value;
+    const keys = Object.keys(obj).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${canonicalJson(obj[k])}`).join(",")}}`;
+  }
+
   // packages/formula/src/index.ts
   function loadConstants(entries) {
     const out = {};
@@ -472,115 +522,6 @@
       }
     };
     return api;
-  }
-
-  // packages/core/src/index.ts
-  function hash32(input) {
-    let h = 2166136261;
-    for (let i = 0; i < input.length; i++) {
-      h ^= input.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return (h >>> 0).toString(16).padStart(8, "0");
-  }
-  function mulberry32(a) {
-    let s = a | 0;
-    return () => {
-      s = s + 1831565813 | 0;
-      let t = Math.imul(s ^ s >>> 15, 1 | s);
-      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    };
-  }
-  function mixHash(seed, stream, counter) {
-    let h = seed >>> 0;
-    const key = `${stream}#${counter}`;
-    for (let i = 0; i < key.length; i++) {
-      h ^= key.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return h >>> 0;
-  }
-  function createRngStreams(seed, saved) {
-    const counters = { ...saved ?? {} };
-    return {
-      next(stream) {
-        const c = (counters[stream] ?? 0) + 1;
-        counters[stream] = c;
-        return mulberry32(mixHash(seed, stream, c))();
-      },
-      counters: () => ({ ...counters })
-    };
-  }
-  function createDayRng(seed, stream, day) {
-    let k = 0;
-    return { next: () => mulberry32(mixHash(seed, `${stream}@d${day}`, ++k))() };
-  }
-  function canonicalJson(value) {
-    if (value === null || typeof value !== "object") return JSON.stringify(value);
-    if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-    const obj = value;
-    const keys = Object.keys(obj).sort();
-    return `{${keys.map((k) => `${JSON.stringify(k)}:${canonicalJson(obj[k])}`).join(",")}}`;
-  }
-
-  // packages/diag/src/index.ts
-  function createDiagPlugin(options = {}) {
-    const ringSize = options.ringSize ?? 512;
-    const auditSize = options.auditSize ?? 256;
-    return definePlugin({
-      name: "rn.diag",
-      version: "0.1.0",
-      hotplug: "core",
-      depends: [],
-      provides: ["logger", "audit"],
-      produces: ["diag/record"],
-      hooks: {
-        setup(ctx) {
-          const ring = [];
-          let dropped = 0;
-          const auditRing = [];
-          const push = (e) => {
-            if (ring.length >= ringSize) {
-              ring.shift();
-              dropped++;
-            }
-            ring.push(e);
-          };
-          const logger = {
-            log(level, channel, msg, data) {
-              push({ wallTs: Date.now(), logicalDay: ctx.logicalDay(), level, channel, traceId: ctx.traceId(), msg, data });
-            },
-            entries: () => [...ring],
-            tail: (n) => ring.slice(Math.max(0, ring.length - n)),
-            size: () => ring.length
-          };
-          const audit = {
-            record(kind, actor, detail) {
-              auditRing.push({ wallTs: Date.now(), kind, actor, detail });
-              if (auditRing.length > auditSize) auditRing.shift();
-            },
-            tail: (n) => auditRing.slice(Math.max(0, auditRing.length - n))
-          };
-          ctx.onAny((env) => {
-            if (env.tag === "diag/leak" || env.tag === "diag/degraded" || env.tag === "ctrl/killswitch") {
-              push({
-                wallTs: env.wallTs,
-                logicalDay: env.logicalDay,
-                level: env.tag === "diag/leak" ? "error" : "warn",
-                channel: env.tag,
-                traceId: env.traceId,
-                msg: "kernel governance event",
-                data: env.payload
-              });
-            }
-          });
-          ctx.provide("logger", logger);
-          ctx.provide("audit", audit);
-        }
-      },
-      health: () => ({ status: "ok" })
-    });
   }
 
   // packages/systems/src/index.ts
@@ -812,6 +753,182 @@
     };
     deps.audit?.record("battle", "runNight", { day: plan.day, deaths, breaches });
     return session;
+  }
+
+  // packages/world/src/index.ts
+  var isOvernight = (timeCost) => timeCost >= 3;
+  function createWorldState(seed, tables2) {
+    const w = {
+      version: 1,
+      seed,
+      lots: {},
+      buildings: {},
+      stamina: {},
+      gatherReadyDay: {},
+      parties: [],
+      nextPartyId: 1,
+      totalYield: { food: 0, water: 0, material: 0, ammo: 0, gold: 0, talentStone: 0 }
+    };
+    unlockProgress(w, 1, tables2);
+    return w;
+  }
+  function unlockProgress(w, day, tables2) {
+    for (const e of tables2.mapDef.entries) {
+      if (e.unlockDay > day) continue;
+      if (e.kind === "lot") {
+        w.lots[e.id] = { unlocked: true };
+        if (e.building) w.buildings[e.id] = { unlocked: true };
+      }
+    }
+  }
+  function dispatchParty(w, state, tables2, constants, opts) {
+    const entry = tables2.exploreDef.entries.find((e) => e.zone === opts.zone);
+    if (!entry) return { ok: false, reason: `\u672A\u77E5\u76EE\u7684\u5730 ${opts.zone}` };
+    if (entry.unlockDay > opts.day) return { ok: false, reason: `${opts.zone} \u672A\u89E3\u9501` };
+    if (!w.lots[`lot_gate`]?.unlocked) return { ok: false, reason: "\u5927\u95E8\u672A\u5F00\u653E" };
+    const partyCap = Math.min(entry.partyMax, constants.EXPLORE_PARTY_MAX ?? 3);
+    if (opts.tenantIds.length < 1 || opts.tenantIds.length > partyCap) return { ok: false, reason: `\u961F\u4F0D\u4EBA\u6570\u987B 1\u2013${partyCap}` };
+    const cost = entry.staminaCost;
+    const members = [];
+    for (const tid of opts.tenantIds) {
+      const t = state.tenants.find((x) => x.id === tid);
+      if (!t) return { ok: false, reason: `\u4F4F\u6237 ${tid} \u4E0D\u5B58\u5728` };
+      if (t.hp <= 30) return { ok: false, reason: `\u4F4F\u6237 ${tid} \u91CD\u4F24\u4E0D\u53EF\u5916\u51FA` };
+      const remain = w.stamina[String(tid)] ?? constants.EXPLORE_STAMINA_MAX ?? 100;
+      if (remain < cost) return { ok: false, reason: `\u4F4F\u6237 ${tid} \u4F53\u529B\u4E0D\u8DB3\uFF08${remain}<${cost}\uFF09` };
+      members.push({ tenantId: tid, stamina: remain - cost });
+    }
+    for (const m of members) w.stamina[String(m.tenantId)] = m.stamina;
+    const overnight = isOvernight(entry.timeCost);
+    const party = {
+      id: w.nextPartyId++,
+      zone: opts.zone,
+      members,
+      departedDay: opts.day,
+      returnsDay: opts.day + (overnight ? 1 : 0),
+      overnight,
+      loot: [],
+      log: [`${opts.day}\u65E5\u6D3E\u51FA\u2192${entry.id}`]
+    };
+    w.parties.push(party);
+    return { ok: true, partyId: party.id };
+  }
+  function restoreStamina(w, state, constants) {
+    const max = constants.EXPLORE_STAMINA_MAX ?? 100;
+    for (const t of state.tenants) w.stamina[String(t.id)] = max;
+  }
+  function resolveDue(w, state, tables2, constants, day) {
+    const reports = [];
+    const due = w.parties.filter((p) => p.returnsDay <= day);
+    for (const party of due) {
+      const entry = tables2.exploreDef.entries.find((e) => e.zone === party.zone);
+      const rng = createDayRng(w.seed, "explore", day * 100 + party.id);
+      const report = { partyId: party.id, loot: [], encounters: [], wounded: [] };
+      const ops = [];
+      const addLoot = (resource, amount) => {
+        if (amount <= 0) return;
+        party.loot.push({ resource, amount });
+        report.loot.push({ resource, amount });
+        w.totalYield[resource] = (w.totalYield[resource] ?? 0) + amount;
+        ops.push(resource === "gold" ? { op: "ADD_GOLD", n: amount } : { op: "ADD_RES", res: resource, n: amount });
+      };
+      const nodes = tables2.gatherTable.entries.filter((g) => g.zone === party.zone && (w.gatherReadyDay[g.id] ?? 0) <= day);
+      for (let i = 0; i < entry.gatherSlots && nodes.length > 0; i++) {
+        const idx2 = Math.floor(rng.next() * nodes.length);
+        const node = nodes.splice(idx2, 1)[0];
+        const amount = node.yieldMin + Math.floor(rng.next() * (node.yieldMax - node.yieldMin + 1));
+        addLoot(node.resource, amount);
+        w.gatherReadyDay[node.id] = day + node.respawnDays;
+      }
+      const mul = party.overnight ? constants.EXPLORE_NIGHT_DANGER_MUL ?? 2 : 1;
+      const hourPool = tables2.wildlife.entries.filter((x) => x.zones.includes(party.zone) && x.unlockDay <= day && (party.overnight ? x.activeHours !== "day" : x.activeHours !== "night"));
+      const encounterP = Math.min(0.9, 0.35 * mul);
+      if (hourPool.length > 0 && rng.next() < encounterP) {
+        const animal = hourPool[Math.floor(rng.next() * hourPool.length)];
+        const winP = Math.min(0.95, (constants.WILDLIFE_FIGHT_WIN_BASE ?? 0.7) + (party.members.length - 1) * 0.06);
+        if (rng.next() < winP) {
+          for (const d of animal.drops) addLoot(d.resource, d.amount);
+          report.encounters.push(`\u906D\u9047${animal.name}\uFF1A\u6218\u80DC`);
+        } else {
+          const victim = party.members[Math.floor(rng.next() * party.members.length)];
+          ops.push({ op: "WOUND_TENANT", tenantId: victim.tenantId });
+          report.wounded.push(victim.tenantId);
+          const lost = party.loot.map((l) => ({ resource: l.resource, amount: Math.floor(l.amount * 0.3) }));
+          for (const l of lost) {
+            if (l.amount <= 0) continue;
+            party.loot.find((x) => x.resource === l.resource).amount -= l.amount;
+            report.loot.find((x) => x.resource === l.resource).amount -= l.amount;
+            w.totalYield[l.resource] -= l.amount;
+            ops.push(l.resource === "gold" ? { op: "ADD_GOLD", n: -l.amount } : { op: "ADD_RES", res: l.resource, n: -l.amount });
+          }
+          report.encounters.push(`\u906D\u9047${animal.name}\uFF1A\u6218\u8D25\u8D1F\u4F24\uFF0C\u635F\u5931\u90E8\u5206\u7269\u8D44`);
+        }
+      }
+      if (ops.length > 0) applyEffects(state, ops, { constants, buildingDef: tables2.buildingDef });
+      party.log.push(`${day}\u65E5\u5F52\u6765\uFF1A\u7269\u8D44${report.loot.reduce((a, b) => a + b.amount, 0)}\uFF0C\u906D\u9047${report.encounters.length}\u6B21`);
+      reports.push(report);
+    }
+    w.parties = w.parties.filter((p) => p.returnsDay > day);
+    return reports;
+  }
+
+  // packages/diag/src/index.ts
+  function createDiagPlugin(options = {}) {
+    const ringSize = options.ringSize ?? 512;
+    const auditSize = options.auditSize ?? 256;
+    return definePlugin({
+      name: "rn.diag",
+      version: "0.1.0",
+      hotplug: "core",
+      depends: [],
+      provides: ["logger", "audit"],
+      produces: ["diag/record"],
+      hooks: {
+        setup(ctx) {
+          const ring = [];
+          let dropped = 0;
+          const auditRing = [];
+          const push = (e) => {
+            if (ring.length >= ringSize) {
+              ring.shift();
+              dropped++;
+            }
+            ring.push(e);
+          };
+          const logger = {
+            log(level, channel, msg, data) {
+              push({ wallTs: Date.now(), logicalDay: ctx.logicalDay(), level, channel, traceId: ctx.traceId(), msg, data });
+            },
+            entries: () => [...ring],
+            tail: (n) => ring.slice(Math.max(0, ring.length - n)),
+            size: () => ring.length
+          };
+          const audit = {
+            record(kind, actor, detail) {
+              auditRing.push({ wallTs: Date.now(), kind, actor, detail });
+              if (auditRing.length > auditSize) auditRing.shift();
+            },
+            tail: (n) => auditRing.slice(Math.max(0, auditRing.length - n))
+          };
+          ctx.onAny((env) => {
+            if (env.tag === "diag/leak" || env.tag === "diag/degraded" || env.tag === "ctrl/killswitch") {
+              push({
+                wallTs: env.wallTs,
+                logicalDay: env.logicalDay,
+                level: env.tag === "diag/leak" ? "error" : "warn",
+                channel: env.tag,
+                traceId: env.traceId,
+                msg: "kernel governance event",
+                data: env.payload
+              });
+            }
+          });
+          ctx.provide("logger", logger);
+          ctx.provide("audit", audit);
+        }
+      },
+      health: () => ({ status: "ok" })
+    });
   }
 
   // apps/headless/src/sim.ts
@@ -1798,6 +1915,155 @@
     ]
   };
 
+  // config/map_def.json
+  var map_def_default = {
+    version: 1,
+    sourceDoc: "docs/\u4E16\u754C\u89C2\u4E0E\u7A7A\u95F4\u7ED3\u6784\u8BBE\u8BA1.md \xA72/\xA74 + docs/\u6570\u636E\u914D\u7F6E\u8868\u7ED3\u6784\u8BBE\u8BA1.md \xA79.1",
+    entries: [
+      { kind: "lot", id: "lot_gate", name: "\u5927\u95E8", pos: { x: 3, y: 7 }, unlockDay: 1 },
+      { kind: "lot", id: "lot_wall", name: "\u56F4\u5899", pos: { x: 2, y: 6 }, unlockDay: 1 },
+      { kind: "lot", id: "lot_plaza", name: "\u4E2D\u592E\u5E7F\u573A", pos: { x: 4, y: 5 }, unlockDay: 1 },
+      { kind: "lot", id: "lot_bld_a", name: "A\u680B", pos: { x: 2, y: 3 }, building: { floors: 6, roomsPerFloor: 5 }, unlockDay: 1 },
+      { kind: "lot", id: "lot_bld_b", name: "B\u680B", pos: { x: 5, y: 3 }, building: { floors: 6, roomsPerFloor: 5 }, unlockDay: 30 },
+      { kind: "lot", id: "lot_bld_c", name: "C\u680B", pos: { x: 6, y: 5 }, building: { floors: 6, roomsPerFloor: 5 }, unlockDay: 30 },
+      { kind: "lot", id: "lot_canteen", name: "\u98DF\u5802", pos: { x: 3, y: 4 }, unlockDay: 1 },
+      { kind: "lot", id: "lot_warehouse", name: "\u4ED3\u5E93", pos: { x: 4, y: 4 }, unlockDay: 1 },
+      { kind: "lot", id: "lot_clinic", name: "\u533B\u52A1\u5BA4", pos: { x: 5, y: 4 }, unlockDay: 1 },
+      { kind: "lot", id: "lot_workshop", name: "\u5DE5\u574A", pos: { x: 2, y: 5 }, unlockDay: 3 },
+      { kind: "lot", id: "lot_broadcast", name: "\u5E7F\u64AD\u7AD9", pos: { x: 5, y: 5 }, unlockDay: 2 },
+      { kind: "lot", id: "lot_hall", name: "\u8BAE\u4E8B\u5385", pos: { x: 3, y: 6 }, unlockDay: 5 },
+      { kind: "lot", id: "lot_watchtower", name: "\u5C97\u54E8\u5854", pos: { x: 6, y: 6 }, unlockDay: 4 },
+      { kind: "zone", id: "zn_forest_edge", name: "\u6797\u7F18", pos: { x: 1, y: 1 }, travelTime: 10, danger: "low", unlockDay: 1 },
+      { kind: "zone", id: "zn_deep_forest", name: "\u6DF1\u6797", pos: { x: 0, y: 0 }, travelTime: 25, danger: "mid", unlockDay: 8 },
+      { kind: "zone", id: "zn_ruins", name: "\u8857\u9053\u5E9F\u589F", pos: { x: 6, y: 0 }, travelTime: 20, danger: "mid", unlockDay: 12 },
+      { kind: "zone", id: "zn_farm", name: "\u6CB3\u8FB9\u519C\u7530", pos: { x: 0, y: 5 }, travelTime: 15, danger: "low", unlockDay: 5 }
+    ]
+  };
+
+  // config/explore_def.json
+  var explore_def_default = {
+    version: 1,
+    sourceDoc: "docs/\u4E16\u754C\u89C2\u4E0E\u7A7A\u95F4\u7ED3\u6784\u8BBE\u8BA1.md \xA74 + docs/\u6570\u636E\u914D\u7F6E\u8868\u7ED3\u6784\u8BBE\u8BA1.md \xA79.2",
+    entries: [
+      {
+        id: "exp_forest_edge",
+        zone: "zn_forest_edge",
+        staminaCost: 20,
+        timeCost: 1,
+        partyMax: 3,
+        gatherSlots: 3,
+        wildlifePool: ["w_rabbit", "w_deer"],
+        eventPool: [],
+        unlockDay: 1
+      },
+      {
+        id: "exp_deep_forest",
+        zone: "zn_deep_forest",
+        staminaCost: 35,
+        timeCost: 3,
+        partyMax: 3,
+        gatherSlots: 3,
+        wildlifePool: ["w_deer", "w_boar", "w_wolf"],
+        eventPool: [],
+        unlockDay: 8
+      },
+      {
+        id: "exp_ruins",
+        zone: "zn_ruins",
+        staminaCost: 30,
+        timeCost: 2,
+        partyMax: 3,
+        gatherSlots: 3,
+        wildlifePool: ["w_wolf"],
+        eventPool: [],
+        unlockDay: 12
+      },
+      {
+        id: "exp_farm",
+        zone: "zn_farm",
+        staminaCost: 25,
+        timeCost: 2,
+        partyMax: 3,
+        gatherSlots: 3,
+        wildlifePool: ["w_rabbit"],
+        eventPool: [],
+        unlockDay: 5
+      }
+    ]
+  };
+
+  // config/gather_table.json
+  var gather_table_default = {
+    version: 1,
+    sourceDoc: "docs/\u4E16\u754C\u89C2\u4E0E\u7A7A\u95F4\u7ED3\u6784\u8BBE\u8BA1.md \xA74 + docs/\u6570\u636E\u914D\u7F6E\u8868\u7ED3\u6784\u8BBE\u8BA1.md \xA79.3",
+    entries: [
+      { id: "g_fe_berry", zone: "zn_forest_edge", resource: "food", yieldMin: 20, yieldMax: 40, respawnDays: 2 },
+      { id: "g_fe_veggie", zone: "zn_forest_edge", resource: "food", yieldMin: 15, yieldMax: 30, respawnDays: 2 },
+      { id: "g_fe_water", zone: "zn_forest_edge", resource: "water", yieldMin: 20, yieldMax: 40, respawnDays: 1 },
+      { id: "g_df_wood", zone: "zn_deep_forest", resource: "material", yieldMin: 30, yieldMax: 60, respawnDays: 3 },
+      { id: "g_df_herb", zone: "zn_deep_forest", resource: "food", yieldMin: 20, yieldMax: 45, respawnDays: 3 },
+      { id: "g_df_honey", zone: "zn_deep_forest", resource: "food", yieldMin: 30, yieldMax: 55, respawnDays: 4 },
+      { id: "g_ru_material", zone: "zn_ruins", resource: "material", yieldMin: 40, yieldMax: 80, respawnDays: 3 },
+      { id: "g_ru_canned", zone: "zn_ruins", resource: "food", yieldMin: 35, yieldMax: 70, respawnDays: 4 },
+      { id: "g_ru_cloth", zone: "zn_ruins", resource: "material", yieldMin: 20, yieldMax: 45, respawnDays: 2 },
+      { id: "g_farm_water", zone: "zn_farm", resource: "water", yieldMin: 30, yieldMax: 55, respawnDays: 1 },
+      { id: "g_farm_crop", zone: "zn_farm", resource: "food", yieldMin: 30, yieldMax: 60, respawnDays: 2 },
+      { id: "g_farm_fish", zone: "zn_farm", resource: "food", yieldMin: 25, yieldMax: 50, respawnDays: 2 }
+    ]
+  };
+
+  // config/wildlife.json
+  var wildlife_default = {
+    version: 1,
+    sourceDoc: "docs/\u4E16\u754C\u89C2\u4E0E\u7A7A\u95F4\u7ED3\u6784\u8BBE\u8BA1.md \xA74 + docs/\u6570\u636E\u914D\u7F6E\u8868\u7ED3\u6784\u8BBE\u8BA1.md \xA79.4",
+    entries: [
+      {
+        id: "w_rabbit",
+        kind: "prey",
+        name: "\u91CE\u5154",
+        hp: 20,
+        threat: 0,
+        drops: [{ resource: "food", amount: 25 }],
+        activeHours: "day",
+        zones: ["zn_forest_edge", "zn_farm"],
+        unlockDay: 1
+      },
+      {
+        id: "w_deer",
+        kind: "prey",
+        name: "\u9E7F",
+        hp: 45,
+        threat: 0,
+        drops: [{ resource: "food", amount: 60 }],
+        activeHours: "day",
+        zones: ["zn_forest_edge", "zn_deep_forest"],
+        unlockDay: 3
+      },
+      {
+        id: "w_boar",
+        kind: "danger",
+        name: "\u91CE\u732A",
+        hp: 80,
+        threat: 30,
+        drops: [{ resource: "food", amount: 80 }],
+        activeHours: "always",
+        zones: ["zn_deep_forest"],
+        unlockDay: 8
+      },
+      {
+        id: "w_wolf",
+        kind: "danger",
+        name: "\u72FC",
+        hp: 65,
+        threat: 25,
+        drops: [{ resource: "food", amount: 45 }],
+        activeHours: "night",
+        zones: ["zn_deep_forest", "zn_ruins"],
+        unlockDay: 8
+      }
+    ]
+  };
+
   // config/theme.json
   var theme_default = {
     version: 1,
@@ -2084,6 +2350,17 @@
       if (inRect(settingsRect())) return { kind: "settings" };
       return { kind: "none" };
     }
+    if (page === "wild") {
+      if (inRect(wildBackRect())) return { kind: "wildBack" };
+      for (const z of WILD_ZONES) {
+        const r = wildZoneRect(WILD_ZONES.indexOf(z));
+        if (inRect(r)) return { kind: "wildZone", zone: z.zone };
+      }
+      if (inRect(wildDispatchRect())) return { kind: "wildDispatch" };
+      if (inRect(wildMinusRect())) return { kind: "partyMinus" };
+      if (inRect(wildPlusRect())) return { kind: "partyPlus" };
+      return { kind: "none" };
+    }
     if (page === "interior") {
       if (inRect(interiorBackRect())) return { kind: "interiorBack" };
       for (const [i, r] of [interiorSlotRect(0), interiorSlotRect(1)].entries()) {
@@ -2141,6 +2418,7 @@
     lot_hall: { gx: 3, gy: 6, name: "\u8BAE\u4E8B\u5385", kind: "facility", unlockDay: 5 },
     lot_watchtower: { gx: 6, gy: 6, name: "\u5C97\u54E8\u5854", kind: "facility", unlockDay: 4 }
   };
+  var EXPLORE_ENTRY = { x: DESIGN_W / 2 - 140, y: 240, w: 280, h: 64 };
   function mapBackRect() {
     return { x: M, y: HUD_H + T.space.xs, w: HIT_MIN, h: HIT_MIN };
   }
@@ -2150,6 +2428,32 @@
   function interiorSlotRect(i) {
     return { x: DESIGN_W / 2 - 220 + i * 240, y: DESIGN_H / 2 - 210, w: 200, h: 120 };
   }
+  var WILD_ZONES = [
+    { zone: "zn_forest_edge", name: "\u6797\u7F18", danger: "low", travelTime: 10, unlockDay: 1 },
+    { zone: "zn_farm", name: "\u6CB3\u8FB9\u519C\u7530", danger: "low", travelTime: 15, unlockDay: 5 },
+    { zone: "zn_deep_forest", name: "\u6DF1\u6797", danger: "mid", travelTime: 25, unlockDay: 8 },
+    { zone: "zn_ruins", name: "\u8857\u9053\u5E9F\u589F", danger: "mid", travelTime: 20, unlockDay: 12 }
+  ];
+  function wildZoneRect(i) {
+    const col2 = i % 2, row = Math.floor(i / 2);
+    return { x: M + col2 * ((DESIGN_W - M * 2 - T.space.m) / 2 + T.space.m / 1), y: HUD_H + T.space.l * 2 + row * 220, w: (DESIGN_W - M * 2 - T.space.m) / 2, h: 200 };
+  }
+  function wildBackRect() {
+    return { x: M, y: HUD_H + T.space.xs, w: HIT_MIN, h: HIT_MIN };
+  }
+  function wildDetailRect() {
+    return { x: M, y: HUD_H + T.space.l * 2 + 440, w: DESIGN_W - M * 2, h: 300 };
+  }
+  function wildDispatchRect() {
+    return { x: DESIGN_W - M - HIT_MIN - T.space.l, y: HUD_H + T.space.l * 2 + 440 + 300 - HIT_MIN - T.space.s, w: HIT_MIN + T.space.l, h: HIT_MIN };
+  }
+  function wildMinusRect() {
+    return { x: M + T.space.s, y: wildDetailRect().y + 130, w: HIT_MIN, h: HIT_MIN };
+  }
+  function wildPlusRect() {
+    return { x: M + T.space.s + HIT_MIN + T.space.s, y: wildDetailRect().y + 130, w: HIT_MIN, h: HIT_MIN };
+  }
+  var WILD_ZONE_NAME = (zone) => WILD_ZONES.find((z) => z.zone === zone)?.name ?? zone;
 
   // apps/client-cocos/whitebox/anim.ts
   function routeView(rt) {
@@ -2478,6 +2782,7 @@
           this.drawDayBg(now);
           if (ui2.page === "map") this.drawMapView(ui2, frame, now);
           else if (ui2.page === "interior") this.drawInterior(ui2, frame, now, pb2);
+          else if (ui2.page === "wild") this.drawWildView(ui2, frame, now, pb2);
           else if (ui2.page === "main") {
             this.button(mapBackRect(), "\u25C0 \u5C0F\u533A", "normal");
             this.drawHud(frame, now);
@@ -3112,6 +3417,100 @@
         this.button(settleContinueRect(), "\u7EE7\u7EED \u25B6", "primary");
       }
     }
+    // ---- L1 野外地图（探索；UI 规范 v2.0 §7.3）----
+    drawWildView(ui2, frame, now, pb2) {
+      const { ctx } = this;
+      ctx.fillStyle = col("bg_night");
+      ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
+      ctx.textBaseline = "middle";
+      this.button(wildBackRect(), "\u25C0 \u5C0F\u533A", "normal");
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.h2, { weight: "bold" });
+      ctx.fillText("\u91CE\u5916 \xB7 \u5927\u533A\u57DF\u5730\u56FE", wildBackRect().x + wildBackRect().w + T.space.m, wildBackRect().y + wildBackRect().h / 2);
+      const parties = pb2.parties ?? [];
+      let px = wildBackRect().x + wildBackRect().w + T.space.l + 240;
+      for (const p of parties) {
+        ctx.fillStyle = withAlpha(col("success"), 0.15);
+        ctx.beginPath();
+        ctx.roundRect(px, wildBackRect().y + 8, 190, wildBackRect().h - 16, T.radius.chip);
+        ctx.fill();
+        ctx.strokeStyle = col("success");
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = col("text_primary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText(`${WILD_ZONE_NAME(p.zone)} \xB7 ${p.size}\u4EBA`, px + 12, wildBackRect().y + wildBackRect().h / 2 - 12);
+        ctx.fillStyle = col("text_secondary");
+        ctx.fillText(`D${p.returnsDay} \u5F52\u6765`, px + 12, wildBackRect().y + wildBackRect().h / 2 + 14);
+        px += 205;
+      }
+      WILD_ZONES.forEach((z, i) => {
+        const r = wildZoneRect(i);
+        const locked = frame.day < z.unlockDay;
+        const sel2 = ui2.sel.wildZone === z.zone;
+        this.panel(r.x, r.y, r.w, r.h, T.radius.btn);
+        if (sel2) {
+          ctx.strokeStyle = col("gold_primary");
+          ctx.beginPath();
+          ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn);
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+        ctx.fillStyle = locked ? withAlpha(col("panel_stroke"), 0.5) : z.danger === "high" ? withAlpha(col("alert_blood"), 0.3) : z.danger === "mid" ? withAlpha(col("gold_deep"), 0.25) : withAlpha(col("success"), 0.2);
+        for (let t = 0; t < 3; t++) {
+          const tx = r.x + 40 + t * 70, ty = r.y + 60;
+          ctx.beginPath();
+          ctx.moveTo(tx, ty - 30);
+          ctx.lineTo(tx + 26, ty + 26);
+          ctx.lineTo(tx - 26, ty + 26);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillRect(tx - 4, ty + 26, 8, 12);
+        }
+        ctx.fillStyle = col("text_primary");
+        ctx.font = font(T.typography.h2, { weight: "bold" });
+        ctx.fillText(locked ? `${z.name} D${z.unlockDay}` : z.name, r.x + T.space.m, r.y + 130);
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText(`\u8DEF\u7A0B ${z.travelTime} \u5206\u949F \xB7 \u5371\u9669 ${z.danger === "low" ? "\u4F4E" : z.danger === "mid" ? "\u4E2D" : "\u9AD8"}`, r.x + T.space.m, r.y + 165);
+      });
+      const sel = WILD_ZONES.find((z) => z.zone === ui2.sel.wildZone);
+      const d = wildDetailRect();
+      this.panel(d.x, d.y, d.w, d.h);
+      if (!sel) {
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.body);
+        ctx.fillText("\u70B9\u51FB\u4E0A\u65B9\u533A\u57DF\u67E5\u770B\u63A2\u7D22\u8BE6\u60C5", d.x + T.space.m, d.y + 40);
+      } else {
+        const locked = frame.day < sel.unlockDay;
+        ctx.fillStyle = col("text_primary");
+        ctx.font = font(T.typography.body, { weight: "bold" });
+        ctx.fillText(`${sel.name}${locked ? `\uFF08D${sel.unlockDay} \u89E3\u9501\uFF09` : ""}`, d.x + T.space.m, d.y + 40);
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText("\u961F\u4F0D\u4EBA\u6570", d.x + T.space.m, d.y + 100);
+        ctx.fillStyle = col("text_primary");
+        ctx.font = this.numFont(T.typography.h2);
+        ctx.fillText(`${ui2.sel.partySize ?? 1}`, wildMinusRect().x + wildMinusRect().w + HIT_MIN + 20, wildMinusRect().y + wildMinusRect().h / 2);
+        this.button(wildMinusRect(), "\uFF0D", "normal");
+        this.button(wildPlusRect(), "\uFF0B", "normal");
+        ctx.fillStyle = col("text_secondary");
+        ctx.font = font(T.typography.caption);
+        ctx.fillText(`\u4F53\u529B ${sel.travelTime > 20 ? 35 : sel.travelTime > 10 ? 25 : 20}/\u4EBA \xB7 ${sel.travelTime > 20 ? "\u8DE8\u591C\u98CE\u9669\uFF08\u591C\u665A\u5371\u9669 \xD72\uFF09" : "\u5F53\u65E5\u5F52\u6765"}`, d.x + T.space.m, d.y + 220);
+        if (!locked) this.button(wildDispatchRect(), "\u6D3E\u51FA \u25B6", "primary");
+      }
+      if ((pb2.wildReports?.length ?? 0) > 0) {
+        const rr = pb2.wildReports[pb2.wildReports.length - 1];
+        ctx.fillStyle = withAlpha(col("panel"), 0.9);
+        ctx.beginPath();
+        ctx.roundRect(d.x, d.y + 240, d.w, 48, T.radius.chip);
+        ctx.fill();
+        ctx.fillStyle = col("gold_primary");
+        ctx.font = font(T.typography.caption, { weight: "bold" });
+        ctx.fillText(`\u5F52\u6765\u6218\u62A5\uFF1A${rr.join(" \xB7 ")}`, d.x + T.space.m, d.y + 264);
+      }
+      void now;
+    }
     // ---- L2 小区地图（等距；UI 规范 v2.0 §7.1）----
     drawMapView(ui2, frame, now) {
       const { ctx } = this;
@@ -3145,7 +3544,7 @@
         ctx.fillText(locked ? `${lot.name} D${lot.unlockDay}` : lot.name, cx, cy + 36);
         ctx.textAlign = "left";
       }
-      const ex = { x: DESIGN_W / 2 - 140, y: 240, w: 280, h: 64 };
+      const ex = EXPLORE_ENTRY;
       ctx.beginPath();
       ctx.roundRect(ex.x, ex.y, ex.w, ex.h, T.radius.btn);
       ctx.fillStyle = withAlpha(col("success"), 0.14);
@@ -3760,6 +4159,8 @@
     chosenAt: null,
     logs: [],
     forts: {},
+    parties: [],
+    wildReports: [],
     skills: [
       { label: "\u7A7A\u6295\u7269\u8D44", glyph: "\u{1F48A}", cdUntil: 0 },
       { label: "\u62A4\u76FE", glyph: "\u{1F6E1}", cdUntil: 0 }
@@ -3770,7 +4171,22 @@
     ui.phase = "DAY";
     ui.page = "map";
     pb.chosenAt = null;
+    const day = d + 1;
+    const reports = resolveDue(world, sideState, wtables, app.constants, day);
+    restoreStamina(world, sideState, app.constants);
+    for (const rp of reports) {
+      if (rp.loot.length > 0 || rp.encounters.length > 0) {
+        pb.wildReports.push([
+          ...rp.loot.map((l) => `${l.resource}+${l.amount}`),
+          ...rp.encounters
+        ]);
+      }
+    }
+    syncParties();
     for (const card of frames[d]?.eventCards ?? []) Object.assign(ui, pushEvent(ui, card));
+  }
+  function syncParties() {
+    pb.parties = world.parties.map((p) => ({ zone: p.zone, size: p.members.length, returnsDay: p.returnsDay }));
   }
   canvas.addEventListener("click", (ev) => {
     const rect = canvas.getBoundingClientRect();
@@ -3804,6 +4220,38 @@
       case "room":
         Object.assign(ui, openInterior(ui, hit.floor - 1, hit.room));
         return;
+      case "explore":
+        Object.assign(ui, setPage(ui, "wild"));
+        return;
+      case "wildBack":
+        Object.assign(ui, setPage(ui, "map"));
+        return;
+      case "wildZone":
+        ui.sel.wildZone = hit.zone;
+        ui.sel.partySize = 1;
+        return;
+      case "partyMinus":
+        ui.sel.partySize = Math.max(1, (ui.sel.partySize ?? 1) - 1);
+        return;
+      case "partyPlus":
+        ui.sel.partySize = Math.min(3, (ui.sel.partySize ?? 1) + 1);
+        return;
+      case "wildDispatch": {
+        const zone = ui.sel.wildZone;
+        if (!zone) {
+          Object.assign(ui, openModal(ui, { kind: "panel", id: "\u8BF7\u5148\u9009\u62E9\u76EE\u7684\u5730" }));
+          return;
+        }
+        const size = ui.sel.partySize ?? 1;
+        const day = idx + 1;
+        const r = dispatchParty(world, sideState, wtables, app.constants, { zone, tenantIds: [1, 2, 3].slice(0, size), day });
+        syncParties();
+        Object.assign(ui, openModal(ui, {
+          kind: "panel",
+          id: r.ok ? `\u6D3E\u51FA\u6210\u529F\uFF1A${size} \u4EBA\u524D\u5F80${WILD_ZONE_NAME(zone)}${r.partyId !== void 0 ? `\uFF08\u961F\u4F0D#${r.partyId}\uFF09` : ""}` : `\u6D3E\u51FA\u5931\u8D25\uFF1A${r.reason ?? ""}`
+        }));
+        return;
+      }
       case "nav":
         Object.assign(ui, setPage(ui, hit.page));
         return;
@@ -3877,6 +4325,15 @@
     return f ? Math.min(f.population, f.roomsBuilt) : 0;
   }
   var simSessions = {};
+  var wtables = {
+    mapDef: map_def_default,
+    exploreDef: explore_def_default,
+    gatherTable: gather_table_default,
+    wildlife: wildlife_default,
+    buildingDef: building_def_default
+  };
+  var sideState = createGameState(42);
+  var world = createWorldState(42, wtables);
   var fontsReady = Promise.all([
     document.fonts.load('bold 24px "SourceHanSansCN-Bold"', "\u6C38\u591C\u6536\u79DF\u4EBA\u65E5\u6B21\u5E03\u9632\u62DB\u52DF\u5347\u7EA7\u8840\u6708\u591C\u6218"),
     document.fonts.load('32px "BebasNeue"', "0123456789D+%.")
@@ -3934,7 +4391,7 @@
       ui.phase = "DAWN_SETTLE";
       pb.settleStart = performance.now();
     } else enterDay(0);
-    if (wantPage === "codex" || wantPage === "shop" || wantPage === "settings" || wantPage === "map" || wantPage === "main" || wantPage === "interior") ui.page = wantPage;
+    if (wantPage) ui.page = wantPage;
     console.log(`\u767D\u76D2\u64AD\u653E\u5C31\u7EEA\uFF1A${frames.length} \u5929\uFF0C\u4E8B\u4EF6 ${sim.eventsFired} \u6B21\uFF0C\u72EC\u7ACB ${sim.distinctFired.length}`);
   });
 })();

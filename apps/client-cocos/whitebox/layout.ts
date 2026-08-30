@@ -202,6 +202,12 @@ export type HitTarget =
   | { kind: 'interiorBack' }
   | { kind: 'fortSlot'; index: number }
   | { kind: 'lot'; id: string }
+  | { kind: 'wildBack' }
+  | { kind: 'wildZone'; zone: string }
+  | { kind: 'wildDispatch' }
+  | { kind: 'partyMinus' }
+  | { kind: 'partyPlus' }
+  | { kind: 'explore' }
   | { kind: 'none' }
 
 export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?: string } = {}): HitTarget {
@@ -226,6 +232,18 @@ export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?
     }
     for (const [i, r] of dockRects().entries()) if (inRect(r)) return { kind: 'dock', key: DOCK_KEYS[i].key }
     if (inRect(settingsRect())) return { kind: 'settings' }
+    return { kind: 'none' }
+  }
+  // L1 野外：区域卡/返回/派出/人数
+  if (page === 'wild') {
+    if (inRect(wildBackRect())) return { kind: 'wildBack' }
+    for (const z of WILD_ZONES) {
+      const r = wildZoneRect(WILD_ZONES.indexOf(z))
+      if (inRect(r)) return { kind: 'wildZone', zone: z.zone }
+    }
+    if (inRect(wildDispatchRect())) return { kind: 'wildDispatch' }
+    if (inRect(wildMinusRect())) return { kind: 'partyMinus' }
+    if (inRect(wildPlusRect())) return { kind: 'partyPlus' }
     return { kind: 'none' }
   }
   // L3 室内：返回 + 工事位
@@ -303,6 +321,7 @@ export const LOTS: Record<string, { gx: number; gy: number; name: string; kind: 
   lot_watchtower: { gx: 6, gy: 6, name: '岗哨塔', kind: 'facility', unlockDay: 4 }
 }
 
+export const EXPLORE_ENTRY = { x: DESIGN_W / 2 - 140, y: 240, w: 280, h: 64 }
 export function mapBackRect(): Rect {
   return { x: M, y: HUD_H + T.space.xs, w: HIT_MIN, h: HIT_MIN }
 }
@@ -314,3 +333,21 @@ export function interiorBackRect(): Rect {
 export function interiorSlotRect(i: number): Rect {
   return { x: DESIGN_W / 2 - 220 + i * 240, y: DESIGN_H / 2 - 210, w: 200, h: 120 }
 }
+
+// ---- L1 野外地图（UI 规范 v2.0 §7.3；区域=config/map_def.json zone + explore_def）----
+export const WILD_ZONES: { zone: string; name: string; danger: 'low' | 'mid' | 'high'; travelTime: number; unlockDay: number }[] = [
+  { zone: 'zn_forest_edge', name: '林缘', danger: 'low', travelTime: 10, unlockDay: 1 },
+  { zone: 'zn_farm', name: '河边农田', danger: 'low', travelTime: 15, unlockDay: 5 },
+  { zone: 'zn_deep_forest', name: '深林', danger: 'mid', travelTime: 25, unlockDay: 8 },
+  { zone: 'zn_ruins', name: '街道废墟', danger: 'mid', travelTime: 20, unlockDay: 12 }
+]
+export function wildZoneRect(i: number): Rect {
+  const col = i % 2, row = Math.floor(i / 2)
+  return { x: M + col * ((DESIGN_W - M * 2 - T.space.m) / 2 + T.space.m / 1), y: HUD_H + T.space.l * 2 + row * 220, w: (DESIGN_W - M * 2 - T.space.m) / 2, h: 200 }
+}
+export function wildBackRect(): Rect { return { x: M, y: HUD_H + T.space.xs, w: HIT_MIN, h: HIT_MIN } }
+export function wildDetailRect(): Rect { return { x: M, y: HUD_H + T.space.l * 2 + 440, w: DESIGN_W - M * 2, h: 300 } }
+export function wildDispatchRect(): Rect { return { x: DESIGN_W - M - HIT_MIN - T.space.l, y: HUD_H + T.space.l * 2 + 440 + 300 - HIT_MIN - T.space.s, w: HIT_MIN + T.space.l, h: HIT_MIN } }
+export function wildMinusRect(): Rect { return { x: M + T.space.s, y: wildDetailRect().y + 130, w: HIT_MIN, h: HIT_MIN } }
+export function wildPlusRect(): Rect { return { x: M + T.space.s + HIT_MIN + T.space.s, y: wildDetailRect().y + 130, w: HIT_MIN, h: HIT_MIN } }
+export const WILD_ZONE_NAME = (zone: string): string => WILD_ZONES.find(z => z.zone === zone)?.name ?? zone
