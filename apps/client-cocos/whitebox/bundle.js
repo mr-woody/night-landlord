@@ -817,7 +817,9 @@
     const max = constants.EXPLORE_STAMINA_MAX ?? 100;
     for (const t of state.tenants) w.stamina[String(t.id)] = max;
   }
-  function resolveDue(w, state, tables2, constants, day) {
+  function resolveDue(w, state, tables2, constants, day, weather) {
+    const gMul = weather?.gatherMul ?? 1;
+    const eMul = weather?.encounterMul ?? 1;
     const reports = [];
     const due = w.parties.filter((p) => p.returnsDay <= day);
     for (const party of due) {
@@ -836,13 +838,14 @@
       for (let i = 0; i < entry.gatherSlots && nodes.length > 0; i++) {
         const idx2 = Math.floor(rng.next() * nodes.length);
         const node = nodes.splice(idx2, 1)[0];
-        const amount = node.yieldMin + Math.floor(rng.next() * (node.yieldMax - node.yieldMin + 1));
+        const raw = node.yieldMin + Math.floor(rng.next() * (node.yieldMax - node.yieldMin + 1));
+        const amount = Math.max(0, Math.round(raw * gMul));
         addLoot(node.resource, amount);
         w.gatherReadyDay[node.id] = day + node.respawnDays;
       }
       const mul = party.overnight ? constants.EXPLORE_NIGHT_DANGER_MUL ?? 2 : 1;
       const hourPool = tables2.wildlife.entries.filter((x) => x.zones.includes(party.zone) && x.unlockDay <= day && (party.overnight ? x.activeHours !== "day" : x.activeHours !== "night"));
-      const encounterP = Math.min(0.9, 0.35 * mul);
+      const encounterP = Math.min(0.95, 0.35 * mul * eMul);
       if (hourPool.length > 0 && rng.next() < encounterP) {
         const animal = hourPool[Math.floor(rng.next() * hourPool.length)];
         const winP = Math.min(0.95, (constants.WILDLIFE_FIGHT_WIN_BASE ?? 0.7) + (party.members.length - 1) * 0.06);
@@ -931,6 +934,28 @@
       health: () => ({ status: "ok" })
     });
   }
+
+  // packages/weather/src/index.ts
+  var BLOOD_MOON_DAYS = [7, 14, 21, 28];
+  function weatherOfDay(day, seed, tables2) {
+    if (BLOOD_MOON_DAYS.includes(day)) {
+      return tables2.weather.entries.find((e) => e.id === "blood_dust");
+    }
+    const pool = tables2.weather.entries.filter((e) => !e.exploreDisabled && e.unlockDay <= day);
+    const weightOf = (e) => day >= 8 ? e.weightAfter : e.weightBase;
+    const total = pool.reduce((a, e) => a + weightOf(e), 0);
+    const rng = createDayRng(seed, "weather", day);
+    let roll = rng.next() * total;
+    for (const e of pool) {
+      roll -= weightOf(e);
+      if (roll <= 0) return e;
+    }
+    return pool[pool.length - 1];
+  }
+  var weatherMuls = (w) => ({
+    gatherMul: w.gatherMul,
+    encounterMul: w.encounterMul
+  });
 
   // apps/headless/src/sim.ts
   function buildBundle(app2, options = {}) {
@@ -1177,6 +1202,7 @@
     for (let d = 1; d <= options.days; d++) {
       state.day = d;
       state.phase = "DAY";
+      const weather = app2.weather ? weatherOfDay(d, options.seed, { weather: app2.weather }) : void 0;
       const row = tables2.dayCurve.rows.find((r) => r.day === d);
       while (state.canteenLevel < 5) {
         const next = tables2.buildingDef.entries.find((b) => b.type === "canteen" && b.level === state.canteenLevel + 1);
@@ -1271,7 +1297,7 @@
       let dayExploreYield = 0;
       if (exploreOn && world2) {
         const before = { ...world2.totalYield };
-        resolveDue(world2, state, app2.world, constants, d);
+        resolveDue(world2, state, app2.world, constants, d, weather ? weatherMuls(weather) : void 0);
         dayExploreYield = world2.totalYield.food - before.food + (world2.totalYield.water - before.water) + (world2.totalYield.material - before.material) * 2;
         exploreYieldTotal += dayExploreYield;
         persistence.put(`ckpt_${d}_world`, serializeWorld(world2));
@@ -1299,7 +1325,8 @@
         panicSum: state.tenants.reduce((a, t) => a + t.panic, 0),
         spend: spent,
         wealth: state.resources.gold + state.resources.food + state.resources.material,
-        exploreYield: exploreOn ? dayExploreYield : 0
+        exploreYield: exploreOn ? dayExploreYield : 0,
+        weather: weather?.id ?? "sunny"
       });
       spent = 0;
     }
@@ -1690,26 +1717,207 @@
 
   // config/building_def.json
   var building_def_default = {
-    version: 1,
+    version: 2,
     sourceDoc: "docs/\u6570\u636E\u914D\u7F6E\u8868\u7ED3\u6784\u8BBE\u8BA1.md \xA77\uFF08\u516C\u5171\u5EFA\u7B51\uFF1A\u8BBE\u8BA1\u65B9\u6848 4.1\uFF09",
     entries: [
-      { type: "room", level: 1, cost: { gold: 300 }, slots: { tenant: 1, fort: 2 }, unlockDay: 0 },
-      { type: "canteen", level: 1, cost: { gold: 0 }, capacity: 10 },
-      { type: "canteen", level: 2, cost: { gold: 500 }, capacity: 14 },
-      { type: "canteen", level: 3, cost: { gold: 1e3 }, capacity: 18 },
-      { type: "canteen", level: 4, cost: { gold: 2500 }, capacity: 24 },
-      { type: "canteen", level: 5, cost: { gold: 5e3 }, capacity: 30 },
-      { type: "warehouse", level: 1, cost: { gold: 0 }, capacity: 5e3 },
-      { type: "warehouse", level: 2, cost: { gold: 800 }, capacity: 12e3 },
-      { type: "warehouse", level: 3, cost: { gold: 2500 }, capacity: 3e4 },
-      { type: "broadcast", level: 1, cost: { gold: 600 }, unlockDay: 2 },
-      { type: "broadcast", level: 2, cost: { gold: 1800 }, unlockDay: 8 },
-      { type: "watchtower", level: 1, cost: { gold: 0 }, capacity: 1 },
-      { type: "watchtower", level: 2, cost: { gold: 400 }, capacity: 2 },
-      { type: "watchtower", level: 3, cost: { gold: 1200 }, capacity: 3 },
-      { type: "clinic", level: 1, cost: { gold: 800 } },
-      { type: "hall", level: 1, cost: { gold: 800 } },
-      { type: "workshop", level: 1, cost: { gold: 800 } }
+      {
+        type: "room",
+        level: 1,
+        cost: {
+          gold: 300
+        },
+        slots: {
+          tenant: 1,
+          fort: 2
+        },
+        unlockDay: 0
+      },
+      {
+        type: "canteen",
+        level: 1,
+        cost: {
+          gold: 0
+        },
+        capacity: 10
+      },
+      {
+        type: "canteen",
+        level: 2,
+        cost: {
+          gold: 500
+        },
+        capacity: 14
+      },
+      {
+        type: "canteen",
+        level: 3,
+        cost: {
+          gold: 1e3
+        },
+        capacity: 18
+      },
+      {
+        type: "canteen",
+        level: 4,
+        cost: {
+          gold: 2500
+        },
+        capacity: 24
+      },
+      {
+        type: "canteen",
+        level: 5,
+        cost: {
+          gold: 5e3
+        },
+        capacity: 30
+      },
+      {
+        type: "warehouse",
+        level: 1,
+        cost: {
+          gold: 0
+        },
+        capacity: 5e3
+      },
+      {
+        type: "warehouse",
+        level: 2,
+        cost: {
+          gold: 800
+        },
+        capacity: 12e3
+      },
+      {
+        type: "warehouse",
+        level: 3,
+        cost: {
+          gold: 2500
+        },
+        capacity: 3e4
+      },
+      {
+        type: "broadcast",
+        level: 1,
+        cost: {
+          gold: 600
+        },
+        unlockDay: 2
+      },
+      {
+        type: "broadcast",
+        level: 2,
+        cost: {
+          gold: 1800
+        },
+        unlockDay: 8
+      },
+      {
+        type: "watchtower",
+        level: 1,
+        cost: {
+          gold: 0
+        },
+        capacity: 1
+      },
+      {
+        type: "watchtower",
+        level: 2,
+        cost: {
+          gold: 400
+        },
+        capacity: 2
+      },
+      {
+        type: "watchtower",
+        level: 3,
+        cost: {
+          gold: 1200
+        },
+        capacity: 3
+      },
+      {
+        type: "clinic",
+        level: 1,
+        cost: {
+          gold: 800
+        }
+      },
+      {
+        type: "hall",
+        level: 1,
+        cost: {
+          gold: 800
+        }
+      },
+      {
+        type: "workshop",
+        level: 1,
+        cost: {
+          gold: 800
+        }
+      },
+      {
+        type: "house",
+        level: 0,
+        cost: {},
+        durability: 0.8,
+        unlockDay: 1,
+        desc: "\u623F\u5C4B\u8FDB\u5316 Lv0\uFF08\u6218\u6597\u6F14\u51FA\u4E0E\u5929\u6C14\u7CFB\u7EDF\u8BBE\u8BA1 \xA71.2\uFF09"
+      },
+      {
+        type: "house",
+        level: 1,
+        cost: {
+          material: 50
+        },
+        durability: 0.9,
+        unlockDay: 1,
+        desc: "\u623F\u5C4B\u8FDB\u5316 Lv1\uFF08\u6218\u6597\u6F14\u51FA\u4E0E\u5929\u6C14\u7CFB\u7EDF\u8BBE\u8BA1 \xA71.2\uFF09"
+      },
+      {
+        type: "house",
+        level: 2,
+        cost: {
+          material: 150
+        },
+        durability: 1,
+        unlockDay: 2,
+        desc: "\u623F\u5C4B\u8FDB\u5316 Lv2\uFF08\u6218\u6597\u6F14\u51FA\u4E0E\u5929\u6C14\u7CFB\u7EDF\u8BBE\u8BA1 \xA71.2\uFF09"
+      },
+      {
+        type: "house",
+        level: 3,
+        cost: {
+          material: 400,
+          gold: 200
+        },
+        durability: 1.15,
+        unlockDay: 8,
+        desc: "\u623F\u5C4B\u8FDB\u5316 Lv3\uFF08\u6218\u6597\u6F14\u51FA\u4E0E\u5929\u6C14\u7CFB\u7EDF\u8BBE\u8BA1 \xA71.2\uFF09"
+      },
+      {
+        type: "house",
+        level: 4,
+        cost: {
+          material: 800,
+          gold: 500
+        },
+        durability: 1.3,
+        unlockDay: 15,
+        desc: "\u623F\u5C4B\u8FDB\u5316 Lv4\uFF08\u6218\u6597\u6F14\u51FA\u4E0E\u5929\u6C14\u7CFB\u7EDF\u8BBE\u8BA1 \xA71.2\uFF09"
+      },
+      {
+        type: "house",
+        level: 5,
+        cost: {
+          material: 1500,
+          gold: 1200
+        },
+        durability: 1.5,
+        unlockDay: 22,
+        desc: "\u623F\u5C4B\u8FDB\u5316 Lv5\uFF08\u6218\u6597\u6F14\u51FA\u4E0E\u5929\u6C14\u7CFB\u7EDF\u8BBE\u8BA1 \xA71.2\uFF09"
+      }
     ]
   };
 

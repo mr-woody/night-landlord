@@ -37,7 +37,7 @@ export interface GameState {
   stats: { deathsTotal: number; deathsToday: number; goldEarnedTotal: number; breachesLastNight: number }
 }
 
-export interface BuildingEntry { type: string; level: number; cost: Record<string, number>; capacity?: number; slots?: Record<string, number>; unlockDay?: number }
+export interface BuildingEntry { type: string; level: number; cost: Record<string, number>; capacity?: number; slots?: Record<string, number>; unlockDay?: number; /** M3.2 房屋进化：耐久系数（type='house' 专用） */ durability?: number; desc?: string }
 export interface Tables {
   dayCurve: DayCurveTable
   constants: ConstantsTable

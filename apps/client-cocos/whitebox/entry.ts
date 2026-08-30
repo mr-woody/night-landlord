@@ -2,7 +2,7 @@
 // （DAWN_SETTLE→DAY→DUSK_FORECAST→NIGHT，门②）+ 主界面/事件卡/夜战/结算渲染
 // + rAF 帧率采样。打包：npm run build:whitebox（esbuild → whitebox/bundle.js）
 import { createKernel } from '../../../packages/kernel/src/index.ts'
-import { createGameState } from '../../../packages/systems/src/index.ts'
+import { createGameState, type Tables } from '../../../packages/systems/src/index.ts'
 import { createWorldState, dispatchParty, resolveDue, restoreStamina, type WorldTables } from '../../../packages/world/src/index.ts'
 import { createFormula, loadConstants } from '../../../packages/formula/src/index.ts'
 import { buildBundle, runSimulation, type AppContext } from '../../../apps/headless/src/sim.ts'
@@ -26,11 +26,12 @@ import { DESIGN_W, DESIGN_H, hitTest } from './layout.ts'
 import { settleDoneAt, nightWaves } from './anim.ts'
 import { WILD_ZONE_NAME } from './layout.ts'
 
+// JSON 推断的异构 cost 联合与 Record<string,number> 不兼容——使用点收窄（数据经 check-config 校验）
 const tables = {
   dayCurve: dayCurveJson,
   constants: constantsJson,
   buildingDef: buildingDefJson
-}
+} as unknown as Tables
 const app: AppContext = {
   tables,
   formula: createFormula({ dayCurve: tables.dayCurve, constants: loadConstants(tables.constants.entries) }),
