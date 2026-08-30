@@ -58,6 +58,7 @@ let frames: DayFrame[] = []
 let idx = 0
 const ui: UiState = createUiState()
 const SKILL_CD_MS = motion('normal').dur * 10 // 主动技 CD 占位 = normal×10（tokens 派生）
+const NO_MODAL = new URLSearchParams(location.search).has('nomodal') // 冒烟调试：隐藏事件卡
 const pb: Playback = {
   session: null,
   monsterNames: Object.fromEntries(monstersJson.entries.map(m => [m.id, m.name])),
@@ -92,7 +93,7 @@ function enterDay(d: number): void {
     }
   }
   syncParties()
-  for (const card of frames[d]?.eventCards ?? []) Object.assign(ui, pushEvent(ui, card))
+  if (!NO_MODAL) for (const card of frames[d]?.eventCards ?? []) Object.assign(ui, pushEvent(ui, card))
 }
 
 function syncParties(): void {

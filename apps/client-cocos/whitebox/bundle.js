@@ -5961,6 +5961,29 @@
     return Math.min(1, Math.max(0, (now - start) / m.dur));
   }
 
+  // apps/client-cocos/whitebox/tutorial.ts
+  var TUT_STEPS = [
+    { day: 1, id: "evt_tut_fortify", hint: "\u70B9\u51FB\u300C\u5E03\u9632\u300D\uFF1A\u7528\u6728\u677F\u52A0\u56FA\u4F60\u7684\u95E8", highlight: "dock:deploy" },
+    { day: 1, id: "evt_tut_firstnight", hint: "\u70B9\u51FB\u300C\u25B6\u591C\u300D\u2192\u300C\u5165\u591C\u300D\u8FCE\u63A5\u7B2C\u4E00\u591C", highlight: "dock:night" },
+    { day: 1, id: "evt_tut_rescue", hint: "\u70B9\u51FB\u300C\u62DB\u52DF\u300D\uFF1A\u591A\u4E00\u4E2A\u90BB\u5C45\u591A\u4E00\u4EFD\u6536\u5165", highlight: "dock:recruit" },
+    { day: 2, id: "evt_tut_referral", hint: "\u7EE7\u7EED\u300C\u62DB\u52DF\u300D\uFF1A\u90BB\u5C45\u5F15\u8350\u6B63\u5728\u6EDA\u96EA\u7403", highlight: "dock:recruit" },
+    { day: 2, id: "evt_tut_broadcast", hint: "\u300C\u25B6\u591C\u300D\u524D\u786E\u8BA4\u300C\u5E03\u9632\u300D\u5230\u4F4D", highlight: "dock:deploy" },
+    { day: 3, id: "evt_tut_bills", hint: "\u5929\u4EAE\u770B\u300C\u6536\u79DF\u7ED3\u7B97\u300D\u2014\u2014\u8FD9\u5C31\u662F\u94B1", highlight: "phase:dawn" },
+    { day: 5, id: "evt_tut_panic", hint: "\u6050\u614C\u4F1A\u8D76\u8D70\u4F4F\u6237\uFF0C\u76EF\u4F4F\u8D44\u6E90\u680F\u7684 \u{1F631}", highlight: "res:panic" },
+    { day: 6, id: "evt_tut_omen", hint: "\u660E\u5929\u8840\u6708\uFF01\u767D\u5929\u6293\u7D27\u300C\u5E03\u9632\u300D", highlight: "dock:deploy" },
+    { day: 30, id: "evt_bld_b_open", hint: "\u70B9\u51FB B \u680B\uFF0C\u770B\u770B\u65B0\u623F\u95F4", highlight: "map:lot_bld_b" },
+    { day: 30, id: "evt_bld_c_open", hint: "\u70B9\u51FB C \u680B\uFF0C\u770B\u770B\u65B0\u623F\u95F4", highlight: "map:lot_bld_c" }
+  ];
+  function stepsForDay(day) {
+    return TUT_STEPS.filter((s) => s.day === day);
+  }
+  function tutorialBoard(day, firedIds) {
+    const steps = stepsForDay(day);
+    const rows = steps.map((s) => ({ step: s, done: firedIds.has(s.id) }));
+    const current = rows.find((r) => !r.done)?.step ?? null;
+    return { rows, allDone: steps.length > 0 && rows.every((r) => r.done), current };
+  }
+
   // apps/client-cocos/whitebox/renderer.ts
   var WAVE_LETTERS = ["A", "B", "C", "D", "E", "F"];
   var prand = (seed) => (seed * 9301 + 49297) % 233280 / 233280;
@@ -6231,12 +6254,14 @@
           if (ui2.page === "map") {
             this.drawMapView(ui2, frame, now);
             this.drawTutorialBanner(frame);
+            this.drawTutorialSteps(frame);
           } else if (ui2.page === "interior") this.drawInterior(ui2, frame, now, pb2);
           else if (ui2.page === "wild") this.drawWildView(ui2, frame, now, pb2);
           else if (ui2.page === "main") {
             this.button(mapBackRect(), "\u25C0 \u5C0F\u533A", "normal");
             this.drawHud(frame, now);
             this.drawTutorialBanner(frame);
+            this.drawTutorialSteps(frame);
             this.drawResources(frame);
             this.drawBuilding(frame, now);
             this.drawEventEntry(frame);
@@ -6986,6 +7011,75 @@
       ctx.font = font(T.typography.body, { weight: "bold" });
       ctx.fillText(`\u76EE\u6807\uFF1A${tut.title}`, T.space.s + 80, y + 27);
     }
+    /** 分步引导步骤板（M3.4-②）：当日步骤高亮/下一步指引/完成打勾 */
+    drawTutorialSteps(frame) {
+      const { ctx } = this;
+      const fired = new Set(frame.eventCards.map((c) => c.id));
+      const titles = new Map(frame.eventCards.map((c) => [c.id, c.title]));
+      const { rows, current } = tutorialBoard(frame.day, fired);
+      if (rows.length === 0) return;
+      const w = 330, x = DESIGN_W - w - 16, y = 1150;
+      const h = 56 + rows.length * 88;
+      this.panel(x, y, w, h, T.radius.btn);
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = col("gold_primary");
+      ctx.beginPath();
+      ctx.roundRect(x + 14, y + 12, 40, 26, 6);
+      ctx.fill();
+      ctx.fillStyle = shade(col("gold_primary"), 0.3);
+      ctx.font = font(T.typography.caption, { weight: "bold" });
+      ctx.fillText("\u6B65\u9AA4", x + 20, y + 26);
+      ctx.fillStyle = col("text_primary");
+      ctx.font = font(T.typography.caption, { weight: "bold" });
+      ctx.fillText(`\u4ECA\u65E5\u76EE\u6807 ${rows.filter((r) => r.done).length}/${rows.length}`, x + 66, y + 26);
+      rows.forEach((row, i) => {
+        const ry = y + 52 + i * 88;
+        const isCurrent = current?.id === row.step.id;
+        if (isCurrent) {
+          ctx.beginPath();
+          ctx.roundRect(x + 10, ry - 4, w - 20, 84, T.radius.chip);
+          ctx.fillStyle = withAlpha(col("gold_primary"), 0.12);
+          ctx.fill();
+          ctx.strokeStyle = col("gold_deep");
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.arc(x + 34, ry + 14, 13, 0, Math.PI * 2);
+        if (row.done) {
+          ctx.fillStyle = col("success");
+          ctx.fill();
+        }
+        ctx.strokeStyle = row.done ? col("success") : col("panel_stroke");
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        if (row.done) {
+          ctx.strokeStyle = shade(col("success"), 0.25);
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(x + 27, ry + 14);
+          ctx.lineTo(x + 32, ry + 20);
+          ctx.lineTo(x + 42, ry + 6);
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = col("text_secondary");
+          ctx.beginPath();
+          ctx.arc(x + 34, ry + 14, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = row.done ? col("text_secondary") : col("text_primary");
+        ctx.font = font(T.typography.body, { weight: row.done ? void 0 : "bold" });
+        ctx.fillText(titles.get(row.step.id) ?? row.step.id, x + 56, ry + 10);
+        if (isCurrent && !row.done) {
+          ctx.fillStyle = col("gold_primary");
+          ctx.font = font(T.typography.caption);
+          ctx.font = font(T.typography.caption);
+          for (const [j, ln] of this.wrap(row.step.hint, w - 100).entries()) {
+            ctx.fillText(`\u25B8 ${ln}`, x + 56, ry + 42 + j * 24);
+          }
+        }
+      });
+    }
     /** 新开放角标（楼栋解锁后 3 天内显示，替代锁定态） */
     newlyOpenBadge(cx, cy) {
       const { ctx } = this;
@@ -7645,6 +7739,7 @@
   var idx = 0;
   var ui = createUiState();
   var SKILL_CD_MS = motion("normal").dur * 10;
+  var NO_MODAL = new URLSearchParams(location.search).has("nomodal");
   var pb = {
     session: null,
     monsterNames: Object.fromEntries(monster_default.entries.map((m) => [m.id, m.name])),
@@ -7677,7 +7772,7 @@
       }
     }
     syncParties();
-    for (const card of frames[d]?.eventCards ?? []) Object.assign(ui, pushEvent(ui, card));
+    if (!NO_MODAL) for (const card of frames[d]?.eventCards ?? []) Object.assign(ui, pushEvent(ui, card));
   }
   function syncParties() {
     pb.parties = world.parties.map((p) => ({ zone: p.zone, size: p.members.length, returnsDay: p.returnsDay }));

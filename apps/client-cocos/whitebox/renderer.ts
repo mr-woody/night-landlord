@@ -24,6 +24,7 @@ import {
   nightWaves, OUTCOME_LABEL, counterValue, popProgress, settleDoneAt,
   threatBurst, dissolveAlpha, cardFlip
 } from './anim.ts'
+import { tutorialBoard, type TutRow } from './tutorial.ts'
 
 export interface DayFrame {
   day: number
@@ -284,13 +285,14 @@ export class WhiteboxRenderer {
       }
       case 'DAY':
         this.drawDayBg(now)
-        if (ui.page === 'map') { this.drawMapView(ui, frame, now); this.drawTutorialBanner(frame) }
+        if (ui.page === 'map') { this.drawMapView(ui, frame, now); this.drawTutorialBanner(frame); this.drawTutorialSteps(frame) }
         else if (ui.page === 'interior') this.drawInterior(ui, frame, now, pb)
         else if (ui.page === 'wild') this.drawWildView(ui, frame, now, pb)
         else if (ui.page === 'main') {
           this.button(mapBackRect(), '◀ 小区', 'normal')
           this.drawHud(frame, now)
           this.drawTutorialBanner(frame)
+          this.drawTutorialSteps(frame)
           this.drawResources(frame)
           this.drawBuilding(frame, now)
           this.drawEventEntry(frame)
@@ -967,6 +969,58 @@ export class WhiteboxRenderer {
     ctx.fillStyle = col('text_primary')
     ctx.font = font(T.typography.body, { weight: 'bold' })
     ctx.fillText(`目标：${tut.title}`, T.space.s + 80, y + 27)
+  }
+
+  /** 分步引导步骤板（M3.4-②）：当日步骤高亮/下一步指引/完成打勾 */
+  private drawTutorialSteps(frame: DayFrame): void {
+    const { ctx } = this
+    const fired = new Set(frame.eventCards.map(c => c.id))
+    const titles = new Map(frame.eventCards.map(c => [c.id, c.title]))
+    const { rows, current } = tutorialBoard(frame.day, fired)
+    if (rows.length === 0) return
+    const w = 330, x = DESIGN_W - w - 16, y = 1150
+    const h = 56 + rows.length * 88
+    this.panel(x, y, w, h, T.radius.btn)
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = col('gold_primary')
+    ctx.beginPath(); ctx.roundRect(x + 14, y + 12, 40, 26, 6); ctx.fill()
+    ctx.fillStyle = shade(col('gold_primary'), 0.3)
+    ctx.font = font(T.typography.caption, { weight: 'bold' })
+    ctx.fillText('步骤', x + 20, y + 26)
+    ctx.fillStyle = col('text_primary')
+    ctx.font = font(T.typography.caption, { weight: 'bold' })
+    ctx.fillText(`今日目标 ${rows.filter(r => r.done).length}/${rows.length}`, x + 66, y + 26)
+    rows.forEach((row: TutRow, i: number) => {
+      const ry = y + 52 + i * 88
+      const isCurrent = current?.id === row.step.id
+      if (isCurrent) {
+        ctx.beginPath(); ctx.roundRect(x + 10, ry - 4, w - 20, 84, T.radius.chip)
+        ctx.fillStyle = withAlpha(col('gold_primary'), 0.12); ctx.fill()
+        ctx.strokeStyle = col('gold_deep'); ctx.lineWidth = 2; ctx.stroke()
+      }
+      // 打勾圆
+      ctx.beginPath(); ctx.arc(x + 34, ry + 14, 13, 0, Math.PI * 2)
+      if (row.done) { ctx.fillStyle = col('success'); ctx.fill() }
+      ctx.strokeStyle = row.done ? col('success') : col('panel_stroke'); ctx.lineWidth = 2.5; ctx.stroke()
+      if (row.done) {
+        ctx.strokeStyle = shade(col('success'), 0.25); ctx.lineWidth = 3
+        ctx.beginPath(); ctx.moveTo(x + 27, ry + 14); ctx.lineTo(x + 32, ry + 20); ctx.lineTo(x + 42, ry + 6); ctx.stroke()
+      } else {
+        ctx.fillStyle = col('text_secondary')
+        ctx.beginPath(); ctx.arc(x + 34, ry + 14, 5, 0, Math.PI * 2); ctx.fill()
+      }
+      ctx.fillStyle = row.done ? col('text_secondary') : col('text_primary')
+      ctx.font = font(T.typography.body, { weight: row.done ? undefined : 'bold' })
+      ctx.fillText(titles.get(row.step.id) ?? row.step.id, x + 56, ry + 10)
+      if (isCurrent && !row.done) {
+        ctx.fillStyle = col('gold_primary')
+        ctx.font = font(T.typography.caption)
+        ctx.font = font(T.typography.caption)
+        for (const [j, ln] of this.wrap(row.step.hint, w - 100).entries()) {
+          ctx.fillText(`▸ ${ln}`, x + 56, ry + 42 + j * 24)
+        }
+      }
+    })
   }
 
   /** 新开放角标（楼栋解锁后 3 天内显示，替代锁定态） */
