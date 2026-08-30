@@ -27,7 +27,14 @@ export function loadApp(): AppContext {
     formula: createFormula({ dayCurve: tables.dayCurve, constants: loadConstants(tables.constants.entries) }),
     constants: loadConstants(tables.constants.entries),
     eventLib: loadJson<{ version: number; entries: EventLibEntry[] }>('config/event_lib.json'),
-    monsters: loadJson<{ version: number; entries: { id: string; name: string; active: boolean; unlockDay: number; usableNightMods: string[] }[] }>('config/monster.json')
+    monsters: loadJson<{ version: number; entries: { id: string; name: string; active: boolean; unlockDay: number; usableNightMods: string[] }[] }>('config/monster.json'),
+    world: {
+      mapDef: loadJson('config/map_def.json'),
+      exploreDef: loadJson('config/explore_def.json'),
+      gatherTable: loadJson('config/gather_table.json'),
+      wildlife: loadJson('config/wildlife.json'),
+      buildingDef: tables.buildingDef
+    }
   }
 }
 
@@ -87,6 +94,18 @@ function cmdVerify(app: AppContext, kernel: Kernel, args: Record<string, string>
     results.push({ name: 'V12 事件频控 ≤3', ok: maxFired <= 3, detail: `最大触发 ${maxFired} 次` })
   }
 
+  // V13（--explore）：探索开启态 30 天，产出折算锚点（食物/水=1、建材=2）
+  if (args.explore !== undefined) {
+    const es = runSimulation(app, kernel, { days: 30, seed: 42, explore: true })
+    const conv = (t: Record<string, number>): number => (t.food ?? 0) + (t.water ?? 0) + (t.material ?? 0) * 2
+    const total = conv(es.world?.totalYield ?? {})
+    const cum = (day: number): number => es.records.filter(r => r.day <= day).reduce((x, r) => x + r.exploreYield, 0)
+    const t8 = app.constants.EXPLORE_YIELD_TARGET_D8, t30 = app.constants.EXPLORE_YIELD_TARGET_D30
+    const c8 = cum(8), c30 = cum(30)
+    results.push({ name: 'V13a 探索产出 D8 锚点', ok: c8 >= t8 * 0.6 && c8 <= t8 * 1.6, detail: `折算=${c8} vs 目标 ${t8}±40%` })
+    results.push({ name: 'V13b 探索产出 D30 锚点', ok: c30 >= t30 * 0.6 && c30 <= t30 * 1.6, detail: `折算=${c30} vs 目标 ${t30}±40%` })
+    results.push({ name: 'V13c 探索记账一致', ok: Math.abs(total - c30) <= 2, detail: `totalYield 折算=${total} vs 逐日和=${c30}` })
+  }
   let ok = true
   for (const r of results) {
     if (r.name === 'FINDING') { console.log(`NOTE  ${r.detail}`); continue }
@@ -171,7 +190,7 @@ async function main(): Promise<void> {
   else if (cmd === 'replay') code = cmdReplay(app, kernel, args)
   else if (cmd === 'diagnose') code = await cmdDiagnose(app)
   else if (cmd === 'depgraph') code = await cmdDepgraph(app, args)
-  else { console.error('用法: main.ts simulate|verify|replay|diagnose|depgraph [--days N] [--seed S] [--out f] [--check] [--design]'); code = 2 }
+  else { console.error('用法: main.ts simulate|verify|replay|diagnose|depgraph [--days N] [--seed S] [--out f] [--check] [--design] [--explore]'); code = 2 }
   process.exitCode = code
 }
 

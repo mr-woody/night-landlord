@@ -25,7 +25,8 @@
     "check:cocos": "node scripts/check-cocos-shared.mjs",
     "verify": "node apps/headless/src/main.ts verify",
     "simulate": "node apps/headless/src/main.ts simulate --days 30",
-    "depgraph": "node apps/headless/src/main.ts depgraph"
+    "depgraph": "node apps/headless/src/main.ts depgraph",
+    "verify:explore": "node apps/headless/src/main.ts verify --explore"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

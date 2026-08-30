@@ -7,6 +7,10 @@ import {
   settleDawn, runNight, canteenCap, defensePower, type GameState, type Tables, type BattleSession, type EffectOp, type Quality
 } from '@rn/systems'
 import { createFormula, levelForU } from '@rn/formula'
+import {
+  createWorldState, dispatchParty, resolveDue, restoreStamina, serializeWorld,
+  type WorldState, type WorldTables
+} from '@rn/world'
 
 export interface EventLibEntry {
   id: string; ver: number; type: 'scripted' | 'choice' | 'mission'; title: string
@@ -23,6 +27,8 @@ export interface AppContext {
   constants: Record<string, number>
   eventLib: { version: number; entries: EventLibEntry[] }
   monsters: { version: number; entries: { id: string; name: string; active: boolean; unlockDay: number; usableNightMods: string[] }[] }
+  /** 世界空间四表（M3.0；explore 开启时必填） */
+  world?: WorldTables
 }
 
 export interface DirectorService {
@@ -209,6 +215,8 @@ export interface DayRecord {
   rAvg: number; deaths: number; wounds: number; sessionHash: string; invariantErrors: string[]
   events: number; checkpoints: number; avgLevel: number; targetLevel: number
   panicSum: number; spend: number; wealth: number; modifiers: string[]
+  /** 当日探索产出折算（EXPLORE_ENABLED 开启时非 0；折算：食物/水=1、建材=2） */
+  exploreYield: number
 }
 
 function target(d: number, t: Tables): number {
@@ -227,8 +235,9 @@ export interface EventCardMeta {
 }
 
 export function runSimulation(
-  app: AppContext, kernel: Kernel, options: { days: number; seed: number }
-): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number; distinctFired: string[]; eventCounts: Record<string, number>; eventCards: Record<number, EventCardMeta[]>; stabilizer: { window: string; wealth: number; produceConsume: number; panic: number }[] } {
+  app: AppContext, kernel: Kernel, options: { days: number; seed: number; explore?: boolean }
+): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number; distinctFired: string[]; eventCounts: Record<string, number>; eventCards: Record<number, EventCardMeta[]>; world?: WorldState; stabilizer: { window: string; wealth: number; produceConsume: number; panic: number }[] } {
+  if (options.explore && !app.world) throw new Error('explore=true 需要 AppContext.world（四张世界表）')
   const { tables, constants } = app
   const formula = kernel.service<ReturnType<typeof createFormula>>('formula')
   const director = kernel.service<DirectorService>('director')
@@ -236,6 +245,26 @@ export function runSimulation(
   const persistence = kernel.service<{ put(slot: string, json: string): void; get(slot: string): string | undefined }>('persistence')
   const state: GameState = kernel.service<GameService>('game').createState(options.seed)
   const rng = createRngStreams(options.seed)
+  // 探索层（K1=A：EXPLORE_ENABLED flag 门控；关闭态与 M2 行为逐字段一致）
+  const exploreOn = options.explore === true
+  const world = exploreOn ? createWorldState(options.seed, app.world!) : undefined
+  let exploreYieldTotal = 0
+  const explorePolicy = (d: number): { zone: string; tenantIds: number[] } | null => {
+    if (!world) return null
+    // 中位数基准策略：按收益偏好选已解锁的最高级区域；队伍=体力与状态合格的前 3 名
+    const order = ['zn_deep_forest', 'zn_ruins', 'zn_farm', 'zn_forest_edge']
+    const entry = order
+      .map(z => app.world!.exploreDef.entries.find(e => e.zone === z)!)
+      .find(e => e.unlockDay <= d)
+    if (!entry) return null
+    const cost = entry.staminaCost
+    const members = [...state.tenants]
+      .filter(t => t.hp > 30 && (world.stamina[String(t.id)] ?? constants.EXPLORE_STAMINA_MAX) >= cost)
+      .sort((a, b) => (world.stamina[String(b.id)] ?? 0) - (world.stamina[String(a.id)] ?? 0) || a.id - b.id)
+      .slice(0, Math.min(constants.EXPLORE_PARTY_MAX ?? 3, entry.partyMax))
+    if (members.length === 0) return null
+    return { zone: entry.zone, tenantIds: members.map(m => m.id) }
+  }
   const records: DayRecord[] = []
   const sessions: Record<number, BattleSession> = {}
   const findings: string[] = []
@@ -333,6 +362,11 @@ export function runSimulation(
       }
     })
     persistence.put(`ckpt_${d}_day`, serialize(state))
+    if (exploreOn && world) {
+      restoreStamina(world, state, constants)
+      const plan = explorePolicy(d)
+      if (plan) dispatchParty(world, state, app.world!, constants, { zone: plan.zone, tenantIds: plan.tenantIds, day: d })
+    }
     checkpoints++
 
     state.phase = 'DUSK_FORECAST'
@@ -347,6 +381,15 @@ export function runSimulation(
     checkpoints++
 
     state.phase = 'DAWN_SETTLE'
+    let dayExploreYield = 0
+    if (exploreOn && world) {
+      const before = { ...world.totalYield }
+      resolveDue(world, state, app.world!, constants, d)
+      dayExploreYield = (world.totalYield.food - before.food) + (world.totalYield.water - before.water)
+        + (world.totalYield.material - before.material) * 2
+      exploreYieldTotal += dayExploreYield
+      persistence.put(`ckpt_${d}_world`, serializeWorld(world))
+    }
     const settle = settleDawn(state, { formula, constants, rng })
     const rAvg = session.routes.length ? session.routes.reduce((a, r) => a + r.r, 0) / session.routes.length : 9.99
     const invariantErrors = checkInvariants(state, { canteenCap: canteenCap(state, tables.buildingDef), warehouseCap: 30000 })
@@ -358,7 +401,8 @@ export function runSimulation(
       avgLevel: state.tenants.length ? Math.round(state.tenants.reduce((a, t) => a + t.level, 0) / state.tenants.length * 10) / 10 : 0,
       targetLevel: levelForU(row.u, constants.CFG_G_U),
       panicSum: state.tenants.reduce((a, t) => a + t.panic, 0),
-      spend: spent, wealth: state.resources.gold + state.resources.food + state.resources.material
+      spend: spent, wealth: state.resources.gold + state.resources.food + state.resources.material,
+      exploreYield: exploreOn ? dayExploreYield : 0
     })
     spent = 0
   }
@@ -371,7 +415,7 @@ export function runSimulation(
     }
   }
   const stabilizer = stabilizerL1(records)
-  return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, eventCards, stabilizer }
+  return { records, finalHash, findings, sessions, eventsFired, distinctFired: [...distinctFired], eventCounts, eventCards, world: exploreOn ? world : undefined, stabilizer }
 }
 
 /** Stabilizer L1 度量（只记录不干预）：财富指数/产出消耗比/恐慌总量，按血月周期聚合 */
