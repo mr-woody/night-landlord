@@ -1,23 +1,204 @@
 {
-  "version": 1,
+  "version": 2,
   "sourceDoc": "docs/数据配置表结构设计.md §7（公共建筑：设计方案 4.1）",
   "entries": [
-    { "type": "room",       "level": 1, "cost": { "gold": 300 }, "slots": { "tenant": 1, "fort": 2 }, "unlockDay": 0 },
-    { "type": "canteen",    "level": 1, "cost": { "gold": 0 },    "capacity": 10 },
-    { "type": "canteen",    "level": 2, "cost": { "gold": 500 },  "capacity": 14 },
-    { "type": "canteen",    "level": 3, "cost": { "gold": 1000 }, "capacity": 18 },
-    { "type": "canteen",    "level": 4, "cost": { "gold": 2500 }, "capacity": 24 },
-    { "type": "canteen",    "level": 5, "cost": { "gold": 5000 }, "capacity": 30 },
-    { "type": "warehouse",  "level": 1, "cost": { "gold": 0 },    "capacity": 5000 },
-    { "type": "warehouse",  "level": 2, "cost": { "gold": 800 },  "capacity": 12000 },
-    { "type": "warehouse",  "level": 3, "cost": { "gold": 2500 }, "capacity": 30000 },
-    { "type": "broadcast",  "level": 1, "cost": { "gold": 600 },  "unlockDay": 2 },
-    { "type": "broadcast",  "level": 2, "cost": { "gold": 1800 }, "unlockDay": 8 },
-    { "type": "watchtower", "level": 1, "cost": { "gold": 0 },    "capacity": 1 },
-    { "type": "watchtower", "level": 2, "cost": { "gold": 400 },  "capacity": 2 },
-    { "type": "watchtower", "level": 3, "cost": { "gold": 1200 }, "capacity": 3 },
-    { "type": "clinic",     "level": 1, "cost": { "gold": 800 } },
-    { "type": "hall",       "level": 1, "cost": { "gold": 800 } },
-    { "type": "workshop",   "level": 1, "cost": { "gold": 800 } }
+    {
+      "type": "room",
+      "level": 1,
+      "cost": {
+        "gold": 300
+      },
+      "slots": {
+        "tenant": 1,
+        "fort": 2
+      },
+      "unlockDay": 0
+    },
+    {
+      "type": "canteen",
+      "level": 1,
+      "cost": {
+        "gold": 0
+      },
+      "capacity": 10
+    },
+    {
+      "type": "canteen",
+      "level": 2,
+      "cost": {
+        "gold": 500
+      },
+      "capacity": 14
+    },
+    {
+      "type": "canteen",
+      "level": 3,
+      "cost": {
+        "gold": 1000
+      },
+      "capacity": 18
+    },
+    {
+      "type": "canteen",
+      "level": 4,
+      "cost": {
+        "gold": 2500
+      },
+      "capacity": 24
+    },
+    {
+      "type": "canteen",
+      "level": 5,
+      "cost": {
+        "gold": 5000
+      },
+      "capacity": 30
+    },
+    {
+      "type": "warehouse",
+      "level": 1,
+      "cost": {
+        "gold": 0
+      },
+      "capacity": 5000
+    },
+    {
+      "type": "warehouse",
+      "level": 2,
+      "cost": {
+        "gold": 800
+      },
+      "capacity": 12000
+    },
+    {
+      "type": "warehouse",
+      "level": 3,
+      "cost": {
+        "gold": 2500
+      },
+      "capacity": 30000
+    },
+    {
+      "type": "broadcast",
+      "level": 1,
+      "cost": {
+        "gold": 600
+      },
+      "unlockDay": 2
+    },
+    {
+      "type": "broadcast",
+      "level": 2,
+      "cost": {
+        "gold": 1800
+      },
+      "unlockDay": 8
+    },
+    {
+      "type": "watchtower",
+      "level": 1,
+      "cost": {
+        "gold": 0
+      },
+      "capacity": 1
+    },
+    {
+      "type": "watchtower",
+      "level": 2,
+      "cost": {
+        "gold": 400
+      },
+      "capacity": 2
+    },
+    {
+      "type": "watchtower",
+      "level": 3,
+      "cost": {
+        "gold": 1200
+      },
+      "capacity": 3
+    },
+    {
+      "type": "clinic",
+      "level": 1,
+      "cost": {
+        "gold": 800
+      }
+    },
+    {
+      "type": "hall",
+      "level": 1,
+      "cost": {
+        "gold": 800
+      }
+    },
+    {
+      "type": "workshop",
+      "level": 1,
+      "cost": {
+        "gold": 800
+      }
+    },
+    {
+      "type": "house",
+      "level": 0,
+      "cost": {},
+      "durability": 0.8,
+      "unlockDay": 1,
+      "desc": "房屋进化 Lv0（战斗演出与天气系统设计 §1.2）"
+    },
+    {
+      "type": "house",
+      "level": 1,
+      "cost": {
+        "material": 50
+      },
+      "durability": 0.9,
+      "unlockDay": 1,
+      "desc": "房屋进化 Lv1（战斗演出与天气系统设计 §1.2）"
+    },
+    {
+      "type": "house",
+      "level": 2,
+      "cost": {
+        "material": 150
+      },
+      "durability": 1.0,
+      "unlockDay": 2,
+      "desc": "房屋进化 Lv2（战斗演出与天气系统设计 §1.2）"
+    },
+    {
+      "type": "house",
+      "level": 3,
+      "cost": {
+        "material": 400,
+        "gold": 200
+      },
+      "durability": 1.15,
+      "unlockDay": 8,
+      "desc": "房屋进化 Lv3（战斗演出与天气系统设计 §1.2）"
+    },
+    {
+      "type": "house",
+      "level": 4,
+      "cost": {
+        "material": 800,
+        "gold": 500
+      },
+      "durability": 1.3,
+      "unlockDay": 15,
+      "desc": "房屋进化 Lv4（战斗演出与天气系统设计 §1.2）"
+    },
+    {
+      "type": "house",
+      "level": 5,
+      "cost": {
+        "material": 1500,
+        "gold": 1200
+      },
+      "durability": 1.5,
+      "unlockDay": 22,
+      "desc": "房屋进化 Lv5（战斗演出与天气系统设计 §1.2）"
+    }
   ]
 }

@@ -2,6 +2,8 @@
 // （DAWN_SETTLE→DAY→DUSK_FORECAST→NIGHT，门②）+ 主界面/事件卡/夜战/结算渲染
 // + rAF 帧率采样。打包：npm run build:whitebox（esbuild → whitebox/bundle.js）
 import { createKernel } from '../../../packages/kernel/src/index.ts'
+import { createGameState, applyEffects, type Tables } from '../../../packages/systems/src/index.ts'
+import { createWorldState, dispatchParty, resolveDue, restoreStamina, type WorldTables } from '../../../packages/world/src/index.ts'
 import { createFormula, loadConstants } from '../../../packages/formula/src/index.ts'
 import { buildBundle, runSimulation, type AppContext } from '../../../apps/headless/src/sim.ts'
 import dayCurveJson from '../../../config/day_curve.json'
@@ -9,21 +11,30 @@ import constantsJson from '../../../config/constants.json'
 import buildingDefJson from '../../../config/building_def.json'
 import eventLibJson from '../../../config/event_lib.json'
 import monstersJson from '../../../config/monster.json'
+import mapDefJson from '../../../config/map_def.json'
+import exploreDefJson from '../../../config/explore_def.json'
+import gatherTableJson from '../../../config/gather_table.json'
+import wildlifeJson from '../../../config/wildlife.json'
 import type { BattleSession } from '../../../packages/systems/src/index.ts'
 import { WhiteboxRenderer, fpsReport, type DayFrame, type Playback } from './renderer.ts'
 import { col, motion } from './theme.ts'
 import {
   createUiState, openModal, closeModal, topModal, pushEvent, setPage,
-  type UiState
+  openBuilding, openInterior, type UiState
 } from './state.ts'
 import { DESIGN_W, DESIGN_H, hitTest } from './layout.ts'
 import { settleDoneAt, nightWaves } from './anim.ts'
+import { WILD_ZONE_NAME } from './layout.ts'
+import { weatherOfDay } from '@rn/weather'
+import weatherJson from '../../../config/weather.json' with { type: 'json' }
+import type { WeatherEntry } from '@rn/weather'
 
+// JSON 推断的异构 cost 联合与 Record<string,number> 不兼容——使用点收窄（数据经 check-config 校验）
 const tables = {
   dayCurve: dayCurveJson,
   constants: constantsJson,
   buildingDef: buildingDefJson
-}
+} as unknown as Tables
 const app: AppContext = {
   tables,
   formula: createFormula({ dayCurve: tables.dayCurve, constants: loadConstants(tables.constants.entries) }),
@@ -51,6 +62,7 @@ let frames: DayFrame[] = []
 let idx = 0
 const ui: UiState = createUiState()
 const SKILL_CD_MS = motion('normal').dur * 10 // 主动技 CD 占位 = normal×10（tokens 派生）
+const NO_MODAL = new URLSearchParams(location.search).has('nomodal') // 冒烟调试：隐藏事件卡
 const pb: Playback = {
   session: null,
   monsterNames: Object.fromEntries(monstersJson.entries.map(m => [m.id, m.name])),
@@ -58,9 +70,13 @@ const pb: Playback = {
   settleStart: null,
   chosenAt: null,
   logs: [],
+  forts: {},
+  parties: [],
+  wildReports: [],
+  houseLevels: {},
   skills: [
-    { label: '空投物资', glyph: '💊', cdUntil: 0 },
-    { label: '护盾', glyph: '🛡', cdUntil: 0 }
+    { label: '空投物资', glyph: '💊', cdUntil: 0, fxUntil: 0, fxKind: 'supply' },
+    { label: '护盾', glyph: '🛡', cdUntil: 0, fxUntil: 0, fxKind: 'shield' }
   ]
 }
 
@@ -68,9 +84,25 @@ const pb: Playback = {
 function enterDay(d: number): void {
   idx = d
   ui.phase = 'DAY'
-  ui.page = 'main'
+  ui.page = 'map'
   pb.chosenAt = null
-  for (const card of frames[d]?.eventCards ?? []) Object.assign(ui, pushEvent(ui, card))
+  const day = d + 1
+  const reports = resolveDue(world, sideState, wtables, app.constants, day)
+  restoreStamina(world, sideState, app.constants)
+  for (const rp of reports) {
+    if (rp.loot.length > 0 || rp.encounters.length > 0) {
+      pb.wildReports.push([
+        ...rp.loot.map(l => `${l.resource}+${l.amount}`),
+        ...rp.encounters
+      ])
+    }
+  }
+  syncParties()
+  if (!NO_MODAL) for (const card of frames[d]?.eventCards ?? []) Object.assign(ui, pushEvent(ui, card))
+}
+
+function syncParties(): void {
+  pb.parties = world.parties.map(p => ({ zone: p.zone, size: p.members.length, returnsDay: p.returnsDay }))
 }
 
 // 点击 → 命中 → 相位/模态分发（CSS 像素 → 750 逻辑坐标换算）
@@ -85,6 +117,62 @@ canvas.addEventListener('click', ev => {
     case 'pageBack':
       Object.assign(ui, setPage(ui, 'main'))
       return
+    case 'mapBack':
+      Object.assign(ui, setPage(ui, 'map'))
+      return
+    case 'interiorBack':
+      Object.assign(ui, setPage(ui, 'main'))
+      return
+    case 'fortSlot': {
+      const key = `${ui.sel.floor ?? 0}:${ui.sel.room ?? 0}:${hit.index}`
+      pb.forts[key] = !pb.forts[key]
+      return
+    }
+    case 'lot': {
+      const lot = hit.id
+      if (lot === 'lot_bld_a') Object.assign(ui, openBuilding(ui, lot))
+      else if (lot === 'lot_gate') Object.assign(ui, openModal(ui, { kind: 'panel', id: '小区大门（野外 M3.3 开放）' }))
+      else Object.assign(ui, openModal(ui, { kind: 'panel', id: lot === 'lot_bld_b' ? 'B栋' : lot === 'lot_bld_c' ? 'C栋' : lot }))
+      return
+    }
+    case 'room':
+      Object.assign(ui, openInterior(ui, hit.floor - 1, hit.room))
+      return
+    case 'explore':
+      Object.assign(ui, setPage(ui, 'wild'))
+      return
+    case 'house':
+      Object.assign(ui, openModal(ui, { kind: 'panel', id: `house:${hit.index}` }))
+      return
+    case 'house':
+      Object.assign(ui, openModal(ui, { kind: 'panel', id: `house:${hit.index}` }))
+      return
+    case 'wildBack':
+      Object.assign(ui, setPage(ui, 'map'))
+      return
+    case 'wildZone':
+      ui.sel.wildZone = hit.zone
+      ui.sel.partySize = 1
+      return
+    case 'partyMinus':
+      ui.sel.partySize = Math.max(1, (ui.sel.partySize ?? 1) - 1)
+      return
+    case 'partyPlus':
+      ui.sel.partySize = Math.min(3, (ui.sel.partySize ?? 1) + 1)
+      return
+    case 'wildDispatch': {
+      const zone = ui.sel.wildZone
+      if (!zone) { Object.assign(ui, openModal(ui, { kind: 'panel', id: '请先选择目的地' })); return }
+      const size = ui.sel.partySize ?? 1
+      const day = idx + 1
+      const r = dispatchParty(world, sideState, wtables, app.constants, { zone, tenantIds: [1, 2, 3].slice(0, size), day })
+      syncParties()
+      Object.assign(ui, openModal(ui, {
+        kind: 'panel',
+        id: r.ok ? `派出成功：${size} 人前往${WILD_ZONE_NAME(zone)}${r.partyId !== undefined ? `（队伍#${r.partyId}）` : ''}` : `派出失败：${r.reason ?? ''}`
+      }))
+      return
+    }
     case 'nav':
       Object.assign(ui, setPage(ui, hit.page))
       return
@@ -104,6 +192,22 @@ canvas.addEventListener('click', ev => {
       if (topModal(ui)?.kind === 'confirmNight') {
         Object.assign(ui, closeModal(ui))
         ui.phase = 'DUSK_FORECAST'
+      } else if (topModal(ui)?.id.startsWith('house:')) {
+        // 房屋升级（M3.2 F7）：EffectOp 消耗 building_def.house 成本
+        const idx = Number(topModal(ui)!.id.split(':')[1])
+        const lv = Math.min(5, pb.houseLevels[idx] ?? 0)
+        if (lv >= 5) return
+        const cost = (buildingDefJson as any).entries.find((e: any) => e.type === 'house' && e.level === lv + 1)?.cost ?? {}
+        const ops = Object.entries(cost).map(([k, n]) => k === 'gold'
+          ? { op: 'ADD_GOLD', n: -(n as number) }
+          : { op: 'ADD_RES', res: k, n: -(n as number) })
+        const r = applyEffects(sideState, ops as any, { constants: app.constants, buildingDef: tables.buildingDef })
+        if (r.applied === ops.length) {
+          pb.houseLevels[idx] = lv + 1
+          Object.assign(ui, closeModal(ui))
+        } else {
+          Object.assign(ui, openModal(ui, { kind: 'panel', id: '资源不足' }))
+        }
       }
       return
     case 'modal':
@@ -121,7 +225,8 @@ canvas.addEventListener('click', ev => {
         const sk = pb.skills[hit.index]
         if (sk && now >= sk.cdUntil) {
           sk.cdUntil = now + SKILL_CD_MS
-          pb.logs.push(`使用主动技「${sk.label}」（占位演出）`)
+          sk.fxUntil = now + 1200
+          pb.logs.push(`使用主动技「${sk.label}」`)
         }
       }
       return
@@ -161,9 +266,23 @@ function settleHouseholds(): number {
 }
 
 let simSessions: Record<number, BattleSession> = {}
+// 野外探索（@rn/world 真实逻辑；独立副状态，M3.3 与主经济深度咬合）
+const wtables: WorldTables = {
+  mapDef: mapDefJson, exploreDef: exploreDefJson, gatherTable: gatherTableJson,
+  wildlife: wildlifeJson, buildingDef: buildingDefJson
+} as unknown as WorldTables
+const sideState = createGameState(42)
+const world = createWorldState(42, wtables)
+/** 房屋等级（M3.2 F7：升级交互；EffectOp 消耗 building_def.house 成本） */
 
-boot.then(() => {
-  const sim = runSimulation(app, kernel, { days: 7, seed: 42 })
+// 字体就绪（@font-face 子集；失败时回退系统字体不阻塞）
+const fontsReady = Promise.all([
+  (document as any).fonts.load('bold 24px "SourceHanSansCN-Bold"', '永夜收租人日次布防招募升级血月夜战'),
+  (document as any).fonts.load('32px "BebasNeue"', '0123456789D+%.'),
+]).catch(() => undefined)
+
+boot.then(async () => {
+  const sim = runSimulation(app, kernel, { days: 30, seed: 42 }) // 全程 30 天回放（D1–D30，含 D30 解锁日）
   simSessions = sim.sessions
   frames = sim.records.map(r => ({
     day: r.day, population: r.population, roomsBuilt: r.roomsBuilt,
@@ -172,11 +291,14 @@ boot.then(() => {
     modifiers: r.modifiers, avgLevel: r.avgLevel, panicSum: r.panicSum,
     // 表现层投影：破防房间（r<0.95）与今日事件（weight 高在前，完整元数据供事件卡模板）
     breachedRooms: (sim.sessions[r.day]?.routes ?? []).filter(rt => rt.r < 0.95).map(rt => rt.roomId),
-    eventCards: [...(sim.eventCards[r.day] ?? [])].sort((a, b) => b.weight - a.weight)
+    eventCards: [...(sim.eventCards[r.day] ?? [])].sort((a, b) => b.weight - a.weight),
+    weather: weatherOfDay(r.day, 42, { weather: weatherJson as unknown as { entries: WeatherEntry[] } }).id
   }))
   // 冒烟调试入口：?phase=day|dusk|night|dawn 进入对应相；?page=codex|shop|settings 直达占位页
   const want = new URLSearchParams(location.search).get('phase')
   const wantPage = new URLSearchParams(location.search).get('page')
+  const wantDay = Number(new URLSearchParams(location.search).get('day') ?? '0')
+  await fontsReady
   renderer.start(
     () => {
       const f = frames[idx]
@@ -200,6 +322,10 @@ boot.then(() => {
   else if (want === 'night') { idx = 6; ui.phase = 'NIGHT'; pb.nightStart = performance.now(); pb.session = simSessions[7] ?? null }
   else if (want === 'dawn') { idx = 6; ui.phase = 'DAWN_SETTLE'; pb.settleStart = performance.now() }
   else enterDay(0)
-  if (wantPage === 'codex' || wantPage === 'shop' || wantPage === 'settings') ui.page = wantPage
+  if (wantDay >= 1 && wantDay <= frames.length) enterDay(wantDay - 1)
+  if (wantPage) ui.page = wantPage as UiState['page']
+  const wantModal = new URLSearchParams(location.search).get('modal')
+  if (wantModal === 'night') Object.assign(ui, openModal(ui, { kind: 'confirmNight', id: 'night' }))
+  else if (wantModal) Object.assign(ui, openModal(ui, { kind: 'panel', id: wantModal }))
   console.log(`白盒播放就绪：${frames.length} 天，事件 ${sim.eventsFired} 次，独立 ${sim.distinctFired.length}`)
 })

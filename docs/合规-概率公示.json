@@ -1,0 +1,2048 @@
+{
+  "doc": "概率公示数据包（PR-P7；上线时随版本提交平台审核）",
+  "generatedFrom": "config/event_lib.json + config/iap_sku.json（构建期静态导出，无运行时随机）",
+  "events": {
+    "evt_tut_fortify": [
+      {
+        "label": "加固门（教学引导）",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": []
+          }
+        ]
+      }
+    ],
+    "evt_tut_firstnight": [
+      {
+        "label": "布防引导",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": []
+          }
+        ]
+      }
+    ],
+    "evt_tut_rescue": [
+      {
+        "label": "派主角去救",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SPAWN_TENANT"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_tut_referral": [
+      {
+        "label": "接引",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SPAWN_TENANT",
+              "SPAWN_TENANT"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_tut_broadcast": [
+      {
+        "label": "招募",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "SPAWN_TENANT",
+              "SPAWN_TENANT"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_tut_bills": [
+      {
+        "label": "收租",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_tut_panic": [
+      {
+        "label": "逐户安抚",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_tut_omen": [
+      {
+        "label": "登高观星",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_knock_001": [
+      {
+        "label": "开门",
+        "outcomes": [
+          {
+            "p": 0.7,
+            "effects": [
+              "SPAWN_TENANT"
+            ]
+          },
+          {
+            "p": 0.3,
+            "effects": [
+              "NIGHT_MOD"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "隔门询问",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "无视",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_grain_002": [
+      {
+        "label": "公审",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "私了",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "放任",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_box_003": [
+      {
+        "label": "独占",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "平分",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "换情报",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_rent_004": [
+      {
+        "label": "免租",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "照收",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "驱赶",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_hoard_005": [
+      {
+        "label": "征用",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "分成",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "放任",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_dog_006": [
+      {
+        "label": "收留",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "GRANT_BUFF"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "驱赶",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "无视",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_generator_007": [
+      {
+        "label": "小区共用",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "自家备用",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "GRANT_BUFF"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "出租",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_divorce_008": [
+      {
+        "label": "上门调解",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "不掺和",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "趁机收房",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_slingshot_009": [
+      {
+        "label": "没收",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "教导",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "GRANT_BUFF"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "放任",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_medicine_010": [
+      {
+        "label": "重患先得",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "贡献者先得",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "GRANT_BUFF"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "抽签",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_rumor_011": [
+      {
+        "label": "辟谣",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "利用",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "无视",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_note_012": [
+      {
+        "label": "按纸条赴约",
+        "outcomes": [
+          {
+            "p": 0.5,
+            "effects": [
+              "SPAWN_TENANT"
+            ]
+          },
+          {
+            "p": 0.5,
+            "effects": [
+              "WOUND_TENANT"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "置之不理",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "烧掉",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_birthday_013": [
+      {
+        "label": "办派对",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "取消",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "双份口粮",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_thief_014": [
+      {
+        "label": "公审",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG",
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "收编",
+        "outcomes": [
+          {
+            "p": 0.4,
+            "effects": [
+              "SPAWN_TENANT"
+            ]
+          },
+          {
+            "p": 0.6,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "放走换情报",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_rat_015": [
+      {
+        "label": "养猫",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "GRANT_BUFF"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "投药",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "改造货架",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_radio_016": [
+      {
+        "label": "回应",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "保持静默",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "伪造回应",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_deadbeat_017": [
+      {
+        "label": "宽限",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "断供",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "驱逐",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_deed_018": [
+      {
+        "label": "共治分成",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "戳穿伪造",
+        "outcomes": [
+          {
+            "p": 0.6,
+            "effects": [
+              "ADD_GOLD"
+            ]
+          },
+          {
+            "p": 0.4,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "认栽补偿",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_nightshift_019": [
+      {
+        "label": "轮班",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "加薪志愿",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "GRANT_BUFF"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "主角顶班",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_pet_020": [
+      {
+        "label": "急救",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "放弃",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_yoga_021": [
+      {
+        "label": "收高额租",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "请她教理财",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "无视",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_blackout_022": [
+      {
+        "label": "点蜡烛",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "发电机全开",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "摸黑",
+        "outcomes": [
+          {
+            "p": 0.4,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          },
+          {
+            "p": 0.6,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_love_023": [
+      {
+        "label": "成全",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "棒打鸳鸯",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "收礼金",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_tycoon_024": [
+      {
+        "label": "收十金入伙",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "免费庇护",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "拒绝",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_mis_101": [
+      {
+        "label": "派人救",
+        "outcomes": [
+          {
+            "p": 0.7,
+            "effects": [
+              "SPAWN_TENANT"
+            ]
+          },
+          {
+            "p": 0.3,
+            "effects": [
+              "WOUND_TENANT"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "遥控指挥",
+        "outcomes": [
+          {
+            "p": 0.5,
+            "effects": [
+              "SPAWN_TENANT"
+            ]
+          },
+          {
+            "p": 0.5,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "放弃",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_mis_102": [
+      {
+        "label": "亲自带队",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "ADD_RES",
+              "WOUND_TENANT"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "派守卫去",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "放弃",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_mis_103": [
+      {
+        "label": "搜刮",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "ADD_RES",
+              "WOUND_TENANT"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "保守清点",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_mis_104": [
+      {
+        "label": "满载而归",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "快撤",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_mis_105": [
+      {
+        "label": "取油",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "WOUND_TENANT"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "放弃",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_mis_106": [
+      {
+        "label": "收容队",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SPAWN_TENANT",
+              "SPAWN_TENANT"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "劝走",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_mis_107": [
+      {
+        "label": "深入",
+        "outcomes": [
+          {
+            "p": 0.35,
+            "effects": [
+              "SPAWN_TENANT"
+            ]
+          },
+          {
+            "p": 0.3,
+            "effects": [
+              "ADD_RES",
+              "WOUND_TENANT",
+              "WOUND_TENANT"
+            ]
+          },
+          {
+            "p": 0.35,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "外围捡漏",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_mis_108": [
+      {
+        "label": "接纳",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SPAWN_TENANT",
+              "SPAWN_TENANT",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "拒收",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_mis_109": [
+      {
+        "label": "撬库",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "NIGHT_MOD"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "放弃",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_mis_110": [
+      {
+        "label": "接应收人",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "SPAWN_TENANT",
+              "SPAWN_TENANT"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "驱赶",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_ord_201": [
+      {
+        "label": "调解",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "各打五十大板",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "冷处理",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_ord_202": [
+      {
+        "label": "搜查",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "ADD_PANIC",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "接济",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "不管",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_ord_203": [
+      {
+        "label": "支持",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "GRANT_BUFF"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "发工资收编",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "GRANT_BUFF"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "解散",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_ord_204": [
+      {
+        "label": "清洗",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "默许",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "反向营销",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_ord_205": [
+      {
+        "label": "办仪式",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "从简",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "研究尸体",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG",
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_ord_206": [
+      {
+        "label": "通过",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "否决",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "折中",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_ord_207": [
+      {
+        "label": "全员动员",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "雇人打扫",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD",
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "自己上",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_ord_208": [
+      {
+        "label": "排查",
+        "outcomes": [
+          {
+            "p": 0.6,
+            "effects": [
+              "SET_FLAG"
+            ]
+          },
+          {
+            "p": 0.4,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "放行",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "收编考察",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "SPAWN_TENANT"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_wd_001": [
+      {
+        "label": "撤退",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "驱散",
+        "outcomes": [
+          {
+            "p": 0.5,
+            "effects": [
+              "ADD_RES"
+            ]
+          },
+          {
+            "p": 0.5,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_wd_002": [
+      {
+        "label": "破门搜刮",
+        "outcomes": [
+          {
+            "p": 0.6,
+            "effects": [
+              "ADD_RES",
+              "ADD_RES"
+            ]
+          },
+          {
+            "p": 0.4,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "敲门问询",
+        "outcomes": [
+          {
+            "p": 0.8,
+            "effects": [
+              "ADD_RES",
+              "SET_FLAG"
+            ]
+          },
+          {
+            "p": 0.2,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_wd_003": [
+      {
+        "label": "小心拆除",
+        "outcomes": [
+          {
+            "p": 0.7,
+            "effects": [
+              "ADD_RES"
+            ]
+          },
+          {
+            "p": 0.3,
+            "effects": [
+              "WOUND_TENANT",
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "做标记绕行",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": []
+          }
+        ]
+      }
+    ],
+    "evt_wd_004": [
+      {
+        "label": "原地守火",
+        "outcomes": [
+          {
+            "p": 0.8,
+            "effects": []
+          },
+          {
+            "p": 0.2,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "摸黑前行",
+        "outcomes": [
+          {
+            "p": 0.5,
+            "effects": [
+              "ADD_RES"
+            ]
+          },
+          {
+            "p": 0.5,
+            "effects": [
+              "WOUND_TENANT",
+              "ADD_RES"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_wd_005": [
+      {
+        "label": "收留",
+        "outcomes": [
+          {
+            "p": 0.6,
+            "effects": [
+              "SPAWN_TENANT"
+            ]
+          },
+          {
+            "p": 0.4,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "给粮送行",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_RES",
+              "ADD_GOLD"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_wd_006": [
+      {
+        "label": "加固火堆死守",
+        "outcomes": [
+          {
+            "p": 0.7,
+            "effects": []
+          },
+          {
+            "p": 0.3,
+            "effects": [
+              "WOUND_TENANT",
+              "ADD_RES"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "连夜撤回",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_in_001": [
+      {
+        "label": "撬开墙皮",
+        "outcomes": [
+          {
+            "p": 0.6,
+            "effects": [
+              "ADD_RES"
+            ]
+          },
+          {
+            "p": 0.4,
+            "effects": [
+              "ADD_RES"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "不管它",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": []
+          }
+        ]
+      }
+    ],
+    "evt_in_002": [
+      {
+        "label": "上缴公库",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_GOLD"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "私藏",
+        "outcomes": [
+          {
+            "p": 0.5,
+            "effects": [
+              "ADD_GOLD",
+              "ADD_PANIC"
+            ]
+          },
+          {
+            "p": 0.5,
+            "effects": [
+              "ADD_GOLD",
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_in_003": [
+      {
+        "label": "开窗查看",
+        "outcomes": [
+          {
+            "p": 0.7,
+            "effects": []
+          },
+          {
+            "p": 0.3,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "拉紧窗帘",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ],
+    "evt_in_004": [
+      {
+        "label": "收留",
+        "outcomes": [
+          {
+            "p": 0.7,
+            "effects": [
+              "SPAWN_TENANT"
+            ]
+          },
+          {
+            "p": 0.3,
+            "effects": [
+              "ADD_PANIC",
+              "SET_FLAG"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "婉拒",
+        "outcomes": [
+          {
+            "p": 1,
+            "effects": [
+              "ADD_PANIC"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "iap": [
+    {
+      "id": "sku_storage_d3",
+      "type": "pack",
+      "price": 6,
+      "triggerDay": 3,
+      "repeatable": false,
+      "valueAnchor": 3,
+      "contents": [
+        {
+          "op": "ADD_RES",
+          "res": "material",
+          "n": 800
+        },
+        {
+          "op": "ADD_RES",
+          "res": "food",
+          "n": 500
+        }
+      ]
+    },
+    {
+      "id": "sku_first_charge",
+      "type": "firstCharge",
+      "price": 6,
+      "triggerDay": 7,
+      "repeatable": false,
+      "valueAnchor": 8,
+      "contents": [
+        {
+          "op": "SPAWN_TENANT",
+          "quality": "SR"
+        },
+        {
+          "op": "GRANT_BUFF",
+          "buff": "rent_x2_7d",
+          "days": 7
+        }
+      ]
+    },
+    {
+      "id": "sku_moon_30",
+      "type": "pack",
+      "price": 30,
+      "triggerDay": 7,
+      "repeatable": true,
+      "valueAnchor": 2.5,
+      "contents": [
+        {
+          "op": "ADD_GOLD",
+          "n": 3400
+        },
+        {
+          "op": "ADD_RES",
+          "res": "talentStone",
+          "n": 20
+        }
+      ]
+    },
+    {
+      "id": "sku_moon_68",
+      "type": "pack",
+      "price": 68,
+      "triggerDay": 7,
+      "repeatable": true,
+      "valueAnchor": 3,
+      "contents": [
+        {
+          "op": "ADD_GOLD",
+          "n": 8200
+        },
+        {
+          "op": "ADD_RES",
+          "res": "talentStone",
+          "n": 60
+        }
+      ]
+    },
+    {
+      "id": "sku_moon_128",
+      "type": "pack",
+      "price": 128,
+      "triggerDay": 7,
+      "repeatable": true,
+      "valueAnchor": 3.2,
+      "contents": [
+        {
+          "op": "ADD_GOLD",
+          "n": 16000
+        },
+        {
+          "op": "ADD_RES",
+          "res": "talentStone",
+          "n": 130
+        }
+      ]
+    },
+    {
+      "id": "sku_pass",
+      "type": "pass",
+      "price": 68,
+      "triggerDay": 14,
+      "repeatable": false,
+      "valueAnchor": 3.5,
+      "contents": [
+        {
+          "op": "SET_FLAG",
+          "key": "passOwned",
+          "v": 1
+        }
+      ]
+    },
+    {
+      "id": "sku_monthly",
+      "type": "monthly",
+      "price": 30,
+      "triggerDay": 14,
+      "repeatable": true,
+      "valueAnchor": 4.7,
+      "contents": [
+        {
+          "op": "SET_FLAG",
+          "key": "monthlyOwned",
+          "v": 1
+        }
+      ]
+    },
+    {
+      "id": "sku_gacha",
+      "type": "gacha",
+      "price": 328,
+      "triggerDay": 14,
+      "repeatable": true,
+      "valueAnchor": 1,
+      "contents": [
+        {
+          "op": "SPAWN_TENANT",
+          "quality": "SSR"
+        }
+      ]
+    }
+  ],
+  "adFrequency": {
+    "rent_x2": "每日无限（主广告位）",
+    "offline_x2": "每日 3 次",
+    "talent_reroll": "每日 2 次",
+    "night_airdrop": "每夜 2 次",
+    "rescue_shield": "每夜 1 次"
+  }
+}

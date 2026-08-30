@@ -32,6 +32,21 @@ export function col(key: keyof Theme['color']): string {
   return T.color[key]
 }
 
+/** 明度缩放（k<1 压暗/k>1 提亮，通道封顶）——派生色，非新色值（check-theme 合规） */
+export function shade(hex: string, k: number): string {
+  const h = hex.replace('#', '')
+  const f = (s: string) => Math.max(0, Math.min(255, Math.round(parseInt(s, 16) * k)))
+  return `#${[0, 2, 4].map(i => f(h.slice(i, i + 2)).toString(16).padStart(2, '0')).join('')}`
+}
+
+/** 两色线性插值（k=0 取 a，k=1 取 b）——派生色 */
+export function mix(a: string, b: string, k: number): string {
+  const p = (h: string) => [0, 2, 4].map(i => parseInt(h.replace('#', '').slice(i, i + 2), 16))
+  const [ra, ga, ba] = p(a), [rb, gb, bb] = p(b)
+  const f = (x: number, y: number) => Math.max(0, Math.min(255, Math.round(x + (y - x) * k)))
+  return `#${[f(ra, rb), f(ga, gb), f(ba, bb)].map(v => v.toString(16).padStart(2, '0')).join('')}`
+}
+
 export type EaseFn = (t: number) => number
 
 /** UI 规范 §二 motion 表五条曲线的参考实现（P3 动效落地与单测逐条比对的基准） */

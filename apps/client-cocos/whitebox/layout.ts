@@ -198,6 +198,17 @@ export type HitTarget =
   | { kind: 'settleContinue' }
   | { kind: 'pageBack' }
   | { kind: 'nav'; page: 'codex' | 'shop' }
+  | { kind: 'mapBack' }
+  | { kind: 'interiorBack' }
+  | { kind: 'fortSlot'; index: number }
+  | { kind: 'lot'; id: string }
+  | { kind: 'wildBack' }
+  | { kind: 'wildZone'; zone: string }
+  | { kind: 'wildDispatch' }
+  | { kind: 'partyMinus' }
+  | { kind: 'partyPlus' }
+  | { kind: 'explore' }
+  | { kind: 'house'; index: number }
   | { kind: 'none' }
 
 export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?: string } = {}): HitTarget {
@@ -211,6 +222,48 @@ export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?
     if (inRect(modalOptionRect())) return { kind: 'modalOption' }
     return { kind: 'modal' }
   }
+  // L2 小区地图：等距地块命中（楼栋/大门/设施）+ dock
+  if (page === 'map') {
+    for (const [id, lot] of Object.entries(LOTS)) {
+      const base = isoToScreen(lot.gx, lot.gy)
+      const cx = base.x, cy = base.y + ISO_TILE_H / 2
+      const bw = lot.kind === 'bld' ? 100 : lot.kind === 'wall' ? 140 : 80
+      const bh = lot.kind === 'bld' ? 230 : 90
+      if (x >= cx - bw / 2 && x <= cx + bw / 2 && y >= cy - bh && y <= cy + 30) return { kind: 'lot', id }
+    }
+    for (const [i, r] of dockRects().entries()) if (inRect(r)) return { kind: 'dock', key: DOCK_KEYS[i].key }
+    if (inRect(settingsRect())) return { kind: 'settings' }
+    return { kind: 'none' }
+  }
+  // L2 小屋群落（在 iso 地块之后、dock 之前）
+  if (page === 'map') {
+    for (let i = 29; i >= 0; i--) {
+      const r = houseHitRect(i)
+      if (inRect(r)) return { kind: 'house', index: i }
+    }
+  }
+  // L1 野外：区域卡/返回/派出/人数
+  if (page === 'wild') {
+    if (inRect(wildBackRect())) return { kind: 'wildBack' }
+    for (const z of WILD_ZONES) {
+      const r = wildZoneRect(WILD_ZONES.indexOf(z))
+      if (inRect(r)) return { kind: 'wildZone', zone: z.zone }
+    }
+    if (inRect(wildDispatchRect())) return { kind: 'wildDispatch' }
+    if (inRect(wildMinusRect())) return { kind: 'partyMinus' }
+    if (inRect(wildPlusRect())) return { kind: 'partyPlus' }
+    return { kind: 'none' }
+  }
+  // L3 室内：返回 + 工事位
+  if (page === 'interior') {
+    if (inRect(interiorBackRect())) return { kind: 'interiorBack' }
+    for (const [i, r] of [interiorSlotRect(0), interiorSlotRect(1)].entries()) {
+      if (inRect(r)) return { kind: 'fortSlot', index: i }
+    }
+    return { kind: 'none' }
+  }
+  // 楼内楼层视图（main）：返回小区
+  if (page === 'main' && inRect(mapBackRect())) return { kind: 'mapBack' }
   // 占位页接管（图鉴/商店/设置）：返回键 + 站内导航
   if (page !== 'main') {
     if (inRect(pageBackRect())) return { kind: 'pageBack' }
@@ -239,4 +292,78 @@ export function hitTest(x: number, y: number, opts: { modalOpen?: boolean; page?
     }
   }
   return { kind: 'none' }
+}
+
+
+// ---- L2 小区等距地图（UI 规范 v2.0 §7.1；地块落位=config/map_def.json 的布局投影）----
+export const ISO_TILE_W = 110
+export const ISO_TILE_H = 55
+export const ISO_ORIGIN = { x: DESIGN_W / 2, y: 320 }
+export const ISO_FLOOR_H = 26 // 楼栋每层像素高度
+
+export function isoToScreen(gx: number, gy: number, z = 0): { x: number; y: number } {
+  return { x: ISO_ORIGIN.x + (gx - gy) * (ISO_TILE_W / 2), y: ISO_ORIGIN.y + (gx + gy) * (ISO_TILE_H / 2) - z * ISO_FLOOR_H }
+}
+export function screenToIso(sx: number, sy: number): { gx: number; gy: number } {
+  const dx = sx - ISO_ORIGIN.x, dy = sy - ISO_ORIGIN.y
+  return {
+    gx: Math.floor((dy / (ISO_TILE_H / 2) + dx / (ISO_TILE_W / 2)) / 2),
+    gy: Math.floor((dy / (ISO_TILE_H / 2) - dx / (ISO_TILE_W / 2)) / 2)
+  }
+}
+
+/** 地块统一表（布局投影=config/map_def.json；kind 决定绘制形态与命中行为） */
+export const LOTS: Record<string, { gx: number; gy: number; name: string; kind: 'bld' | 'gate' | 'wall' | 'plaza' | 'facility'; unlockDay: number }> = {
+  lot_gate: { gx: 3, gy: 7, name: '大门', kind: 'gate', unlockDay: 1 },
+  lot_wall: { gx: 2, gy: 6, name: '围墙', kind: 'wall', unlockDay: 1 },
+  lot_plaza: { gx: 4, gy: 5, name: '广场', kind: 'plaza', unlockDay: 1 },
+  lot_bld_a: { gx: 2, gy: 3, name: 'A栋', kind: 'bld', unlockDay: 1 },
+  lot_bld_b: { gx: 5, gy: 3, name: 'B栋', kind: 'bld', unlockDay: 30 },
+  lot_bld_c: { gx: 6, gy: 5, name: 'C栋', kind: 'bld', unlockDay: 30 },
+  lot_canteen: { gx: 3, gy: 4, name: '食堂', kind: 'facility', unlockDay: 1 },
+  lot_warehouse: { gx: 4, gy: 4, name: '仓库', kind: 'facility', unlockDay: 1 },
+  lot_clinic: { gx: 5, gy: 4, name: '医务室', kind: 'facility', unlockDay: 1 },
+  lot_workshop: { gx: 2, gy: 5, name: '工坊', kind: 'facility', unlockDay: 3 },
+  lot_broadcast: { gx: 5, gy: 5, name: '广播站', kind: 'facility', unlockDay: 2 },
+  lot_hall: { gx: 3, gy: 6, name: '议事厅', kind: 'facility', unlockDay: 5 },
+  lot_watchtower: { gx: 6, gy: 6, name: '岗哨塔', kind: 'facility', unlockDay: 4 }
+}
+
+export const EXPLORE_ENTRY = { x: DESIGN_W / 2 - 140, y: 240, w: 280, h: 64 }
+export function mapBackRect(): Rect {
+  return { x: M, y: HUD_H + T.space.xs, w: HIT_MIN, h: HIT_MIN }
+}
+
+// ---- L3 室内视图几何 ----
+export function interiorBackRect(): Rect {
+  return { x: M, y: HUD_H + T.space.xs, w: HIT_MIN + 60, h: HIT_MIN }
+}
+export function interiorSlotRect(i: number): Rect {
+  return { x: DESIGN_W / 2 - 220 + i * 240, y: DESIGN_H / 2 - 210, w: 200, h: 120 }
+}
+
+// ---- L1 野外地图（UI 规范 v2.0 §7.3；区域=config/map_def.json zone + explore_def）----
+export const WILD_ZONES: { zone: string; name: string; danger: 'low' | 'mid' | 'high'; travelTime: number; unlockDay: number }[] = [
+  { zone: 'zn_forest_edge', name: '林缘', danger: 'low', travelTime: 10, unlockDay: 1 },
+  { zone: 'zn_farm', name: '河边农田', danger: 'low', travelTime: 15, unlockDay: 5 },
+  { zone: 'zn_deep_forest', name: '深林', danger: 'mid', travelTime: 25, unlockDay: 8 },
+  { zone: 'zn_ruins', name: '街道废墟', danger: 'mid', travelTime: 20, unlockDay: 12 }
+]
+export function wildZoneRect(i: number): Rect {
+  const col = i % 2, row = Math.floor(i / 2)
+  return { x: M + col * ((DESIGN_W - M * 2 - T.space.m) / 2 + T.space.m / 1), y: HUD_H + T.space.l * 2 + row * 220, w: (DESIGN_W - M * 2 - T.space.m) / 2, h: 200 }
+}
+export function wildBackRect(): Rect { return { x: M, y: HUD_H + T.space.xs, w: HIT_MIN, h: HIT_MIN } }
+export function wildDetailRect(): Rect { return { x: M, y: HUD_H + T.space.l * 2 + 440, w: DESIGN_W - M * 2, h: 300 } }
+export function wildDispatchRect(): Rect { return { x: DESIGN_W - M - HIT_MIN - T.space.l, y: HUD_H + T.space.l * 2 + 440 + 300 - HIT_MIN - T.space.s, w: HIT_MIN + T.space.l, h: HIT_MIN } }
+export function wildMinusRect(): Rect { return { x: M + T.space.s, y: wildDetailRect().y + 130, w: HIT_MIN, h: HIT_MIN } }
+export function wildPlusRect(): Rect { return { x: M + T.space.s + HIT_MIN + T.space.s, y: wildDetailRect().y + 130, w: HIT_MIN, h: HIT_MIN } }
+export const WILD_ZONE_NAME = (zone: string): string => WILD_ZONES.find(z => z.zone === zone)?.name ?? zone
+
+/** 小屋命中矩形（与 renderer.drawHouseVillage 网格一致） */
+export function houseHitRect(i: number): Rect {
+  const col = i % 6, row = Math.floor(i / 6)
+  const x = 96 + col * 100 + (row % 2) * 50
+  const y = 726 + row * 84
+  return { x, y: y - 46, w: 62, h: 50 }
 }

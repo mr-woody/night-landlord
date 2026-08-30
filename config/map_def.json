@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "sourceDoc": "docs/世界观与空间结构设计.md §2/§4 + docs/数据配置表结构设计.md §9.1",
+  "entries": [
+    { "kind": "lot", "id": "lot_gate", "name": "大门", "pos": { "x": 3, "y": 7 }, "unlockDay": 1 },
+    { "kind": "lot", "id": "lot_wall", "name": "围墙", "pos": { "x": 2, "y": 6 }, "unlockDay": 1 },
+    { "kind": "lot", "id": "lot_plaza", "name": "中央广场", "pos": { "x": 4, "y": 5 }, "unlockDay": 1 },
+    { "kind": "lot", "id": "lot_bld_a", "name": "A栋", "pos": { "x": 2, "y": 3 }, "building": { "floors": 6, "roomsPerFloor": 5 }, "unlockDay": 1 },
+    { "kind": "lot", "id": "lot_bld_b", "name": "B栋", "pos": { "x": 5, "y": 3 }, "building": { "floors": 6, "roomsPerFloor": 5 }, "unlockDay": 30 },
+    { "kind": "lot", "id": "lot_bld_c", "name": "C栋", "pos": { "x": 6, "y": 5 }, "building": { "floors": 6, "roomsPerFloor": 5 }, "unlockDay": 30 },
+    { "kind": "lot", "id": "lot_canteen", "name": "食堂", "pos": { "x": 3, "y": 4 }, "unlockDay": 1 },
+    { "kind": "lot", "id": "lot_warehouse", "name": "仓库", "pos": { "x": 4, "y": 4 }, "unlockDay": 1 },
+    { "kind": "lot", "id": "lot_clinic", "name": "医务室", "pos": { "x": 5, "y": 4 }, "unlockDay": 1 },
+    { "kind": "lot", "id": "lot_workshop", "name": "工坊", "pos": { "x": 2, "y": 5 }, "unlockDay": 3 },
+    { "kind": "lot", "id": "lot_broadcast", "name": "广播站", "pos": { "x": 5, "y": 5 }, "unlockDay": 2 },
+    { "kind": "lot", "id": "lot_hall", "name": "议事厅", "pos": { "x": 3, "y": 6 }, "unlockDay": 5 },
+    { "kind": "lot", "id": "lot_watchtower", "name": "岗哨塔", "pos": { "x": 6, "y": 6 }, "unlockDay": 4 },
+    { "kind": "zone", "id": "zn_forest_edge", "name": "林缘", "pos": { "x": 1, "y": 1 }, "travelTime": 10, "danger": "low", "unlockDay": 1 },
+    { "kind": "zone", "id": "zn_deep_forest", "name": "深林", "pos": { "x": 0, "y": 0 }, "travelTime": 25, "danger": "mid", "unlockDay": 8 },
+    { "kind": "zone", "id": "zn_ruins", "name": "街道废墟", "pos": { "x": 6, "y": 0 }, "travelTime": 20, "danger": "mid", "unlockDay": 12 },
+    { "kind": "zone", "id": "zn_farm", "name": "河边农田", "pos": { "x": 0, "y": 5 }, "travelTime": 15, "danger": "low", "unlockDay": 5 }
+  ]
+}

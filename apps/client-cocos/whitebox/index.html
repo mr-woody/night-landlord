@@ -6,6 +6,17 @@
   <!-- 内联样式与 config/theme.json tokens 同步（M2.5 功能点1，scripts/check-theme.mjs 断言色值合规）：
        bg_night=#0B1020 / text_secondary=#8892B0 / panel_stroke=#2A3555 -->
   <style>
+    /* tokens: bg_night=#0B1020 / text_secondary=#8892B0 / panel_stroke=#2A3555（check-theme 断言） */
+    @font-face {
+      font-family: 'SourceHanSansCN-Bold';
+      src: url('./fonts/SourceHanSansCN-Bold.subset.woff2') format('woff2');
+      font-weight: 700; font-display: block;
+    }
+    @font-face {
+      font-family: 'BebasNeue';
+      src: url('./fonts/BebasNeue.subset.woff2') format('woff2');
+      font-weight: 400; font-display: block;
+    }
     body { background: #0B1020; color: #8892B0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 12px; }
     #fps { font-size: 14px; margin-bottom: 6px; }
     canvas { border: 1px solid #2A3555; }

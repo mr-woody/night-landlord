@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "sourceDoc": "docs/M0-数值模型-三曲线调参表.md §2 / docs/技术架构与模块规划 v1.0 §5.3 / docs/数据配置表结构设计 §3",
+  "version": 2,
+  "sourceDoc": "docs/M0-数值模型-三曲线调参表.md §2 / docs/技术架构与模块规划 v1.0 §5.3 / docs/数据配置表结构设计 §3 / docs/数据配置表结构设计.md §9.5",
   "entries": [
     {
       "key": "CFG_R0",
@@ -241,6 +241,70 @@
       "max": 8,
       "desc": "宵禁公约恐慌衰减加成",
       "sourceDoc": "M2 功能点4"
+    },
+    {
+      "key": "EXPLORE_STAMINA_MAX",
+      "value": 100,
+      "min": 80,
+      "max": 150,
+      "desc": "住户体力上限（外出探索消耗池）",
+      "sourceDoc": "世界观与空间结构设计 §4"
+    },
+    {
+      "key": "EXPLORE_STAMINA_COST_BASE",
+      "value": 20,
+      "min": 10,
+      "max": 45,
+      "desc": "外出基础体力消耗（explore_def.staminaCost 为区域加成基准）",
+      "sourceDoc": "世界观与空间结构设计 §4"
+    },
+    {
+      "key": "EXPLORE_TIME_BASE",
+      "value": 1,
+      "min": 1,
+      "max": 2,
+      "desc": "外出基础时间片消耗",
+      "sourceDoc": "世界观与空间结构设计 §4"
+    },
+    {
+      "key": "EXPLORE_NIGHT_DANGER_MUL",
+      "value": 2.0,
+      "min": 1.5,
+      "max": 3.0,
+      "desc": "夜晚野外遭遇/危险倍率",
+      "sourceDoc": "世界观与空间结构设计 §4.2"
+    },
+    {
+      "key": "EXPLORE_YIELD_TARGET_D8",
+      "value": 480,
+      "min": 288,
+      "max": 672,
+      "desc": "D8 累计野外产出折算锚点（食物/水=1、建材=2；实测校准 2026-08-31）",
+      "sourceDoc": "世界观与空间结构设计 §9.6"
+    },
+    {
+      "key": "EXPLORE_YIELD_TARGET_D30",
+      "value": 2400,
+      "min": 1440,
+      "max": 3360,
+      "desc": "D30 累计野外产出折算锚点（实测校准 2026-08-31）",
+      "sourceDoc": "世界观与空间结构设计 §9.6"
+    },
+    {
+      "key": "WILDLIFE_FIGHT_WIN_BASE",
+      "value": 0.7,
+      "min": 0.5,
+      "max": 0.85,
+      "desc": "危险野物战斗基础胜率（战力修正前）",
+      "sourceDoc": "世界观与空间结构设计 §4.2"
+    },
+    {
+      "key": "EXPLORE_PARTY_MAX",
+      "value": 3,
+      "min": 1,
+      "max": 3,
+      "desc": "外出队伍人数上限",
+      "sourceDoc": "世界观与空间结构设计 §4.2"
     }
   ]
 }

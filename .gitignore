@@ -17,3 +17,6 @@ build/
 
 # Generated (ADR-9 sync 产物，CI 中重生成后校验)
 apps/client-cocos/assets/scripts/shared/
+
+# 字体源文件（大文件不入库；woff2 子集已提交，源按 scripts/build-fonts.mjs 头部说明下载）
+apps/client-cocos/whitebox/fonts/*.otf

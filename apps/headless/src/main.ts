@@ -11,15 +11,25 @@ import { createDayRng } from '@rn/core'
 import { createFormula, loadConstants } from '@rn/formula'
 import { createGameState, serialize, deserialize, runNight, type Tables } from '@rn/systems'
 import { buildBundle, runSimulation, betaSim, type AppContext, type EventLibEntry } from './sim.ts'
+import { applyOverlay, type OverlayFile } from '@rn/control'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const loadJson = <T>(p: string): T => JSON.parse(readFileSync(join(ROOT, p), 'utf8')) as T
 
 
-export function loadApp(): AppContext {
+export function loadApp(overlayPath?: string): AppContext {
+  let constantsJson = loadJson<{ version: number; sourceDoc: string; entries: { key: string; value: number; min: number; max: number; desc: string; sourceDoc: string }[] }>('config/constants.json')
+  if (overlayPath) {
+    // FR-C3/C4：覆盖单通道 + 留痕（applied/rejected 全打印；base 永不改写，回滚=移除覆盖文件）
+    const ov = loadJson<OverlayFile>(overlayPath)
+    const r = applyOverlay('constants', constantsJson, ov)
+    r.applied.forEach(a => console.log(`[overlay] ${a.key}: ${a.before} → ${a.after}`))
+    r.rejected.forEach(x => console.log(`[overlay:REJECTED] ${x.key}: ${x.reason}`))
+    constantsJson = r.merged as typeof constantsJson
+  }
   const tables: Tables = {
     dayCurve: loadJson('config/day_curve.json'),
-    constants: loadJson('config/constants.json'),
+    constants: constantsJson,
     buildingDef: loadJson('config/building_def.json')
   }
   return {
@@ -27,7 +37,15 @@ export function loadApp(): AppContext {
     formula: createFormula({ dayCurve: tables.dayCurve, constants: loadConstants(tables.constants.entries) }),
     constants: loadConstants(tables.constants.entries),
     eventLib: loadJson<{ version: number; entries: EventLibEntry[] }>('config/event_lib.json'),
-    monsters: loadJson<{ version: number; entries: { id: string; name: string; active: boolean; unlockDay: number; usableNightMods: string[] }[] }>('config/monster.json')
+    monsters: loadJson<{ version: number; entries: { id: string; name: string; active: boolean; unlockDay: number; usableNightMods: string[] }[] }>('config/monster.json'),
+    world: {
+      mapDef: loadJson('config/map_def.json'),
+      exploreDef: loadJson('config/explore_def.json'),
+      gatherTable: loadJson('config/gather_table.json'),
+      wildlife: loadJson('config/wildlife.json'),
+      buildingDef: tables.buildingDef
+    },
+    weather: loadJson('config/weather.json')
   }
 }
 
@@ -87,6 +105,24 @@ function cmdVerify(app: AppContext, kernel: Kernel, args: Record<string, string>
     results.push({ name: 'V12 事件频控 ≤3', ok: maxFired <= 3, detail: `最大触发 ${maxFired} 次` })
   }
 
+  // V13（--explore）：探索开启态 30 天，产出折算锚点（食物/水=1、建材=2）
+  if (args.explore !== undefined) {
+    const es = runSimulation(app, kernel, { days: 30, seed: 42, explore: true })
+    const conv = (t: Record<string, number>): number => (t.food ?? 0) + (t.water ?? 0) + (t.material ?? 0) * 2
+    const total = conv(es.world?.totalYield ?? {})
+    const cum = (day: number): number => es.records.filter(r => r.day <= day).reduce((x, r) => x + r.exploreYield, 0)
+    const t8 = app.constants.EXPLORE_YIELD_TARGET_D8, t30 = app.constants.EXPLORE_YIELD_TARGET_D30
+    const c8 = cum(8), c30 = cum(30)
+    results.push({ name: 'V13a 探索产出 D8 锚点', ok: c8 >= t8 * 0.6 && c8 <= t8 * 1.6, detail: `折算=${c8} vs 目标 ${t8}±40%` })
+    results.push({ name: 'V13b 探索产出 D30 锚点', ok: c30 >= t30 * 0.6 && c30 <= t30 * 1.6, detail: `折算=${c30} vs 目标 ${t30}±40%` })
+    results.push({ name: 'V13c 探索记账一致', ok: Math.abs(total - c30) <= 2, detail: `totalYield 折算=${total} vs 逐日和=${c30}` })
+  }
+  // V14 性能预算：30 天模拟 wall-time ≤5s（headless 逻辑帧预算；渲染端另有 DC/帧率门）
+  const simT0 = Date.now()
+  runSimulation(app, kernel, { days: 30, seed: 42 })
+  const simMs = Date.now() - simT0
+  results.push({ name: 'V14 逻辑预算 ≤5s/30天', ok: simMs <= 5000, detail: `${simMs}ms` })
+
   let ok = true
   for (const r of results) {
     if (r.name === 'FINDING') { console.log(`NOTE  ${r.detail}`); continue }
@@ -112,7 +148,7 @@ function cmdReplay(app: AppContext, kernel: Kernel, args: Record<string, string>
   return ok ? 0 : 1
 }
 
-async function cmdDiagnose(app: AppContext): Promise<number> {
+async function cmdDiagnose(app: AppContext): Promise<number> { // eslint-disable-line
   const kernel = createKernel({ appName: 'nl-headless', clock: { logicalDay: () => 0, wallMs: () => Date.now() } })
   await kernel.boot(buildBundle(app, { devtools: true }))
   console.log('== plugins ==')
@@ -150,6 +186,29 @@ async function cmdDepgraph(app: AppContext, args: Record<string, string>): Promi
   return 0
 }
 
+/** D7 合规包（PR-P7）：概率公示数据出口——事件概率/卡池 SKU/广告频控（静态导出，上线提交平台审核用） */
+function cmdCompliance(app: AppContext, args: Record<string, string>): number {
+  const eventProbabilities: Record<string, unknown> = {}
+  for (const e of app.eventLib.entries) {
+    eventProbabilities[e.id] = e.options.map(o => ({
+      label: o.label,
+      outcomes: o.outcomes.map(oc => ({ p: oc.p, effects: oc.effects.map(x => x.op) }))
+    }))
+  }
+  const sku = loadJson<{ version: number; entries: { id: string; type: string; price: number }[] }>('config/iap_sku.json')
+  const out = {
+    doc: '概率公示数据包（PR-P7；上线时随版本提交平台审核）',
+    generatedFrom: 'config/event_lib.json + config/iap_sku.json（构建期静态导出，无运行时随机）',
+    events: eventProbabilities,
+    iap: sku.entries,
+    adFrequency: { rent_x2: '每日无限（主广告位）', offline_x2: '每日 3 次', talent_reroll: '每日 2 次', night_airdrop: '每夜 2 次', rescue_shield: '每夜 1 次' }
+  }
+  const text = JSON.stringify(out, null, 2)
+  if (args.out) { writeFileSync(resolve(ROOT, args.out), text); console.log(`compliance 包已写入 ${resolve(ROOT, args.out)}`) }
+  else console.log(text)
+  return 0
+}
+
 async function main(): Promise<void> {
   const argv = process.argv.slice(2)
   const cmd = argv[0] ?? ''
@@ -162,7 +221,7 @@ async function main(): Promise<void> {
       else args[a.slice(2)] = 'true'
     }
   }
-  const app = loadApp()
+  const app = loadApp(args.overlay)
   const kernel = createKernel({ appName: 'nl-headless', clock: { logicalDay: () => 0, wallMs: () => Date.now() } })
   await kernel.boot(buildBundle(app))
   let code = 0
@@ -171,7 +230,8 @@ async function main(): Promise<void> {
   else if (cmd === 'replay') code = cmdReplay(app, kernel, args)
   else if (cmd === 'diagnose') code = await cmdDiagnose(app)
   else if (cmd === 'depgraph') code = await cmdDepgraph(app, args)
-  else { console.error('用法: main.ts simulate|verify|replay|diagnose|depgraph [--days N] [--seed S] [--out f] [--check] [--design]'); code = 2 }
+  else if (cmd === 'compliance') code = cmdCompliance(app, args)
+  else { console.error('用法: main.ts simulate|verify|replay|diagnose|depgraph [--days N] [--seed S] [--out f] [--check] [--design] [--explore]'); code = 2 }
   process.exitCode = code
 }
 

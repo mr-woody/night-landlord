@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "sourceDoc": "docs/世界观与空间结构设计.md §4 + docs/数据配置表结构设计.md §9.3",
+  "entries": [
+    { "id": "g_fe_berry", "zone": "zn_forest_edge", "resource": "food", "yieldMin": 20, "yieldMax": 40, "respawnDays": 2 },
+    { "id": "g_fe_veggie", "zone": "zn_forest_edge", "resource": "food", "yieldMin": 15, "yieldMax": 30, "respawnDays": 2 },
+    { "id": "g_fe_water", "zone": "zn_forest_edge", "resource": "water", "yieldMin": 20, "yieldMax": 40, "respawnDays": 1 },
+    { "id": "g_df_wood", "zone": "zn_deep_forest", "resource": "material", "yieldMin": 30, "yieldMax": 60, "respawnDays": 3 },
+    { "id": "g_df_herb", "zone": "zn_deep_forest", "resource": "food", "yieldMin": 20, "yieldMax": 45, "respawnDays": 3 },
+    { "id": "g_df_honey", "zone": "zn_deep_forest", "resource": "food", "yieldMin": 30, "yieldMax": 55, "respawnDays": 4 },
+    { "id": "g_ru_material", "zone": "zn_ruins", "resource": "material", "yieldMin": 40, "yieldMax": 80, "respawnDays": 3 },
+    { "id": "g_ru_canned", "zone": "zn_ruins", "resource": "food", "yieldMin": 35, "yieldMax": 70, "respawnDays": 4 },
+    { "id": "g_ru_cloth", "zone": "zn_ruins", "resource": "material", "yieldMin": 20, "yieldMax": 45, "respawnDays": 2 },
+    { "id": "g_farm_water", "zone": "zn_farm", "resource": "water", "yieldMin": 30, "yieldMax": 55, "respawnDays": 1 },
+    { "id": "g_farm_crop", "zone": "zn_farm", "resource": "food", "yieldMin": 30, "yieldMax": 60, "respawnDays": 2 },
+    { "id": "g_farm_fish", "zone": "zn_farm", "resource": "food", "yieldMin": 25, "yieldMax": 50, "respawnDays": 2 }
+  ]
+}

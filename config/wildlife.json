@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "sourceDoc": "docs/世界观与空间结构设计.md §4 + docs/数据配置表结构设计.md §9.4",
+  "entries": [
+    {
+      "id": "w_rabbit",
+      "kind": "prey",
+      "name": "野兔",
+      "hp": 20,
+      "threat": 0,
+      "drops": [{ "resource": "food", "amount": 25 }],
+      "activeHours": "day",
+      "zones": ["zn_forest_edge", "zn_farm"],
+      "unlockDay": 1
+    },
+    {
+      "id": "w_deer",
+      "kind": "prey",
+      "name": "鹿",
+      "hp": 45,
+      "threat": 0,
+      "drops": [{ "resource": "food", "amount": 60 }],
+      "activeHours": "day",
+      "zones": ["zn_forest_edge", "zn_deep_forest"],
+      "unlockDay": 3
+    },
+    {
+      "id": "w_boar",
+      "kind": "danger",
+      "name": "野猪",
+      "hp": 80,
+      "threat": 30,
+      "drops": [{ "resource": "food", "amount": 80 }],
+      "activeHours": "always",
+      "zones": ["zn_deep_forest"],
+      "unlockDay": 8
+    },
+    {
+      "id": "w_wolf",
+      "kind": "danger",
+      "name": "狼",
+      "hp": 65,
+      "threat": 25,
+      "drops": [{ "resource": "food", "amount": 45 }],
+      "activeHours": "night",
+      "zones": ["zn_deep_forest", "zn_ruins"],
+      "unlockDay": 8
+    }
+  ]
+}
