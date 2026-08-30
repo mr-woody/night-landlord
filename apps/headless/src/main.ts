@@ -136,16 +136,8 @@ export function buildBundle(app: AppContext, options: { devtools?: boolean } = {
           scriptedEffectsFor(day: number, state: GameState): { id: string; effects: EffectOp[] }[] {
             const lib = loadJson<{ entries: EventLibEntry[] }>('config/event_lib.json')
             return lib.entries
-              .filter(e => e.type === 'scripted' && (e.triggerDay ?? 0) === day || (day === 1 && (e.triggerDay ?? 99) === 0))
+              .filter(e => e.type === 'scripted' && ((e.triggerDay ?? 0) === day || (day === 1 && (e.triggerDay ?? 99) === 0)))
               .map(e => ({ id: e.id, effects: rollOutcome(e, state, day, createDayRng(app.tables.dayCurve.version, 'event', day * 100 + (e.triggerDay ?? 0))) }))
-          },
-          planNight(state: GameState, day: number) {
-            const row = app.formula.row(day)
-            const rng = createDayRng(state.seed, 'monster', day)
-            const occupied = Array.from({ length: Math.min(state.tenants.length, state.roomsBuilt) }, (_, i) => `F1-R${i + 1}`)
-            const pool = occupied.length > 0 ? occupied : ['F1-R1']
-            const routes = Array.from({ length: row.routes }, (_, i) => ({ roomId: pool[Math.floor(rng.next() * pool.length)], hp: row.hp }))
-            return { day, routes, modifiers: app.formula.bloodMoon(day) ? ['BLOOD_MOON'] : [], seed: rng.next() }
           },
           /** M2 条件触发版：权重×频控×prereq 抽取 + 保底池（内核档 §5.4） */
           selectDay(state: GameState, day: number): { id: string; effects: EffectOp[] }[] {
@@ -181,8 +173,28 @@ export function buildBundle(app: AppContext, options: { devtools?: boolean } = {
               if (fb.length) chosen.push(fb[Math.floor(rng.next() * fb.length)])
             }
             return chosen.map(e => ({ id: e.id, effects: rollOutcome(e, state, day, rng) }))
-          }
-        })
+          },
+          planNight(state: GameState, day: number) {
+            const row = app.formula.row(day)
+            const rng = createDayRng(state.seed, 'monster', day)
+            // 怪物三段式 AI 最简版：感知（有住户的房间）→ 决策（均匀分散，血月 +1 路由 W 表达）→ 执行（破门点即房间）
+            const occupied = Array.from({ length: Math.min(state.tenants.length, state.roomsBuilt) }, (_, i) => `F1-R${i + 1}`)
+            const pool = occupied.length > 0 ? occupied : ['F1-R1']
+            // 特殊夜三机制调度（白盒固定时刻表：避开教学日与血月日，台账 §3 记录）
+            const modifiers: string[] = app.formula.bloodMoon(day) ? ['BLOOD_MOON'] : []
+            if (!app.formula.bloodMoon(day) && (day === 17 || day === 25)) modifiers.push('SILENT')
+            if (day === 11 || day === 26) modifiers.push('MIGRATE')
+            // 怪物按 usableNightMods 过滤（monster.json 生效）
+            const monsters = loadJson<{ entries: { id: string; name: string; active: boolean; unlockDay: number; usableNightMods: string[] }[] }>('config/monster.json')
+            const candidates = monsters.entries.filter(m =>
+              m.active && m.unlockDay <= day &&
+              (m.usableNightMods.includes('NORMAL') || m.usableNightMods.some(x => modifiers.includes(x))))
+            const routes = Array.from({ length: row.routes }, (_, i) => {
+              const m = candidates.length ? candidates[Math.floor(rng.next() * candidates.length)] : undefined
+              return { roomId: pool[Math.floor(rng.next() * pool.length)], hp: row.hp, monsterId: m?.id ?? 'm_seeker' }
+            })
+            return { day, routes, modifiers, seed: rng.next() }
+          }        })
       }
     }
   })
@@ -308,9 +320,10 @@ export function runSimulation(
     persistence.put(`ckpt_${d}_day`, serialize(state))
     checkpoints++
 
-    // DUSK：夜计划（Director）
+    // DUSK：夜计划（SILENT = 无预告，考验冗余布防）
     state.phase = 'DUSK_FORECAST'
     const plan = director.planNight(state, d)
+    console.log(`  [DUSK D${d}] ${plan.modifiers.length ? '特殊夜:' + plan.modifiers.join('/') : '标准夜'} ${plan.modifiers.includes('SILENT') ? '——无预告' : '预告 ' + plan.routes.length + ' 路'}`)
     persistence.put(`ckpt_${d}_dusk`, serialize(state))
     checkpoints++
 

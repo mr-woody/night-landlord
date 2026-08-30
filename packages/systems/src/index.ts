@@ -237,9 +237,9 @@ export function settleDawn(state: GameState, deps: { formula: Formula; constants
 }
 
 // ---- 夜战（路级判定 + BattleSession 可序列化）----
-export interface NightRoute { roomId: string; hp: number }
+export interface NightRoute { roomId: string; hp: number; monsterId?: string }
 export interface NightPlan { day: number; routes: NightRoute[]; modifiers: string[]; seed: number }
-export interface RouteResult { roomId: string; f: number; hp: number; r: number; outcome: RouteOutcome }
+export interface RouteResult { roomId: string; f: number; hp: number; r: number; outcome: RouteOutcome; monsterId?: string }
 export interface BattleSession {
   day: number
   plan: NightPlan
@@ -248,6 +248,8 @@ export interface BattleSession {
   routes: RouteResult[]
   deaths: number
   wounds: number
+  migrated?: boolean
+  silent?: boolean
   settlementHash: string
 }
 
@@ -256,13 +258,19 @@ const BAND_WOUNDS: Record<RouteOutcome, number> = { HOLD: 0, HOLD_WOUNDED: 2, LO
 
 /** 路级判定 → 夜死亡 = 最差路 band（均匀布防下逐路 r_i≈r_target，聚合复现 M0 死亡带，校准见 v1.0 §4.3） */
 export function runNight(state: GameState, plan: NightPlan, deps: { formula: Formula; constants: Record<string, number>; buildingDef: Tables['buildingDef']; dayRng: { next(): number }; audit?: EffectDeps['audit'] }): BattleSession {
+  // MIGRATE：迁移夜在开战瞬间重排目标房间（预告失效，FR 白盒日志可见）
+  if (plan.modifiers.includes('MIGRATE')) {
+    const rooms = Array.from({ length: Math.max(state.roomsBuilt, plan.routes.length) }, (_, i) => `F1-R${i + 1}`)
+    for (const rt of plan.routes) rt.roomId = rooms[Math.floor(deps.dayRng.next() * rooms.length)]
+  }
+  const silent = plan.modifiers.includes('SILENT')
   const W = plan.routes.length
   const F = state.defense.power
   const per = W > 0 ? F / W : 0
   const routes: RouteResult[] = plan.routes.map(rt => {
     const f = per
     const r = rt.hp > 0 ? f / rt.hp : 9.99
-    return { roomId: rt.roomId, hp: rt.hp, f, r, outcome: deps.formula.judgeRoute(r) }
+    return { roomId: rt.roomId, hp: rt.hp, f, r, outcome: deps.formula.judgeRoute(r), monsterId: rt.monsterId }
   })
   let worst = 0
   let breaches = 0
@@ -296,7 +304,9 @@ export function runNight(state: GameState, plan: NightPlan, deps: { formula: For
     routes,
     deaths,
     wounds: woundsApplied,
-    settlementHash: hash32(canonicalJson({ day: plan.day, seed: plan.seed, routes: routes.map(r => ({ id: r.roomId, r: Math.round(r.r * 10000) / 10000, o: r.outcome })), d: deaths, w: woundsApplied }))
+    migrated: plan.modifiers.includes('MIGRATE'),
+    silent: silent,
+    settlementHash: hash32(canonicalJson({ day: plan.day, seed: plan.seed, migrated: plan.modifiers.includes('MIGRATE'), routes: routes.map(r => ({ id: r.roomId, m: r.monsterId ?? '', r: Math.round(r.r * 10000) / 10000, o: r.outcome })), d: deaths, w: woundsApplied }))
   }
   deps.audit?.record('battle', 'runNight', { day: plan.day, deaths, breaches })
   return session
