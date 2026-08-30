@@ -299,7 +299,14 @@ export class WhiteboxRenderer {
       }
       case 'DAY':
         this.drawDayBg(now)
-        if (ui.page === 'map') { this.drawWeatherLayer(this.weatherEntry(frame.weather), now); this.drawMapView(ui, frame, now); this.drawTutorialBanner(frame); this.drawTutorialSteps(frame) }
+        if (ui.page === 'map') {
+          this.drawMapView(ui, frame, now)
+          this.drawHouseVillage(frame, now)
+          this.drawWeatherLayer(this.weatherEntry(frame.weather), now)
+          this.drawTutorialBanner(frame)
+          this.drawTutorialSteps(frame)
+          this.drawDock()
+        }
         else if (ui.page === 'interior') this.drawInterior(ui, frame, now, pb)
         else if (ui.page === 'wild') this.drawWildView(ui, frame, now, pb)
         else if (ui.page === 'main') {
@@ -1057,6 +1064,98 @@ export class WhiteboxRenderer {
       ctx.fillText(`归来战报：${rr.join(' · ')}`, d.x + T.space.m, d.y + 264)
     }
     void now
+  }
+
+  /** 独栋小屋群落（M3.2 F5；K-H1 决议）：30 栋错排，6 级进化外观，烟囱/窗光/间距 */
+  private drawHouseVillage(frame: DayFrame, now: number): void {
+    const { ctx } = this
+    ctx.textBaseline = 'middle'
+    // 区域名
+    ctx.fillStyle = col('text_secondary')
+    ctx.font = font(T.typography.caption)
+    ctx.fillText('住户小屋群落', 90, 690)
+    for (let i = 0; i < 30; i++) {
+      const col = i % 6, row = Math.floor(i / 6)
+      const x = 96 + col * 100 + (row % 2) * 50  // 错排=间距属性可视化
+      const y = 726 + row * 84
+      const occupied = i < frame.population
+      // 进化等级（表现层占位：随天数成长；真实升级交互在 F7）
+      const level = Math.min(5, Math.floor(frame.day / 6) + (i % 2 === 0 ? 0 : 1))
+      this.drawHouse(x, y, level, occupied, now, i)
+    }
+  }
+
+  /** 单栋小屋：6 级外观（茅草屋→破损木屋→普通木屋→精品木屋→石屋→砖石堡垒） */
+  private drawHouse(x: number, y: number, level: number, occupied: boolean, now: number, i: number): void {
+    const { ctx } = this
+    const w = 62, wallH = 26 + level * 3
+    // 墙体（等级越高越精致：0 枯黄泥墙 / 1 缺口木板 / 2 整齐木板 / 3 双色+石基 / 4 石块 / 5 砖石）
+    const wallByLv = [
+      mix(col('gold_deep'), col('bg_night'), 0.72),
+      shade(col('panel_stroke'), 0.9),
+      mix(col('panel'), col('gold_deep'), 0.25),
+      col('panel'),
+      col('panel_stroke'),
+      shade(col('panel_stroke'), 1.15)
+    ][Math.min(5, level)]
+    ctx.fillStyle = wallByLv
+    ctx.fillRect(x, y - wallH, w, wallH)
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2.5
+    ctx.strokeRect(x, y - wallH, w, wallH)
+    if (level >= 3) { // 石基/砖缝
+      ctx.fillStyle = withAlpha(col('bg_night'), 0.35)
+      ctx.fillRect(x, y - 6, w, 6)
+    }
+    if (level === 1) { // 破损补丁
+      ctx.strokeStyle = withAlpha(col('bg_night'), 0.7); ctx.lineWidth = 2
+      ctx.beginPath(); ctx.moveTo(x + 12, y - wallH + 4); ctx.lineTo(x + 20, y - 6); ctx.stroke()
+    }
+    // 屋顶（等级决定形制与材质色）
+    ctx.beginPath()
+    ctx.moveTo(x - 9, y - wallH); ctx.lineTo(x + w / 2, y - wallH - (16 + level * 3)); ctx.lineTo(x + w + 9, y - wallH)
+    ctx.closePath()
+    const roofByLv = [
+      mix(col('gold_primary'), col('bg_night'), 0.55), // 茅草枯黄
+      mix(col('gold_primary'), col('bg_night'), 0.62),
+      mix(col('gold_deep'), col('bg_night'), 0.35),    // 木棕
+      mix(col('panel_stroke'), col('gold_deep'), 0.4), // 精品
+      shade(col('panel_stroke'), 0.75),                // 石瓦
+      mix(col('panel_stroke'), col('danger'), 0.18)    // 砖石
+    ][Math.min(5, level)]
+    ctx.fillStyle = roofByLv; ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2.5; ctx.stroke()
+    if (level >= 2) { // 屋顶纹理
+      ctx.strokeStyle = withAlpha(col('bg_night'), 0.4); ctx.lineWidth = 1.5
+      for (let t = 1; t <= level - 1 && t <= 3; t++) {
+        ctx.beginPath()
+        ctx.moveTo(x - 9 + t * 6, y - wallH); ctx.lineTo(x + w / 2, y - wallH - (16 + level * 3) + t * 3)
+        ctx.lineTo(x + w + 9 - t * 6, y - wallH)
+        ctx.stroke()
+      }
+    }
+    if (level >= 3) { // 气窗
+      ctx.fillStyle = col('bg_night')
+      ctx.fillRect(x + w / 2 - 6, y - wallH - 10, 12, 10)
+    }
+    if (level >= 5) { // 瞭望角楼
+      ctx.fillRect(x + w - 6, y - wallH - 22, 12, 22)
+      ctx.fillStyle = col('danger')
+      ctx.fillRect(x + w - 4, y - wallH - 20, 8, 4)
+    }
+    // 门（occupied 亮色 / 空 灰）
+    ctx.fillStyle = occupied ? col('gold_primary') : col('text_secondary')
+    ctx.fillRect(x + w / 2 - 7, y - 18, 14, 18)
+    // 窗（occupied 夜光；本层白昼微光）
+    ctx.fillStyle = occupied ? withAlpha(col('gold_primary'), 0.8) : withAlpha(col('panel_stroke'), 0.8)
+    ctx.fillRect(x + 8, y - wallH + 8, 10, 10)
+    // 烟囱（occupied：呼吸烟柱）
+    if (occupied && level >= 2) {
+      const puff = (now / 300 + i * 11) % 36
+      ctx.beginPath(); ctx.arc(x + w - 10, y - wallH - 18 - puff * 0.6, 3 + puff * 0.08, 0, Math.PI * 2)
+      ctx.fillStyle = withAlpha(col('text_secondary'), Math.max(0, 0.5 - puff / 60)); ctx.fill()
+      ctx.fillStyle = col('panel_stroke')
+      ctx.fillRect(x + w - 14, y - wallH - 14, 8, 12)
+    }
   }
 
   /** 新手引导横幅（M3.4-①首切片）：当日 scripted 教学事件 → 顶部金色目标条 */

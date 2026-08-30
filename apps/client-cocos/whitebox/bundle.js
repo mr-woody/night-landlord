@@ -6588,10 +6588,12 @@
         case "DAY":
           this.drawDayBg(now);
           if (ui2.page === "map") {
-            this.drawWeatherLayer(this.weatherEntry(frame.weather), now);
             this.drawMapView(ui2, frame, now);
+            this.drawHouseVillage(frame, now);
+            this.drawWeatherLayer(this.weatherEntry(frame.weather), now);
             this.drawTutorialBanner(frame);
             this.drawTutorialSteps(frame);
+            this.drawDock();
           } else if (ui2.page === "interior") this.drawInterior(ui2, frame, now, pb2);
           else if (ui2.page === "wild") this.drawWildView(ui2, frame, now, pb2);
           else if (ui2.page === "main") {
@@ -7431,6 +7433,108 @@
         ctx.fillText(`\u5F52\u6765\u6218\u62A5\uFF1A${rr.join(" \xB7 ")}`, d.x + T.space.m, d.y + 264);
       }
       void now;
+    }
+    /** 独栋小屋群落（M3.2 F5；K-H1 决议）：30 栋错排，6 级进化外观，烟囱/窗光/间距 */
+    drawHouseVillage(frame, now) {
+      const { ctx } = this;
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = col("text_secondary");
+      ctx.font = font(T.typography.caption);
+      ctx.fillText("\u4F4F\u6237\u5C0F\u5C4B\u7FA4\u843D", 90, 690);
+      for (let i = 0; i < 30; i++) {
+        const col2 = i % 6, row = Math.floor(i / 6);
+        const x = 96 + col2 * 100 + row % 2 * 50;
+        const y = 726 + row * 84;
+        const occupied = i < frame.population;
+        const level = Math.min(5, Math.floor(frame.day / 6) + (i % 2 === 0 ? 0 : 1));
+        this.drawHouse(x, y, level, occupied, now, i);
+      }
+    }
+    /** 单栋小屋：6 级外观（茅草屋→破损木屋→普通木屋→精品木屋→石屋→砖石堡垒） */
+    drawHouse(x, y, level, occupied, now, i) {
+      const { ctx } = this;
+      const w = 62, wallH = 26 + level * 3;
+      const wallByLv = [
+        mix(col("gold_deep"), col("bg_night"), 0.72),
+        shade(col("panel_stroke"), 0.9),
+        mix(col("panel"), col("gold_deep"), 0.25),
+        col("panel"),
+        col("panel_stroke"),
+        shade(col("panel_stroke"), 1.15)
+      ][Math.min(5, level)];
+      ctx.fillStyle = wallByLv;
+      ctx.fillRect(x, y - wallH, w, wallH);
+      ctx.strokeStyle = col("bg_night");
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(x, y - wallH, w, wallH);
+      if (level >= 3) {
+        ctx.fillStyle = withAlpha(col("bg_night"), 0.35);
+        ctx.fillRect(x, y - 6, w, 6);
+      }
+      if (level === 1) {
+        ctx.strokeStyle = withAlpha(col("bg_night"), 0.7);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 12, y - wallH + 4);
+        ctx.lineTo(x + 20, y - 6);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(x - 9, y - wallH);
+      ctx.lineTo(x + w / 2, y - wallH - (16 + level * 3));
+      ctx.lineTo(x + w + 9, y - wallH);
+      ctx.closePath();
+      const roofByLv = [
+        mix(col("gold_primary"), col("bg_night"), 0.55),
+        // 茅草枯黄
+        mix(col("gold_primary"), col("bg_night"), 0.62),
+        mix(col("gold_deep"), col("bg_night"), 0.35),
+        // 木棕
+        mix(col("panel_stroke"), col("gold_deep"), 0.4),
+        // 精品
+        shade(col("panel_stroke"), 0.75),
+        // 石瓦
+        mix(col("panel_stroke"), col("danger"), 0.18)
+        // 砖石
+      ][Math.min(5, level)];
+      ctx.fillStyle = roofByLv;
+      ctx.fill();
+      ctx.strokeStyle = col("bg_night");
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      if (level >= 2) {
+        ctx.strokeStyle = withAlpha(col("bg_night"), 0.4);
+        ctx.lineWidth = 1.5;
+        for (let t = 1; t <= level - 1 && t <= 3; t++) {
+          ctx.beginPath();
+          ctx.moveTo(x - 9 + t * 6, y - wallH);
+          ctx.lineTo(x + w / 2, y - wallH - (16 + level * 3) + t * 3);
+          ctx.lineTo(x + w + 9 - t * 6, y - wallH);
+          ctx.stroke();
+        }
+      }
+      if (level >= 3) {
+        ctx.fillStyle = col("bg_night");
+        ctx.fillRect(x + w / 2 - 6, y - wallH - 10, 12, 10);
+      }
+      if (level >= 5) {
+        ctx.fillRect(x + w - 6, y - wallH - 22, 12, 22);
+        ctx.fillStyle = col("danger");
+        ctx.fillRect(x + w - 4, y - wallH - 20, 8, 4);
+      }
+      ctx.fillStyle = occupied ? col("gold_primary") : col("text_secondary");
+      ctx.fillRect(x + w / 2 - 7, y - 18, 14, 18);
+      ctx.fillStyle = occupied ? withAlpha(col("gold_primary"), 0.8) : withAlpha(col("panel_stroke"), 0.8);
+      ctx.fillRect(x + 8, y - wallH + 8, 10, 10);
+      if (occupied && level >= 2) {
+        const puff = (now / 300 + i * 11) % 36;
+        ctx.beginPath();
+        ctx.arc(x + w - 10, y - wallH - 18 - puff * 0.6, 3 + puff * 0.08, 0, Math.PI * 2);
+        ctx.fillStyle = withAlpha(col("text_secondary"), Math.max(0, 0.5 - puff / 60));
+        ctx.fill();
+        ctx.fillStyle = col("panel_stroke");
+        ctx.fillRect(x + w - 14, y - wallH - 14, 8, 12);
+      }
     }
     /** 新手引导横幅（M3.4-①首切片）：当日 scripted 教学事件 → 顶部金色目标条 */
     drawTutorialBanner(frame) {
