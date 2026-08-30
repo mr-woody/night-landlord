@@ -341,6 +341,7 @@ boot.then(async () => {
       phase: ui.phase, page: ui.page, day: idx + 1,
       modal: top ? { kind: top.kind, id: top.id, chosen: top.chosen } : null,
       sel: { wildZone: ui.sel.wildZone ?? null, partySize: ui.sel.partySize ?? null },
+      modifiers: f?.modifiers ?? [],
       gold: f?.gold ?? null, population: f?.population ?? null, roomsBuilt: f?.roomsBuilt ?? null,
       weather: f?.weather ?? null, capacity: pb.capacity ?? null,
       parties: pb.parties.length, wildReports: pb.wildReports.length,

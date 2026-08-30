@@ -299,6 +299,42 @@ function record(name, ok, detail = '') {
       `day=${d3?.day} gold=${d3?.gold} parties=${d3?.parties} weather=${d3?.weather}`);
   }
 
+  // ═══ T17: 血月天（D7）直达验收——blood_dust 天气 + BLOOD_MOON 修士 + 3 路加强夜战 ═══
+  {
+    await page.goto(BASE + '?day=7', { waitUntil: 'load' });
+    await wait(2500);
+    await drainEvents(); // D7 开场事件卡排队先清场
+    const d7 = await state();
+    await shot('17-bloodmoon-day');
+    const R = await rects();
+    await clickRect(R.dockNight); await wait(450);
+    const confirm = await state();
+    const Rc = await rects();
+    await clickRect(Rc.modalConfirm);
+    const dusk = await until(async () => (await state()).phase === 'DUSK_FORECAST', 3000);
+    const R2 = await rects();
+    await clickRect(R2.duskConfirm);
+    const night = await until(async () => (await state()).phase === 'NIGHT', 3000);
+    const wavesDone = await until(async () => (await state()).waves?.done === true, 15000, 300);
+    await shot('17-bloodmoon-night');
+    const R3 = await rects();
+    await clickRect(R3.nightBack);
+    const dawn = await until(async () => (await state()).phase === 'DAWN_SETTLE', 3000);
+    const settleDone = await until(async () => (await state()).settleDone === true, 10000, 300);
+    const R4 = await rects();
+    await clickRect(R4.settleContinue);
+    const d8 = await until(async () => {
+      const st = await state();
+      return st.phase === 'DAY' && st.day === 8 ? st : null;
+    }, 5000);
+    record('T17 血月天 D7 验收', d7.day === 7 && d7.weather === 'blood_dust' &&
+      d7.modifiers.includes('BLOOD_MOON') && confirm.modal?.kind === 'confirmNight' &&
+      dusk !== null && night !== null && wavesDone === true &&
+      dawn !== null && settleDone === true && d8 !== null,
+      `day=${d7.day} weather=${d7.weather} mods=${JSON.stringify(d7.modifiers)} ` +
+      `waves=${wavesDone ? 'done' : 'timeout'} d8=${d8?.day}`);
+  }
+
   // ═══ T15: Console 错误检查 ═══
   record('T15 Console 无 JS 错误', consoleErrors.length === 0, consoleErrors.join('; ').slice(0, 200));
 
