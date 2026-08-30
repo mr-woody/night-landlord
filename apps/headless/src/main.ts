@@ -4,25 +4,17 @@
 //       逻辑包零平台依赖；uniform 策略属应用层，允许读配置表。
 import { readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { createKernel, definePlugin, type Kernel, type PluginDeclaration } from '@rn/kernel'
-import { createDiagPlugin } from '@rn/diag'
-import { createDayRng, createRngStreams, hash32, canonicalJson } from '@rn/core'
-import { createFormula, loadConstants, type Quality } from '@rn/formula'
-import {
-  createGameState, serialize, deserialize, checkInvariants, applyEffects,
-  settleDawn, runNight, canteenCap, type GameState, type Tables, type BattleSession, type EffectOp
-} from '@rn/systems'
 import { resolve, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createKernel, type Kernel } from '@rn/kernel'
+import { createDayRng } from '@rn/core'
+import { createFormula, loadConstants } from '@rn/formula'
+import { createGameState, serialize, deserialize, runNight, type Tables } from '@rn/systems'
+import { buildBundle, runSimulation, betaSim, type AppContext, type EventLibEntry } from './sim.ts'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const loadJson = <T>(p: string): T => JSON.parse(readFileSync(join(ROOT, p), 'utf8')) as T
 
-interface AppContext {
-  tables: Tables
-  formula: ReturnType<typeof createFormula>
-  constants: Record<string, number>
-}
 
 export function loadApp(): AppContext {
   const tables: Tables = {
@@ -33,240 +25,12 @@ export function loadApp(): AppContext {
   return {
     tables,
     formula: createFormula({ dayCurve: tables.dayCurve, constants: loadConstants(tables.constants.entries) }),
-    constants: loadConstants(tables.constants.entries)
+    constants: loadConstants(tables.constants.entries),
+    eventLib: loadJson<{ version: number; entries: EventLibEntry[] }>('config/event_lib.json'),
+    monsters: loadJson<{ version: number; entries: { id: string; name: string; active: boolean; unlockDay: number; usableNightMods: string[] }[] }>('config/monster.json')
   }
 }
 
-interface DirectorService {
-  scriptedEffectsFor(day: number): EffectOp[][]
-  planNight(state: GameState, day: number): { day: number; routes: { roomId: string; hp: number }[]; modifiers: string[]; seed: number }
-}
-interface BattleService { run(state: GameState, plan: Parameters<typeof runNight>[1]): BattleSession }
-interface GameService { tables: Tables; createState(seed: number): GameState }
-
-// ---- M1 bundle（内核档 §2.5 headlessBundle 子集；+devtools 为 devBundle）----
-export function buildBundle(app: AppContext, options: { devtools?: boolean } = {}): PluginDeclaration[] {
-  const diag = createDiagPlugin()
-  const formula = definePlugin({
-    name: 'rn.formula', version: '0.1.0', hotplug: 'core',
-    depends: [], provides: ['formula'], produces: [],
-    hooks: { setup(ctx) { ctx.provide('formula', app.formula) } }
-  })
-  const save = definePlugin({
-    name: 'rn.save', version: '0.1.0', hotplug: 'core',
-    depends: [], provides: ['persistence'], produces: [],
-    hooks: {
-      setup(ctx) {
-        const store = new Map<string, string>()
-        ctx.provide('persistence', {
-          put(slot: string, json: string): void { store.set(slot, json) },
-          get(slot: string): string | undefined { return store.get(slot) },
-          size(): number { return store.size }
-        })
-      }
-    }
-  })
-  const systems = definePlugin({
-    name: 'rn.systems', version: '0.1.0', hotplug: 'core',
-    depends: [{ service: 'formula' }, { service: 'persistence' }],
-    provides: ['game'], produces: [],
-    hooks: {
-      setup(ctx) {
-        ctx.provide('game', { tables: app.tables, createState: (seed: number): GameState => createGameState(seed) })
-      }
-    }
-  })
-  const battle = definePlugin({
-    name: 'rn.battle', version: '0.1.0', hotplug: 'standard',
-    depends: [{ service: 'game' }, { service: 'formula' }],
-    provides: ['battle'], produces: ['battle/result'],
-    hooks: {
-      setup(ctx) {
-        ctx.provide('battle', {
-          run: (state: GameState, plan: Parameters<typeof runNight>[1]): BattleSession =>
-            runNight(state, plan, {
-              formula: app.formula, constants: app.constants, buildingDef: app.tables.buildingDef,
-              dayRng: createDayRng(state.seed, 'monster', plan.day),
-              audit: { record: (kind, actor, detail): void => { ctx.emit('battle/result', { kind, actor, detail }) } }
-            })
-        })
-      }
-    }
-  })
-  const director = definePlugin({
-    name: 'rn.director', version: '0.1.0', hotplug: 'standard',
-    depends: [{ service: 'game' }, { service: 'formula' }],
-    provides: ['director'], produces: ['event/fired', 'night/plan'],
-    hooks: {
-      setup(ctx) {
-        ctx.provide('director', {
-          scriptedEffectsFor(day: number): EffectOp[][] {
-            const lib = loadJson<{ entries: { type: string; triggerDay: number; options: { outcomes: { effects: EffectOp[] }[] }[] }[] }>('config/event_lib.json')
-            // D0 教学事件并入 D1 执行（模拟自 D1 起）
-            return lib.entries
-              .filter(e => e.type === 'scripted' && (e.triggerDay === day || (day === 1 && e.triggerDay === 0)))
-              .map(e => e.options[0]?.outcomes[0]?.effects ?? [])
-          },
-          planNight(state: GameState, day: number) {
-            const row = app.formula.row(day)
-            const rng = createDayRng(state.seed, 'monster', day)
-            // 怪物三段式 AI 最简版：感知（有住户的房间）→ 决策（M1 均匀分散，血月 +1 路由 W 表达）→ 执行（破门点即房间）
-            const occupied = Array.from({ length: Math.min(state.tenants.length, state.roomsBuilt) }, (_, i) => `F1-R${i + 1}`)
-            const pool = occupied.length > 0 ? occupied : ['F1-R1']
-            const routes = Array.from({ length: row.routes }, (_, i) => ({ roomId: pool[Math.floor(rng.next() * pool.length)], hp: row.hp }))
-            return { day, routes, modifiers: app.formula.bloodMoon(day) ? ['BLOOD_MOON'] : [], seed: rng.next() }
-          }
-        })
-      }
-    }
-  })
-  const list: PluginDeclaration[] = [diag, formula, save, systems, battle, director]
-  if (options.devtools) {
-    list.push(definePlugin({
-      name: 'rn.devtools', version: '0.1.0', hotplug: 'scope',
-      depends: [], provides: ['devtools'], produces: [],
-      hooks: {
-        setup(ctx) {
-          ctx.provide('devtools', {
-            dump(): Record<string, unknown> { return { plugin: 'rn.devtools', note: 'M1 雏形：健康/日志由 diagnose 命令输出' } }
-          })
-        }
-      }
-    }))
-  }
-  return list
-}
-
-// ---- uniform 策略（F2P 中位数基准）----
-interface DayRecord {
-  day: number; population: number; gold: number; income: number; power: number
-  rAvg: number; deaths: number; wounds: number; sessionHash: string; invariantErrors: string[]
-  events: number; checkpoints: number
-}
-
-function target(d: number, t: Tables): number {
-  return t.dayCurve.rows.find(r => r.day === d)?.population ?? 30
-}
-
-export function runSimulation(
-  app: AppContext, kernel: Kernel, options: { days: number; seed: number }
-): { records: DayRecord[]; finalHash: string; findings: string[]; sessions: Record<number, BattleSession>; eventsFired: number } {
-  const { tables, constants } = app
-  const formula = kernel.service<ReturnType<typeof createFormula>>('formula')
-  const director = kernel.service<DirectorService>('director')
-  const battle = kernel.service<BattleService>('battle')
-  const persistence = kernel.service<{ put(slot: string, json: string): void; get(slot: string): string | undefined }>('persistence')
-  const state: GameState = kernel.service<GameService>('game').createState(options.seed)
-  const rng = createRngStreams(options.seed)
-  const records: DayRecord[] = []
-  const sessions: Record<number, BattleSession> = {}
-  const findings: string[] = []
-  let eventsFired = 0
-  let checkpoints = 0
-
-  for (let d = 1; d <= options.days; d++) {
-    state.day = d
-    state.phase = 'DAY'
-    const row = tables.dayCurve.rows.find(r => r.day === d)!
-    // 食堂扩容
-    while (state.canteenLevel < 5) {
-      const next = tables.buildingDef.entries.find(b => b.type === 'canteen' && b.level === state.canteenLevel + 1)
-      if (!next || canteenCap(state, tables.buildingDef) >= target(d, tables)) break
-      if (state.resources.gold < (next.cost.gold ?? 0)) break
-      state.resources.gold -= next.cost.gold ?? 0
-      state.canteenLevel++
-    }
-    // 建房
-    while (
-      state.roomsBuilt < Math.min(target(d, tables), canteenCap(state, tables.buildingDef)) &&
-      state.resources.gold >= constants.M1_ROOM_GOLD
-    ) {
-      state.resources.gold -= constants.M1_ROOM_GOLD
-      state.roomsBuilt++
-    }
-    // 招募（品质按池权重 roll，权重随 q(d) 线性插值）
-    const t = Math.max(0, Math.min(1, (row.q - 1) / 0.7))
-    const w: Record<Quality, number> = { N: 1 - 0.58 * t, R: 0.32 * t, SR: 0.2 * t, SSR: 0.06 * t }
-    while (
-      state.tenants.length < Math.min(target(d, tables), state.roomsBuilt, canteenCap(state, tables.buildingDef)) &&
-      state.resources.gold >= constants.M1_RECRUIT_GOLD
-    ) {
-      state.resources.gold -= constants.M1_RECRUIT_GOLD
-      const roll = rng.next('tenant')
-      let acc = 0
-      let q: Quality = 'N'
-      for (const quality of ['SSR', 'SR', 'R', 'N'] as Quality[]) {
-        acc += w[quality]
-        if (roll >= 1 - acc) { q = quality; break }
-      }
-      const r = applyEffects(state, [{ op: 'SPAWN_TENANT', quality: q }], { constants, buildingDef: tables.buildingDef })
-      if (r.applied === 0) break
-    }
-    // 教学事件（Director 固定脚本版，A 组）
-    const scripted = director.scriptedEffectsFor(d)
-    let events = 0
-    for (const effects of scripted) {
-      applyEffects(state, effects, { constants, buildingDef: tables.buildingDef })
-      events++
-    }
-    eventsFired += events
-    // 防御投资（目标 fReq(d)）
-    const need = Math.max(0, formula.fReq(d) - state.defense.power)
-    const invest = Math.min(Math.ceil(need * constants.CFG_K_POWER), state.resources.gold)
-    state.resources.gold -= invest
-    state.defense.power += Math.floor(invest / constants.CFG_K_POWER)
-    persistence.put(`ckpt_${d}_day`, serialize(state))
-    checkpoints++
-
-    // DUSK：夜计划（Director）
-    state.phase = 'DUSK_FORECAST'
-    const plan = director.planNight(state, d)
-    persistence.put(`ckpt_${d}_dusk`, serialize(state))
-    checkpoints++
-
-    // NIGHT：路级判定
-    state.phase = 'NIGHT'
-    const session = battle.run(state, plan)
-    sessions[d] = session
-    persistence.put(`ckpt_${d}_night`, serialize(state))
-    checkpoints++
-
-    // DAWN：收租结算（死亡后的收入线即时断裂）
-    state.phase = 'DAWN_SETTLE'
-    const settle = settleDawn(state, { formula, constants, rng })
-    const rAvg = session.routes.length ? session.routes.reduce((a, r) => a + r.r, 0) / session.routes.length : 9.99
-    const invariantErrors = checkInvariants(state, { canteenCap: canteenCap(state, tables.buildingDef), warehouseCap: 30000 })
-    records.push({
-      day: d, population: state.tenants.length, gold: state.resources.gold,
-      income: settle.income, power: state.defense.power, rAvg: Math.round(rAvg * 1000) / 1000,
-      deaths: session.deaths, wounds: session.wounds, sessionHash: session.settlementHash,
-      invariantErrors, events, checkpoints: 3
-    })
-    void checkpoints
-  }
-  const finalHash = hash32(canonicalJson(records))
-  const simBeta = betaSim(records, tables)
-  const designed = [17, 27, 42, 58]
-  for (let i = 0; i < simBeta.length; i++) {
-    if (Math.abs(simBeta[i] - designed[i]) > 5) {
-      findings.push(`β_sim D${[1, 8, 15, 22][i]}-=${simBeta[i]}% vs 设计 ${designed[i]}%：白盒基础经济无 u 线深度（M0 §3.2 部件，M2 实现住户升级线），见证据台账 FINDING-1`)
-    }
-  }
-  return { records, finalHash, findings, sessions, eventsFired }
-}
-
-function betaSim(records: DayRecord[], tables: Tables): number[] {
-  const windows: [number, number][] = [[1, 7], [8, 14], [15, 21], [22, 28]]
-  return windows.map(([s, e]) => {
-    const fStart = s === 1 ? tables.dayCurve.rows[0].fReq : (records.find(r => r.day === s - 1)?.power ?? tables.dayCurve.rows[s - 1].fReq)
-    const fEnd = records.find(r => r.day === e)?.power ?? 0
-    const sumI = records.filter(r => r.day >= s && r.day <= e).reduce((a, r) => a + r.income, 0)
-    if (sumI === 0) return 0
-    return Math.round(((fEnd - fStart) * 2.6) / sumI * 1000) / 10
-  })
-}
-
-// ---- 命令 ----
 function cmdSimulate(app: AppContext, kernel: Kernel, args: Record<string, string>): number {
   const days = Number(args.days ?? 30)
   const seed = Number(args.seed ?? 42)
@@ -303,8 +67,24 @@ function cmdVerify(app: AppContext, kernel: Kernel, args: Record<string, string>
     results.push({ name: 'V6 deaths ≤ GUARD_DEATH_30D', ok: deaths <= app.constants.GUARD_DEATH_30D, detail: `deaths=${deaths}` })
     const bad = a.records.filter(r => r.invariantErrors.length > 0)
     results.push({ name: 'V7 invariants clean', ok: bad.length === 0, detail: bad.length ? bad.map(r => `D${r.day}:${r.invariantErrors.join(',')}`).join('; ') : 'clean' })
-    results.push({ name: 'V8 事件引擎', ok: a.eventsFired >= 6, detail: `30 天触发 scripted 事件 ${a.eventsFired} 次（≥6）` })
-    a.findings.forEach(f => results.push({ name: 'FINDING', ok: true, detail: f }))
+    results.push({ name: 'V8 事件覆盖 ≥80%', ok: a.distinctFired.length >= 34, detail: `独立触发 ${a.distinctFired.length}/42，总次数 ${a.eventsFired}` })
+    // M2 硬门：β_sim 四周期 ±5pp（FINDING-1 闭环）
+    const simBeta = betaSim(a.records, app.tables)
+    const designedBeta = [17, 27, 42, 58]
+    simBeta.forEach((bv, i) => {
+      results.push({ name: `V9 β_sim ${['D1-7', 'D8-14', 'D15-21', 'D22-28'][i]}=${designedBeta[i]}±5pp`, ok: Math.abs(bv - designedBeta[i]) <= 5, detail: `β_sim=${bv}%` })
+    })
+    // M2 硬门：模拟收入回落至设计曲线 ±10%（聚合 ΣI）
+    const sumTable = app.tables.dayCurve.rows.filter((r: { day: number; income: number }) => r.day >= 1 && r.day <= 30).reduce((x: number, r: { income: number }) => x + r.income, 0)
+    const sumSim = a.records.reduce((x, r) => x + r.income, 0)
+    results.push({ name: 'V10 ΣI within ±10% of design', ok: Math.abs(sumSim - sumTable) / sumTable <= 0.1, detail: `sim=${sumSim} vs design=${sumTable}` })
+    // V11 特殊夜可复现：MIGRATE@D11/D26、SILENT@D17/D25
+    const modsAt = (d: number): string[] => a.records.find(r => r.day === d)?.modifiers ?? []
+    results.push({ name: 'V11 特殊夜调度', ok: modsAt(11).includes('MIGRATE') && modsAt(17).includes('SILENT') && modsAt(26).includes('MIGRATE') && modsAt(25).includes('SILENT'),
+      detail: `D11=${modsAt(11).join('/')} D17=${modsAt(17).join('/')} D25=${modsAt(25).join('/')} D26=${modsAt(26).join('/')}` })
+    // V12 事件频控：任一非 scripted 事件 30 天触发 ≤3 次
+    const maxFired = Math.max(0, ...Object.values(a.eventCounts))
+    results.push({ name: 'V12 事件频控 ≤3', ok: maxFired <= 3, detail: `最大触发 ${maxFired} 次` })
   }
 
   let ok = true

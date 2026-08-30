@@ -2,7 +2,7 @@
 // 红线：一切游戏状态变更必须经 applyEffects；确定性哈希用 canonicalJson+hash32。
 import { createRngStreams, hash32, canonicalJson, type Phase } from '@rn/core'
 import {
-  createFormula, loadConstants, type Quality, type DayCurveTable,
+  createFormula, loadConstants, upgradeCost, type Quality, type DayCurveTable,
   type ConstantsTable, type RouteOutcome
 } from '@rn/formula'
 
@@ -31,6 +31,7 @@ export interface GameState {
   floors: number
   canteenLevel: number
   warehouseLevel: number
+  clinicLevel: number
   defense: { power: number; alloc: number[] }
   flags: Record<string, number>
   stats: { deathsTotal: number; deathsToday: number; goldEarnedTotal: number; breachesLastNight: number }
@@ -69,6 +70,7 @@ export function createGameState(seed: number): GameState {
     floors: 1,
     canteenLevel: 1,
     warehouseLevel: 1,
+    clinicLevel: 1,
     defense: { power: 0, alloc: [] },
     flags: {},
     stats: { deathsTotal: 0, deathsToday: 0, goldEarnedTotal: 0, breachesLastNight: 0 }
@@ -98,6 +100,12 @@ export function warehouseCap(state: GameState, buildingDef: Tables['buildingDef'
   return row?.capacity ?? 0
 }
 
+/** 有效防御力 = 投资战力 + 守卫岗位贡献（岗位空缺=战力折扣，M2 功能点4） */
+export function defensePower(state: GameState, constants: Record<string, number>): number {
+  const guards = state.tenants.filter(t => t.job === 'guard').length
+  return state.defense.power + guards * (constants.GUARD_POWER ?? 15)
+}
+
 export function checkInvariants(state: GameState, caps: { canteenCap: number; warehouseCap: number }): string[] {
   const errs: string[] = []
   if (state.resources.gold < 0) errs.push('gold < 0')
@@ -119,6 +127,7 @@ export type EffectOp =
   | { op: 'SPAWN_TENANT'; quality: Quality }
   | { op: 'KILL_TENANT'; tenantId: number }
   | { op: 'WOUND_TENANT'; tenantId: number }
+  | { op: 'UPGRADE_TENANT'; tenantId: number }
   | { op: 'ADD_PANIC'; n: number }
   | { op: 'SET_FLAG'; key: string; v: number }
   | { op: 'GRANT_BUFF'; buff: string; days: number }
@@ -170,6 +179,15 @@ export function applyEffects(state: GameState, ops: EffectOp[], deps: EffectDeps
         if (!t) { ok = false; reason = '住户不存在' } else t.hp = Math.max(20, t.hp - 40)
         break
       }
+      case 'UPGRADE_TENANT': {
+        const t = state.tenants.find(t => t.id === op.tenantId)
+        if (!t) { ok = false; reason = '住户不存在' } else {
+          const cost = upgradeCost(t.level, deps.constants.UPGRADE_BASE, deps.constants.UPGRADE_GROWTH)
+          if (state.resources.gold < cost) { ok = false; reason = `金币不足（升级需 ${cost}）` }
+          else { state.resources.gold -= cost; t.level++ }
+        }
+        break
+      }
       case 'ADD_PANIC': {
         for (const t of state.tenants) {
           t.panic = Math.max(0, Math.min(deps.constants.PANIC_MAX, t.panic + op.n))
@@ -206,7 +224,11 @@ export function settleDawn(state: GameState, deps: { formula: Formula; constants
   state.resources.gold += income
   state.stats.goldEarnedTotal += income
 
-  for (const t of state.tenants) t.panic = Math.max(0, t.panic - C.PANIC_DECAY)
+  const decay = C.PANIC_DECAY + (state.flags.curfew ? C.CURFEW_DECAY_BONUS : 0)
+  for (const t of state.tenants) {
+    t.panic = Math.max(0, t.panic - decay)
+    if (t.hp < 100) t.hp = Math.min(100, t.hp + C.CLINIC_HEAL_HP * (state.clinicLevel ?? 1)) // 医务室治疗
+  }
   if (state.stats.breachesLastNight > 0) {
     for (const t of state.tenants) {
       t.panic = Math.min(C.PANIC_MAX, t.panic + C.PANIC_PROP_FLOOR)
@@ -227,9 +249,9 @@ export function settleDawn(state: GameState, deps: { formula: Formula; constants
 }
 
 // ---- 夜战（路级判定 + BattleSession 可序列化）----
-export interface NightRoute { roomId: string; hp: number }
+export interface NightRoute { roomId: string; hp: number; monsterId?: string }
 export interface NightPlan { day: number; routes: NightRoute[]; modifiers: string[]; seed: number }
-export interface RouteResult { roomId: string; f: number; hp: number; r: number; outcome: RouteOutcome }
+export interface RouteResult { roomId: string; f: number; hp: number; r: number; outcome: RouteOutcome; monsterId?: string }
 export interface BattleSession {
   day: number
   plan: NightPlan
@@ -238,6 +260,8 @@ export interface BattleSession {
   routes: RouteResult[]
   deaths: number
   wounds: number
+  migrated?: boolean
+  silent?: boolean
   settlementHash: string
 }
 
@@ -246,13 +270,19 @@ const BAND_WOUNDS: Record<RouteOutcome, number> = { HOLD: 0, HOLD_WOUNDED: 2, LO
 
 /** 路级判定 → 夜死亡 = 最差路 band（均匀布防下逐路 r_i≈r_target，聚合复现 M0 死亡带，校准见 v1.0 §4.3） */
 export function runNight(state: GameState, plan: NightPlan, deps: { formula: Formula; constants: Record<string, number>; buildingDef: Tables['buildingDef']; dayRng: { next(): number }; audit?: EffectDeps['audit'] }): BattleSession {
+  // MIGRATE：迁移夜在开战瞬间重排目标房间（预告失效，FR 白盒日志可见）
+  if (plan.modifiers.includes('MIGRATE')) {
+    const rooms = Array.from({ length: Math.max(state.roomsBuilt, plan.routes.length) }, (_, i) => `F1-R${i + 1}`)
+    for (const rt of plan.routes) rt.roomId = rooms[Math.floor(deps.dayRng.next() * rooms.length)]
+  }
+  const silent = plan.modifiers.includes('SILENT')
   const W = plan.routes.length
-  const F = state.defense.power
+  const F = defensePower(state, deps.constants)
   const per = W > 0 ? F / W : 0
   const routes: RouteResult[] = plan.routes.map(rt => {
     const f = per
     const r = rt.hp > 0 ? f / rt.hp : 9.99
-    return { roomId: rt.roomId, hp: rt.hp, f, r, outcome: deps.formula.judgeRoute(r) }
+    return { roomId: rt.roomId, hp: rt.hp, f, r, outcome: deps.formula.judgeRoute(r), monsterId: rt.monsterId }
   })
   let worst = 0
   let breaches = 0
@@ -286,7 +316,9 @@ export function runNight(state: GameState, plan: NightPlan, deps: { formula: For
     routes,
     deaths,
     wounds: woundsApplied,
-    settlementHash: hash32(canonicalJson({ day: plan.day, seed: plan.seed, routes: routes.map(r => ({ id: r.roomId, r: Math.round(r.r * 10000) / 10000, o: r.outcome })), d: deaths, w: woundsApplied }))
+    migrated: plan.modifiers.includes('MIGRATE'),
+    silent: silent,
+    settlementHash: hash32(canonicalJson({ day: plan.day, seed: plan.seed, migrated: plan.modifiers.includes('MIGRATE'), routes: routes.map(r => ({ id: r.roomId, m: r.monsterId ?? '', r: Math.round(r.r * 10000) / 10000, o: r.outcome })), d: deaths, w: woundsApplied }))
   }
   deps.audit?.record('battle', 'runNight', { day: plan.day, deaths, breaches })
   return session

@@ -34,6 +34,8 @@
 | [docs/数据配置表结构设计.md](docs/数据配置表结构设计.md) | config 六张表（day_curve/constants/monster/iap_sku/event_lib/building_def）唯一权威 schema：字段约束、校验断言、Excel→JSON 管线与维护职责 |
 | [docs/文档验收与追溯矩阵.md](docs/文档验收与追溯矩阵.md) | 逐文件验收证据链：文件状态总表、一致性机检记录、功能落地追踪矩阵、方案选型复核、生产就绪门槛 |
 | [docs/可执行目标-M1.md](docs/可执行目标-M1.md) | **M1 执行指令**（已执行完毕：PR #1 合入 main，证据见 docs/M1-证据台账.md） |
+| [docs/2D美术资产规范.md](docs/2D美术资产规范.md) | **全资产规范 v2.0**：八大类资产规格（人物/房间/怪物/物品图标/环境/UI 控件皮肤/天赋卡面与技能演出/音频+字体+运营素材）+ 全资产覆盖矩阵（14 项来源逐项对齐）+ 校验清单 9 条 |
+| [docs/UI-UX设计规范.md](docs/UI-UX设计规范.md) | **UI/UX 设计规范与设计稿**：Design Tokens（theme.json）、五模块设计稿（主界面/事件卡/夜战/收租/天赋商店图鉴）、一天循环 UI 状态机、AI 资产管线（风格锚点+校验清单）、M2.5 UI 风格化执行目标 |
 | [docs/可执行目标-M2.md](docs/可执行目标-M2.md) | **M2 执行指令**（待执行）：住户升级线闭环 FINDING-1（β_sim±5pp 硬门）、event_lib 补全 50 条 + Director 条件触发、特殊夜三机制、恐慌全链路+岗位槽位、Stabilizer L1+埋点、Cocos 白盒渲染 |
 
 ## 当前进度
@@ -44,6 +46,6 @@
 - [x] M0：事件文案库 50 条 → [docs/M0-事件文案库50条.md](docs/M0-事件文案库50条.md)（event_lib 结构化 schema，为 M2 Director 引擎备料）
 - [x] 文档阶段验收：逐文件确认与一致性机检 → [docs/文档验收与追溯矩阵.md](docs/文档验收与追溯矩阵.md)（遗留仅 ADR-9，M1 首周 spike）
 - [ ] M1：白盒可玩版（3 天循环：白天经营 → 夜战 → 收租结算）
-- [ ] M2：竖切 Demo（D0–D7 体验 + 血月 + 天赋 build）
+- [x] M2：竖切 Demo（D0–D7 体验 + 血月 + 特殊夜 + 事件引擎 + 住户升级线）→ [docs/M2-证据台账.md](docs/M2-证据台账.md)
 - [ ] M3：小范围测试（素材 CTR + 留存）
 - [ ] M4：商业化版本（战令 + 卡池 + 赛季框架）
