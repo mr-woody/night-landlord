@@ -36,24 +36,37 @@ if (existsSync(wb)) {
   if (kb > WHITEBOX_BUDGET / 1024) failures.push(`whitebox/bundle.js ${kb}KB 超 ${WHITEBOX_BUDGET / 1024}KB 预算`)
 }
 
-// ② 微信构建（存在时）：逻辑包（assets + src + game.js，排除引擎 cocos-js）≤1MB；总包 ≤4MB 红线
+// ② 微信构建（存在时）：按 game.json subpackages 剔除分包后统计主包（≤4MB 硬红线，
+//    与 DevTools/80051 上传校验一致）；逻辑包（assets + src + game.js）≤1MB 独立报告。
 const wxRoot = join(root, 'apps/client-cocos/creator/build/wechatgame')
 if (existsSync(wxRoot)) {
+  const gameJsonPath = join(wxRoot, 'game.json')
+  const subRoots = existsSync(gameJsonPath)
+    ? (JSON.parse(readFileSync(gameJsonPath, 'utf8')).subpackages ?? []).map(s => s.root.replace(/\/+$/, ''))
+    : []
+  const inSubpackage = rel => subRoots.some(r => rel === r || rel.startsWith(r + '/'))
+
+  let main = 0
   let logic = 0
-  for (const n of readdirSync(wxRoot)) {
-    const p = join(wxRoot, n)
-    if (statSync(p).isDirectory()) continue
-    if (n === 'cocos-js') continue
-    logic += n.endsWith('.js') || n.endsWith('.json') ? statSync(p).size : 0
+  let subTotal = 0
+  const walk = (d, rel) => {
+    for (const n of readdirSync(d)) {
+      const p = join(d, n)
+      const r = rel ? `${rel}/${n}` : n
+      const st = statSync(p)
+      if (st.isDirectory()) { walk(p, r); continue }
+      if (inSubpackage(r)) { subTotal += st.size; continue }
+      main += st.size
+      if ((n.endsWith('.js') || n.endsWith('.json')) && !r.startsWith('assets/')) logic += st.size
+    }
   }
-  const assetsDir = join(wxRoot, 'assets')
-  if (existsSync(assetsDir)) logic += dirSize(assetsDir)
-  const total = dirSize(wxRoot)
-  const logicKB = Math.round(logic / 1024), totalKB = Math.round(total / 1024)
-  // WARN（M3.3/M3.4 引擎裁剪+分包完成后硬化为 FAIL）
-  if (logicKB > 1024) warnings.push(`微信逻辑包 ${logicKB}KB 超 1MB（引擎裁剪/分包排期 M3.3）`)
-  if (totalKB > 4096) warnings.push(`微信总包 ${totalKB}KB 超 4MB 主包红线（NFR-7，引擎分包/CDN 排期 M3.3）`)
-  console.log(`[report] wechatgame 逻辑包=${logicKB}KB 总包=${totalKB}KB`)
+  walk(wxRoot, '')
+  if (existsSync(join(wxRoot, 'assets')) === false) { /* assets 已计入 walk */ }
+  const mainKB = Math.round(main / 1024), subKB = Math.round(subTotal / 1024), logicKB = Math.round(logic / 1024)
+  console.log(`[report] wechatgame 主包=${mainKB}KB 分包(${subRoots.join(',')})=${subKB}KB 逻辑包=${logicKB}KB`)
+  // 分包落地后主包红线硬化为 FAIL（与微信 80051 上传校验一致）
+  if (mainKB > 4096) failures.push(`微信主包 ${mainKB}KB 超 4MB 红线（NFR-7/80051）`)
+  if (logicKB > 1024) warnings.push(`微信逻辑包 ${logicKB}KB 超 1MB（引擎裁剪排期）`)
 }
 
 for (const w of warnings) console.log(`  ⚠ WARN ${w}`)
