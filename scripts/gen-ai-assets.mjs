@@ -294,6 +294,7 @@ if (!DRY) {
 
 const report = { generatedAt: new Date().toISOString(), provider: DRY ? 'mock(--dry)' : `ark:${ARK_MODEL_ID}`, assets: [] }
 let passCount = 0
+let accountDead = false // ARK 403 欠费/封禁：全局快速失败，剩余资产直接跳过（充值后重跑）
 
 for (const spec of list) {
   const round = { tries: [], status: 'fail' }
@@ -317,8 +318,17 @@ for (const spec of list) {
         let img = decodePng(spec.fullBleed ? buf : rembg(buf, `${spec.id}-r${rd}-${i}`))
         if (img.w !== spec.w || img.h !== spec.h) img = resize(img, spec.w, spec.h)
         processed.push({ img: snapPalette(img, spec.cls !== 'fx'), seed })
-      } catch (e) { tryInfo.fails.push(`候选${i}生成失败: ${e.message}`) }
+      } catch (e) {
+        const msg = String(e.message)
+        if (msg.includes('AccountOverdueError') || msg.includes('403')) { // 欠费/封禁：快速失败，停止烧轮次
+          tryInfo.fails.push(`账户不可用（充值后重跑）: ${msg.slice(0, 120)}`)
+          console.error(`✗ ${spec.id}: 账户不可用，快速失败（ARK 403）`)
+          accountDead = true
+        } else tryInfo.fails.push(`候选${i}生成失败: ${msg}`)
+      }
+      if (accountDead) break
     }
+    if (accountDead) { round.tries.push(tryInfo); break }
     if (!processed.length) { round.tries.push(tryInfo); continue }
     // 评分：覆盖率贴窗口 + 扩展色板命中率 + 色彩层次 + 深色描边占比（C13 迭代：命中率入评分，防挑中好看但脱板的候选）
     let best = null
@@ -348,9 +358,10 @@ for (const spec of list) {
   report.assets.push({ id: spec.id, mod: spec.mod, status: round.status, tries: round.tries, file: round.status === 'pass' ? `docs/assets/ai/${outDirs[spec.mod]}/${spec.file}` : null })
   passCount += round.status === 'pass' ? 1 : 0
   console.log(`${round.status === 'pass' ? '✓' : '✗'} ${spec.id}（${round.tries.length} 轮${round.status === 'pass' ? '' : '，仍不过关：' + round.tries.at(-1)?.fails.join('；')}）`)
+  if (accountDead) { console.error('账户不可用，中止剩余资产（充值后重跑同一命令即可续跑）'); break }
 }
 
 writeFileSync(join(root, 'docs/assets/ai/ai-report.json'), JSON.stringify(report, null, 2))
 console.log(`\nAI 素材闭环：${passCount}/${list.length} 过四门；报告 docs/assets/ai/ai-report.json；候选证据 docs/assets/ai/candidates/`)
 console.log('提示词修订通道：编辑 docs/assets/ai/prompt-overrides.json 后重跑（agent 迭代入口）')
-process.exit(passCount === list.length ? 0 : 1)
+process.exit(accountDead ? 3 : passCount === list.length ? 0 : 1) // 3=账户资源阻塞（区别于质量不过关）
