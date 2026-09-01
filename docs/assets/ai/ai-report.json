@@ -1,0 +1,45 @@
+{
+  "generatedAt": "2026-09-01T16:46:44.490Z",
+  "provider": "ark:doubao-seedream-4-0-250828",
+  "assets": [
+    {
+      "id": "anchor_tenant_worker",
+      "mod": "anchors",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 756437,
+          "score": 166.6
+        }
+      ],
+      "file": "docs/assets/ai/anchors/anchor_tenant_worker@2x.png"
+    },
+    {
+      "id": "anchor_rain_frame",
+      "mod": "anchors",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [
+            "扩展色板命中率 82.6% <85%"
+          ],
+          "ok": false,
+          "seed": 756436,
+          "score": 164.1
+        },
+        {
+          "round": 2,
+          "fails": [],
+          "ok": true,
+          "seed": 757434,
+          "score": 118.7
+        }
+      ],
+      "file": "docs/assets/ai/anchors/anchor_rain_frame@2x.png"
+    }
+  ]
+}

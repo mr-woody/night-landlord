@@ -20,3 +20,7 @@ apps/client-cocos/assets/scripts/shared/
 
 # 字体源文件（大文件不入库；woff2 子集已提交，源按 scripts/build-fonts.mjs 头部说明下载）
 apps/client-cocos/whitebox/fonts/*.otf
+
+# AI 生图密钥与批量候选证据（.env.example 为模板；候选目录证据量大，只留终图与报告入库）
+.env
+docs/assets/ai/candidates/
