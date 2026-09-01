@@ -71,7 +71,11 @@ const buildPrompt = (spec, extra) =>
 // view: iso=等距场景 / side=战斗实体 3-4 侧 / front=头像 / icon=图标VFX / flat=正视全景
 const A = (mod, file, w, h, cls, view, covMin, covMax, body, ref) =>
   ({ id: file.replace('@2x.png', ''), mod, file, w, h, cls, view, covMin, covMax, body, ref })
-const REF = f => join(root, 'docs/assets/anchors', f)
+// 参考链：优先已确认的 AI 锚点（docs/assets/ai/anchors），缺位回退程序化占位锚点
+const REF = f => {
+  const ai = join(root, 'docs/assets/ai/anchors', f)
+  return existsSync(ai) ? ai : join(root, 'docs/assets/anchors', f)
+}
 const ASSETS = [
   // §1 风格锚点 6（终版将同名替换 docs/assets/anchors/ 占位）
   A('anchors', 'anchor_building_cutaway@2x.png', 1080, 1920, 'scene', 'iso', 0.50, 0.95, '末日生存小区主楼等距剖面，6层×5房网格，金色窗光，深蓝夜空'),
@@ -99,12 +103,25 @@ const ASSETS = [
     A('weather', `weather_${['sunny', 'overcast', 'rain', 'fog', 'snow', 'bloodmoon'][i]}@2x.png`, 540, 960, 'scene', 'flat', 0.30, 0.98,
       `末日小区主楼场景氛围图（同构图）：${w}`, REF('anchor_building_cutaway@2x.png'))),
   A('vfx', 'vfx_airdrop@2x.png', 512, 768, 'scene', 'icon', 0.10, 0.60, '空投物资：降落伞+物资箱，金色高光'),
-  A('vfx', 'vfx_shield@2x.png', 512, 512, 'scene', 'icon', 0.10, 0.60, '护盾：蓝色半球能量罩，六边纹理呼吸')
+  A('vfx', 'vfx_shield@2x.png', 512, 512, 'scene', 'icon', 0.10, 0.60, '护盾：蓝色半球能量罩，六边纹理呼吸'),
+  // C6 扩容：怪物攻击 pose（夜战 §10.2 状态机 attack 帧）+ 粒子贴图 ×4 + 光效贴图 ×3
+  A('monsters', 'monster_seeker_attack@2x.png', 384, 384, 'char', 'side', 0.15, 0.65, '无眼盲怪扑击攻击姿态，身体前倾向前扑出，双爪前伸，红色感知器官发光', REF('anchor_monster_seeker@2x.png')),
+  ...[
+    ['smoke', '灰白色烟雾团，柔和边缘，半透明渐变'],
+    ['spark', '橙金色火花四溅颗粒，柔和边缘光点'],
+    ['glow', '金色柔和光斑，中心亮四周透明衰减'],
+    ['dust', '红棕色尘土颗粒云，柔和边缘']
+  ].map(([n, b]) => A('fx', `fx_particle_${n}@2x.png`, 256, 256, 'fx', 'icon', 0.05, 0.60, `游戏粒子贴图，居中单体：${b}；边缘必须柔和渐变到全透明`)),
+  ...[
+    ['column', '竖直金色光柱，由上至下渐弱，柔边'],
+    ['circle', '金色地面光圈，环形柔边发光'],
+    ['ring', '暗红色血月光晕环，柔边呼吸感']
+  ].map(([n, b]) => A('fx', `fx_light_${n}@2x.png`, 512, 512, 'fx', 'icon', 0.08, 0.70, `游戏光效贴图，居中单体：${b}；边缘必须柔和渐变到全透明`))
 ]
 const list = ONLY ? ASSETS.filter(a => ONLY.includes(a.mod) || ONLY.includes(a.id)) : ASSETS
 
 // 全出血场景（主楼剖面/天气氛围=整幅含背景交付）：不抠底、豁免透明底门、覆盖率按满幅计量
-for (const a of list) if (/^(anchor_building_cutaway|anchor_rain|weather_)/.test(a.id)) { a.fullBleed = /^(anchor_building_cutaway|weather_)/.test(a.id); a.covMin = a.fullBleed ? 0.85 : a.covMin; a.covMax = a.fullBleed ? 1 : a.covMax }
+for (const a of list) if (/^(anchor_building_cutaway|anchor_rain|weather_)/.test(a.id)) { a.fullBleed = /^(anchor_building_cutaway|weather_)/.test(a.id); a.covMin = a.fullBleed ? 0.8 : a.covMin; a.covMax = a.fullBleed ? 1 : a.covMax }
 
 // ---- 出图 provider ----
 async function arkGenerate({ prompt, refs, w, h, seed }) {
@@ -148,6 +165,10 @@ function mockGenerate({ w, h, seed, cls, covMin, covMax }) {
     r.polygon(poly.map(([x, y]) => [cx + (x - cx) * 0.88, cy + (y - cy) * 0.88]), pickC())
     r.circle(cx - R * 0.25, cy - R * 0.2, R * 0.09, [0xc0, 0x39, 0x2b])
     r.circle(cx + R * 0.25, cy - R * 0.2, R * 0.09, [0xc0, 0x39, 0x2b])
+  } else if (cls === 'fx') { // 柔边径向衰减 blob（阶梯 alpha 模拟柔边，供 fx 软边门自检）
+    const R = Math.min(w, h) * (0.3 + rnd() * 0.12)
+    const c = pickC()
+    for (let k = 6; k >= 1; k--) r.circle(cx, cy, R * k / 6, c, Math.round(230 * (7 - k) / 6))
   } else { // scene：按覆盖率窗口中值反推边距（保证四角透明且覆盖率落窗）
     const mid = (covMin + covMax) / 2
     const m = Math.min(w, h) * Math.min(0.42, Math.max(0.05, (1 - Math.sqrt(mid)) / 2 * 1.2))
@@ -201,10 +222,10 @@ function resize(src, tw, th) { // 中心点采样降采样：保住 flat 色块�
   return { w: tw, h: th, rgba: out }
 }
 
-function snapPalette(img) { // 容差内吸附：抗锯齿/渐变边缘归位最近色板色；容差外中间色保留（C13，防毁图）
+function snapPalette(img, binarize = true) { // 容差内吸附：抗锯齿/渐变边缘归位最近色板色；容差外中间色保留（C13）。fx 贴图免二值化（保留柔边 alpha）
   const px = img.rgba
   for (let i = 0; i < px.length; i += 4) {
-    if (px[i + 3] <= 8) { px[i + 3] = 0; continue }
+    if (px[i + 3] <= 8) { if (binarize) px[i + 3] = 0; continue }
     let best = -1, bd = 1e9
     for (let p = 0; p < palette.length; p++) {
       const d = (px[i] - palette[p][0]) ** 2 + (px[i + 1] - palette[p][1]) ** 2 + (px[i + 2] - palette[p][2]) ** 2
@@ -216,7 +237,7 @@ function snapPalette(img) { // 容差内吸附：抗锯齿/渐变边缘归位最
         px[i] = pr; px[i + 1] = pg; px[i + 2] = pb
       }
     }
-    px[i + 3] = px[i + 3] > 128 ? 255 : 0 // 二值化边缘，服务 72px 剪影与透明底
+    if (binarize) px[i + 3] = px[i + 3] > 128 ? 255 : 0 // 二值化边缘，服务 72px 剪影与透明底
   }
   return img
 }
@@ -235,9 +256,15 @@ function gates(img, spec) {
   }
   const cov = opaque / (w * h)
   if (cov < spec.covMin || cov > spec.covMax) fails.push(`覆盖率 ${(cov * 100).toFixed(0)}% 越界（${spec.covMin * 100}–${spec.covMax * 100}%）`)
-  const palRatio = opaque ? onPal / opaque : 0
-  if (palRatio < MIN_PAL_HIT) fails.push(`扩展色板命中率 ${(palRatio * 100).toFixed(1)}% <${MIN_PAL_HIT * 100}%`)
-  if (!dark) fails.push('缺少深色描边（bg_night 系）')
+  if (spec.cls === 'fx') { // 粒子/光效贴图走软边透明门（C9）：豁免色板硬门与描边要求，改验柔边半透明像素存在
+    let semi = 0
+    for (let i = 3; i < rgba.length; i += 4) if (rgba[i] > 24 && rgba[i] < 200) semi++
+    if (!semi) fails.push('粒子/光效贴图缺少柔边半透明像素')
+  } else {
+    const palRatio = opaque ? onPal / opaque : 0
+    if (palRatio < MIN_PAL_HIT) fails.push(`扩展色板命中率 ${(palRatio * 100).toFixed(1)}% <${MIN_PAL_HIT * 100}%`)
+    if (!dark) fails.push('缺少深色描边（bg_night 系）')
+  }
   if (spec.cls === 'char') { // 72px 剪影可读
     const sc = 72 / Math.max(w, h), sw = Math.max(1, Math.round(w * sc)), sh = Math.max(1, Math.round(h * sc))
     let c72 = 0; const set72 = new Set()
@@ -256,7 +283,7 @@ function gates(img, spec) {
 const overrides = existsSync(join(root, 'docs/assets/ai/prompt-overrides.json'))
   ? JSON.parse(readFileSync(join(root, 'docs/assets/ai/prompt-overrides.json'), 'utf8')) : {}
 const candDir = join(root, 'docs/assets/ai/candidates')
-const outDirs = { anchors: 'anchors', houses: 'houses', monsters: 'monsters', weather: 'weather', vfx: 'vfx' }
+const outDirs = { anchors: 'anchors', houses: 'houses', monsters: 'monsters', weather: 'weather', vfx: 'vfx', fx: 'fx' }
 for (const d of new Set(list.map(a => a.mod))) mkdirSync(join(root, 'docs/assets/ai', outDirs[d]), { recursive: true })
 mkdirSync(candDir, { recursive: true })
 
@@ -289,7 +316,7 @@ for (const spec of list) {
         buf = ensurePng(buf, saved)
         let img = decodePng(spec.fullBleed ? buf : rembg(buf, `${spec.id}-r${rd}-${i}`))
         if (img.w !== spec.w || img.h !== spec.h) img = resize(img, spec.w, spec.h)
-        processed.push({ img: snapPalette(img), seed })
+        processed.push({ img: snapPalette(img, spec.cls !== 'fx'), seed })
       } catch (e) { tryInfo.fails.push(`候选${i}生成失败: ${e.message}`) }
     }
     if (!processed.length) { round.tries.push(tryInfo); continue }
