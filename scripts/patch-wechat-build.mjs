@@ -49,15 +49,21 @@ const WRAP_ANCHOR = 'function onApplicationCreated(application) {'
 const WRAP_CODE = `function onApplicationCreated(application) {
     // 引擎分包（cocos-js → subpackage "engine"）：主包 ≤4MB 红线（NFR-7/上线清单 1.3）。
     // 引擎仅在启动链此处经 System.import('cc') 使用，分包加载完成后再进入引擎导入。
+    // 真机必填 name（errno 1001: parameter.name should be String）。
     return new Promise(function (resolve, reject) {
+        var settled = false
+        var timer = setTimeout(function () {
+            if (!settled) { settled = true; reject(new Error('loadSubpackage cocos-js 超时（30s）')) }
+        }, 30000)
         wx.loadSubpackage({
             root: 'cocos-js',
-            success: function () { resolve(); },
-            fail: function (err) { reject(new Error('loadSubpackage cocos-js failed: ' + JSON.stringify(err))); }
-        });
+            name: 'engine',
+            success: function () { if (!settled) { settled = true; clearTimeout(timer); resolve() } },
+            fail: function (err) { if (!settled) { settled = true; clearTimeout(timer); reject(new Error('loadSubpackage fail: ' + JSON.stringify(err))) } }
+        })
     }).then(function () {
         return System.import('cc')`
-if (existsSync(gameJsPath) && !readFileSync(gameJsPath, 'utf8').includes('loadSubpackage')) {
+if (existsSync(gameJsPath) && !readFileSync(gameJsPath, 'utf8').includes("name: 'engine'")) {
   const js = readFileSync(gameJsPath, 'utf8')
   if (js.includes(WRAP_ANCHOR)) {
     const patched = js.replace(
