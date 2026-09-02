@@ -136,11 +136,26 @@ export class WhiteboxRenderer {
     return this.budgetSamples
   }
 
+  /** P3-3：光效贴图叠加（additive 发光合成，柔边贴图免二值化入库）；fx 资产缺位时执行 fallback 程序化渐变 */
+  private drawFx(name: string, cx: number, cy: number, w: number, h: number, fallback: () => void): void {
+    const { ctx } = this
+    const img = this.sprites?.get(name)
+    if (img && this.sprites!.has(name)) {
+      ctx.save()
+      ctx.globalCompositeOperation = 'lighter'
+      ctx.globalAlpha = 0.85
+      ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h)
+      ctx.restore()
+      return
+    }
+    fallback()
+  }
+
   /** ?spritedbg=1：sprite 检视画廊——逐枚显示装载状态（绿框=已载+缩略图，红框=miss），QA 与截图矩阵工具 */
   private drawSpriteGallery(): void {
     const { ctx } = this
     if (!this.sprites) return
-    const all = [...SPRITE_FILES.houses, ...SPRITE_FILES.monsters, ...SPRITE_FILES.anchors]
+    const all = [...SPRITE_FILES.houses, ...SPRITE_FILES.monsters, ...SPRITE_FILES.anchors, ...SPRITE_FILES.fx]
     const loaded = all.filter(n => this.sprites!.has(n)).length
     const px = 12, py = DESIGN_H - 226, pw = DESIGN_W - 24, ph = 164
     ctx.fillStyle = withAlpha(col('bg_night'), 0.9)
@@ -855,11 +870,17 @@ export class WhiteboxRenderer {
       this.bgBase(col('bg_night'))
       this.drawStars(now, 0.9)
     }
-    // 血月大月亮（右上氛围）
+    // 血月大月亮（右上氛围）+ 全场红移光效（P3-3：fx_light_ring additive，缺资产回退径向渐变）
     if (isBM) {
       ctx.beginPath(); ctx.arc(DESIGN_W - 120, 150, 52, 0, Math.PI * 2)
       ctx.fillStyle = withAlpha(col('alert_blood'), 0.25); ctx.fill()
       this.iconMoon(DESIGN_W - 120, 150, 40, true)
+      this.drawFx('fx_light_ring@2x.png', DESIGN_W / 2, DESIGN_H * 0.35, DESIGN_W * 0.95, DESIGN_W * 0.95, () => {
+        const g = ctx.createRadialGradient(DESIGN_W / 2, DESIGN_H * 0.35, 120, DESIGN_W / 2, DESIGN_H * 0.35, 620)
+        g.addColorStop(0, withAlpha(col('alert_blood'), 0))
+        g.addColorStop(1, withAlpha(col('alert_blood'), 0.16))
+        ctx.fillStyle = g; ctx.fillRect(0, 0, DESIGN_W, DESIGN_H)
+      })
     }
     ctx.textBaseline = 'middle'
     // 标题条
@@ -999,6 +1020,13 @@ export class WhiteboxRenderer {
       const remain = (sk.fxUntil - now) / 1200
       if (sk.fxKind === 'supply') {
         const py = 180 + (1 - remain) * 420
+        // P3-3：空投光柱（fx_light_column additive，缺资产回退线性渐变光带）
+        this.drawFx('fx_light_column@2x.png', DESIGN_W / 2, py / 2 + 20, 120, py + 40, () => {
+          const g = ctx.createLinearGradient(0, 0, 0, py)
+          g.addColorStop(0, withAlpha(col('gold_primary'), 0))
+          g.addColorStop(1, withAlpha(col('gold_primary'), 0.18))
+          ctx.fillStyle = g; ctx.fillRect(DESIGN_W / 2 - 60, 0, 120, py)
+        })
         ctx.strokeStyle = withAlpha(col('text_primary'), 0.7); ctx.lineWidth = 2
         ctx.beginPath()
         ctx.moveTo(DESIGN_W / 2 - 26, py); ctx.lineTo(DESIGN_W / 2, py + 26)

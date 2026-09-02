@@ -10,7 +10,9 @@ export const SPRITE_FILES = {
     'house_lv3_fine_wood@2x.png', 'house_lv4_stone@2x.png', 'house_lv5_bastion@2x.png'
   ],
   monsters: ['monster_seeker_idle@2x.png', 'monster_seeker_attack@2x.png'],
-  anchors: ['anchor_monster_seeker@2x.png']
+  anchors: ['anchor_monster_seeker@2x.png'],
+  fx: ['fx_light_column@2x.png', 'fx_light_circle@2x.png', 'fx_light_ring@2x.png',
+    'fx_particle_smoke@2x.png', 'fx_particle_spark@2x.png', 'fx_particle_glow@2x.png', 'fx_particle_dust@2x.png']
 } as const
 
 const BASES = ['docs/assets/ai/', '/docs/assets/ai/']
@@ -42,6 +44,10 @@ export class SpriteStore {
   has(name: string): boolean {
     const img = this.map.get(name)
     return !!img && img.complete && img.naturalWidth > 0
+  }
+
+  get(name: string): HTMLImageElement | undefined {
+    return this.map.get(name)
   }
 
   /** 底边中心锚定绘制（等距实体统一锚点：脚底接地）；alpha<1 用于未入住等状态减淡 */
