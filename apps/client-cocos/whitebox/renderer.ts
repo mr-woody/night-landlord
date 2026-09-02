@@ -5,7 +5,7 @@
 // 纯 Canvas 2D，零引擎依赖；Creator 侧经 whitebox-core 同步复用（scripts/sync-creator.mjs）。
 import { T, col, withAlpha, shade, mix, motion, font } from './theme.ts'
 import type { SpriteStore } from './sprite.ts'
-import { SPRITE_FILES } from './sprite.ts'
+import { SPRITE_FILES, pickMonsterSprite } from './sprite.ts'
 // M5 C7：房屋 6 级 sprite 文件名（等级→文件；AI 终图缺位时回退程序化矢量）
 const HOUSE_SPRITE_BY_LV = [
   'house_lv0_thatch@2x.png', 'house_lv1_broken_wood@2x.png', 'house_lv2_plain_wood@2x.png',
@@ -946,7 +946,7 @@ export class WhiteboxRenderer {
           ctx.fillStyle = withAlpha(col('text_primary'), 0.55)
           ctx.fillRect(-16, -14, 32, 26) // 攻击瞬间白闪
         }
-        this.drawMonster(visual, now)
+        this.drawMonster(visual, now, isCurrent && prog > 0.72) // §10.2：prog>0.72=攻击相位（扑击循环）
         ctx.restore()
         // 命中反馈：目标小屋白闪（攻击节拍）
         if (isCurrent && prog > 0.72 && Math.sin(now / 55) > 0.4) {
@@ -1445,13 +1445,17 @@ export class WhiteboxRenderer {
   }
 
   /** 怪物绘制（差异化：循声者爬行+声波圈/破窗者携梯/攀楼种挂钩/飞行种悬停/精英红眼尖刺） */
-  private drawMonster(visual: 'crawler' | 'breaker' | 'climber' | 'flyer' | 'elite', now: number): void {
+  private drawMonster(visual: 'crawler' | 'breaker' | 'climber' | 'flyer' | 'elite', now: number, attacking = false): void {
     const { ctx } = this
-    // C7：循声者优先用 AI sprite（专用 sprite 缺位时回退已确认的风格锚点，再回退程序化矢量）
-    if (visual === 'crawler') {
-      const seeker = this.sprites
-      if (seeker?.has('monster_seeker_idle@2x.png')) { seeker.draw(ctx, 'monster_seeker_idle@2x.png', 0, 4, 34); return }
-      if (seeker?.has('anchor_monster_seeker@2x.png')) { seeker.draw(ctx, 'anchor_monster_seeker@2x.png', 0, 4, 34); return }
+    // C8：循声者优先用 AI sprite（§10.2 状态机 attack 相位切 attack 帧+前倾）；缺资产回退程序化矢量
+    if (visual === 'crawler' && this.sprites) {
+      const name = pickMonsterSprite(n => this.sprites!.has(n), attacking)
+      if (name) {
+        if (attacking) { ctx.save(); ctx.rotate(0.16) } // 前倾（面朝右，攻击扑压）
+        this.sprites.draw(ctx, name, 0, 4, attacking ? 40 : 34)
+        if (attacking) ctx.restore()
+        return
+      }
     }
     const body = shade(col('panel_stroke'), 0.55)
     const legSwing = Math.sin(now / 90) * 3

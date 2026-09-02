@@ -15,6 +15,14 @@ export const SPRITE_FILES = {
 
 const BASES = ['docs/assets/ai/', '/docs/assets/ai/']
 
+/** C8：怪物战斗姿态选择（纯函数，可单测）——attack 帧优先，idle 次之，风格锚点兑底，全缺 null（程序化回退） */
+export function pickMonsterSprite(has: (n: string) => boolean, attacking: boolean): string | null {
+  if (attacking && has('monster_seeker_attack@2x.png')) return 'monster_seeker_attack@2x.png'
+  if (has('monster_seeker_idle@2x.png')) return 'monster_seeker_idle@2x.png'
+  if (has('anchor_monster_seeker@2x.png')) return 'anchor_monster_seeker@2x.png'
+  return null
+}
+
 export class SpriteStore {
   private map = new Map<string, HTMLImageElement>()
 
