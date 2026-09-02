@@ -4,6 +4,13 @@
 // 字体：family tokens 对应 @font-face 子集（思源黑体 Bold / BebasNeue，见 scripts/build-fonts.mjs）。
 // 纯 Canvas 2D，零引擎依赖；Creator 侧经 whitebox-core 同步复用（scripts/sync-creator.mjs）。
 import { T, col, withAlpha, shade, mix, motion, font } from './theme.ts'
+import type { SpriteStore } from './sprite.ts'
+import { SPRITE_FILES } from './sprite.ts'
+// M5 C7：房屋 6 级 sprite 文件名（等级→文件；AI 终图缺位时回退程序化矢量）
+const HOUSE_SPRITE_BY_LV = [
+  'house_lv0_thatch@2x.png', 'house_lv1_broken_wood@2x.png', 'house_lv2_plain_wood@2x.png',
+  'house_lv3_fine_wood@2x.png', 'house_lv4_stone@2x.png', 'house_lv5_bastion@2x.png'
+]
 import type { UiState, Modal } from './state.ts'
 import { topModal } from './state.ts'
 import type { EventCardMeta } from '../../../apps/headless/src/sim.ts'
@@ -93,6 +100,10 @@ export class WhiteboxRenderer {
   private warmupLeft = 2
   private lastSample = 0
   private modalOpenAt: number | null = null
+  /** C7：AI sprite 层（entry 异步预载后注入；null/缺资产=程序化矢量回退，零回归） */
+  sprites: SpriteStore | null = null
+  /** ?spritedbg=1：sprite 检视画廊（QA 工具） */
+  spriteDebug = false
 
   constructor(canvas: HTMLCanvasElement, private cb: RendererCallbacks) {
     this.ctx = canvas.getContext('2d')!
@@ -114,6 +125,7 @@ export class WhiteboxRenderer {
       }
       const frame = getFrame()
       if (frame) this.draw(getUi(), frame, now, getPb())
+      if (this.spriteDebug) this.drawSpriteGallery()
       requestAnimationFrame(tick)
     }
     this.lastSample = performance.now()
@@ -122,6 +134,32 @@ export class WhiteboxRenderer {
 
   getSamples(): number[] {
     return this.budgetSamples
+  }
+
+  /** ?spritedbg=1：sprite 检视画廊——逐枚显示装载状态（绿框=已载+缩略图，红框=miss），QA 与截图矩阵工具 */
+  private drawSpriteGallery(): void {
+    const { ctx } = this
+    if (!this.sprites) return
+    const all = [...SPRITE_FILES.houses, ...SPRITE_FILES.monsters, ...SPRITE_FILES.anchors]
+    const loaded = all.filter(n => this.sprites!.has(n)).length
+    const px = 12, py = DESIGN_H - 226, pw = DESIGN_W - 24, ph = 164
+    ctx.fillStyle = withAlpha(col('bg_night'), 0.9)
+    ctx.fillRect(px, py, pw, ph)
+    ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 2
+    ctx.strokeRect(px, py, pw, ph)
+    ctx.fillStyle = col('text_secondary'); ctx.font = font(T.typography.caption)
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
+    ctx.fillText(`sprite 装载 ${loaded}/${all.length}（?spritedbg=1 检视）`, px + 12, py + 22)
+    let gx = px + 14, gy = py + 36
+    for (const n of all) {
+      const ok = this.sprites.has(n)
+      ctx.strokeStyle = ok ? col('success') : col('danger')
+      ctx.lineWidth = 1.5
+      ctx.strokeRect(gx, gy, 50, 50)
+      if (ok) this.sprites!.draw(ctx, n, gx + 25, gy + 48, 46)
+      gx += 58
+      if (gx + 50 > px + pw - 8) { gx = px + 14; gy += 58 }
+    }
   }
 
   // ════════ 基础绘制库 ════════
@@ -1214,6 +1252,12 @@ export class WhiteboxRenderer {
   /** 单栋小屋：6 级外观（茅草屋→破损木屋→普通木屋→精品木屋→石屋→砖石堡垒） */
   private drawHouse(x: number, y: number, level: number, occupied: boolean, now: number, i: number): void {
     const { ctx } = this
+    // C7：AI sprite 优先（等距小屋，底边接地锚定；未入住 35% 减淡）；缺资产回退程序化矢量
+    const spriteName = HOUSE_SPRITE_BY_LV[Math.min(5, level)]
+    if (this.sprites?.has(spriteName)) {
+      this.sprites!.draw(ctx, spriteName, x + 31, y + 4, 88, occupied ? 1 : 0.35)
+      return
+    }
     const w = 62, wallH = 26 + level * 3
     // 墙体（等级越高越精致：0 枯黄泥墙 / 1 缺口木板 / 2 整齐木板 / 3 双色+石基 / 4 石块 / 5 砖石）
     const wallByLv = [
@@ -1403,6 +1447,12 @@ export class WhiteboxRenderer {
   /** 怪物绘制（差异化：循声者爬行+声波圈/破窗者携梯/攀楼种挂钩/飞行种悬停/精英红眼尖刺） */
   private drawMonster(visual: 'crawler' | 'breaker' | 'climber' | 'flyer' | 'elite', now: number): void {
     const { ctx } = this
+    // C7：循声者优先用 AI sprite（专用 sprite 缺位时回退已确认的风格锚点，再回退程序化矢量）
+    if (visual === 'crawler') {
+      const seeker = this.sprites
+      if (seeker?.has('monster_seeker_idle@2x.png')) { seeker.draw(ctx, 'monster_seeker_idle@2x.png', 0, 4, 34); return }
+      if (seeker?.has('anchor_monster_seeker@2x.png')) { seeker.draw(ctx, 'anchor_monster_seeker@2x.png', 0, 4, 34); return }
+    }
     const body = shade(col('panel_stroke'), 0.55)
     const legSwing = Math.sin(now / 90) * 3
     ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 3
