@@ -115,6 +115,12 @@ export class Kernel {
     if (this.phase !== 'REGISTER') throw new KernelError('E_PHASE', `register 仅限 REGISTER 相（当前 ${this.phase}）`)
     for (const decl of plugins) {
       if (this.records.has(decl.name)) throw new KernelError('E_DUPLICATE_PLUGIN', `插件重名: ${decl.name}`)
+      // FR-A1 最早失败点：畸形声明（depends/provides 非数组）在注册期即拒绝并点名，
+      // 避免 resolve/topoOrder 阶段抛出无法定位的 "undefined is not iterable"
+      if (!Array.isArray(decl.depends) || !Array.isArray(decl.provides)) {
+        throw new KernelError('E_MALFORMED_PLUGIN',
+          `插件 ${decl.name ?? '(无名)'} 声明非法：depends/provides 须为数组（实得 depends=${JSON.stringify(decl.depends ?? null)}, provides=${JSON.stringify(decl.provides ?? null)}）`)
+      }
       const rec: Rec = { decl, state: 'registered', config: {}, provided: new Map(), scope: null, degraded: false, leaks: { handlers: 0, intervals: 0 } }
       this.records.set(decl.name, rec)
       for (const tag of decl.produces ?? []) this.allowedTags.add(tag)

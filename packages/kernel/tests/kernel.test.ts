@@ -20,6 +20,14 @@ test('拓扑启动顺序：提供者先于依赖者', async () => {
   assert.equal(k.phase, 'RUNNING')
 })
 
+test('畸形声明注册期 fail-fast：depends/provides 非数组即点名拒绝（FR-A1 最早失败点）', () => {
+  const k = createKernel({ clock })
+  assert.throws(
+    () => k.register([definePlugin({ name: 'bad', version: '0', hotplug: 'standard', hooks: {} } as unknown as PluginDeclaration)]),
+    (e: KernelError) => e.code === 'E_MALFORMED_PLUGIN' && e.message.includes('bad')
+  )
+})
+
 test('缺失依赖 fail-fast / 重复服务 / 插件重名', () => {
   const k = createKernel({ clock })
   k.register([plug('x', { depends: [{ service: 'nope' }] })])
