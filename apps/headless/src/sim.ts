@@ -37,9 +37,9 @@ export interface AppContext {
 export interface DirectorService {
   scriptedEffectsFor(day: number, state: GameState): { id: string; effects: EffectOp[] }[]
   selectDay(state: GameState, day: number): { id: string; effects: EffectOp[] }[]
-  planNight(state: GameState, day: number): { day: number; routes: { roomId: string; hp: number }[]; modifiers: string[]; seed: number }
+  planNight(state: GameState, day: number): { day: number; routes: { roomId: string; hp: number }[]; modifiers: string[]; seed: number; env?: { threatMul: number; durability: number } }
 }
-interface BattleService { run(state: GameState, plan: { day: number; routes: { roomId: string; hp: number }[]; modifiers: string[]; seed: number }): BattleSession }
+interface BattleService { run(state: GameState, plan: { day: number; routes: { roomId: string; hp: number }[]; modifiers: string[]; seed: number; env?: { threatMul: number; durability: number } }): BattleSession }
 interface GameService { tables: Tables; createState(seed: number): GameState }
 
 // ---- bundle 装配（headlessBundle 子集；+devtools 为 devBundle）----
@@ -86,7 +86,7 @@ export function buildBundle(app: AppContext, options: { devtools?: boolean } = {
               formula: app.formula, constants: app.constants, buildingDef: app.tables.buildingDef,
               dayRng: createDayRng(state.seed, 'monster', plan.day),
               audit: { record: (kind, actor, detail): void => { ctx.emit('battle/result', { kind, actor, detail }) } }
-            })
+            }, plan.env)
         })
       }
     }
@@ -154,7 +154,18 @@ export function buildBundle(app: AppContext, options: { devtools?: boolean } = {
               const m = candidates.length ? candidates[Math.floor(rng.next() * candidates.length)] : undefined
               return { roomId: pool[Math.floor(rng.next() * pool.length)], hp: row.hp, monsterId: m?.id ?? 'm_seeker' }
             })
-            return { day, routes, modifiers, seed: rng.next(), lotId }
+            // ADR-17（Accepted）：D31+ 组装环境系数（threatMul=weather.nightThreatAdd；
+            // durability=最高房屋等级的耐久）。D1–30 恒等窗口不携带 env，零变化。
+            let env: { threatMul: number; durability: number } | undefined
+            if (day > 30 && app.weather) {
+              const wEntry = weatherOfDay(day, state.seed, { weather: app.weather })
+              const threatMul = (app.weather.entries.find(e => e.id === wEntry.id) as any)?.nightThreatAdd ?? 1
+              const maxLv = Math.max(0, ...Object.values(state.houseLevels ?? {}))
+              const hRow = app.tables.buildingDef.entries.find((b: any) => b.type === 'house' && b.level === maxLv)
+              const durability = maxLv > 0 ? (hRow as any)?.durability ?? 1 : 1
+              if (threatMul !== 1 || durability !== 1) env = { threatMul, durability }
+            }
+            return { day, routes, modifiers, seed: rng.next(), lotId, env }
           }
         })
       }

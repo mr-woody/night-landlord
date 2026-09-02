@@ -11,11 +11,16 @@ declare module 'cc' {
   export class Node {
     constructor(name?: string);
     parent: any;
+    layer: any;
     static EventType: any;
     addComponent<T = any>(type: any): T;
     on(type: string, cb: any, target?: any): void;
   }
-  export class Texture2D { image: any; uploadData(src: any): void }
+  export class Texture2D {
+    image: any;
+    uploadData(src: any): void;
+    static PixelFormat: { RGBA8888: any };
+  }
   export class ImageAsset { constructor(src: any) }
   export class SpriteFrame { texture: any }
   export class Sprite {

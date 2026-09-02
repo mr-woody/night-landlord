@@ -29,7 +29,7 @@
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/shared/systems/index.ts",
-    "hash": "db19718e"
+    "hash": "4d903f1a"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/shared/weather/index.ts",
@@ -41,7 +41,7 @@
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/shared-headless/sim.ts",
-    "hash": "a21adc2c"
+    "hash": "b0ea8f66"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/theme-data.ts",
@@ -49,7 +49,7 @@
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/json-data.ts",
-    "hash": "8251553f"
+    "hash": "a04693c0"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/theme.ts",

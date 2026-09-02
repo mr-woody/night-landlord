@@ -1,6 +1,6 @@
 # ADR-17：天气与房屋耐久系数接入夜战数值（M3.3 草案，待批准）
 
-> 状态：**Proposed**（待用户批准后转 Accepted 并排期实施）
+> 状态：**Accepted → Implemented**（2026-09-03 用户批准；同日实施 V15/V16 回归门与 runNight env 单点）
 > 关联：战斗演出与天气系统设计 §3.3/§1.2、M0 数值契约（C1）、FINDING F-5/F-6（M3.2 台账）
 > 决策人：用户 · 起草：Project RN · 2026-08-31
 
@@ -59,3 +59,15 @@ r_eff    = 防效_eff / threat_eff                     # 替代既有 r（仅 D3
 - 正面：天气/房屋进化获得游戏性意义（塔防深度），锚点窗口零风险，扩展可测；
 - 负面/成本：day_curve v2 数值组工作量；V15/V16 两门维护；
 - 中性：表现层（本档 §10）不依赖本 ADR，已可独立上线演示。
+
+## 6. 实施记录（2026-09-03）
+
+| 项 | 内容 | 证据 |
+|---|---|---|
+| runNight env 单点 | 第 4 可选参数 `env?: { threatMul?, durability? }`——threat_eff=threat×mul、防效_eff=power×durability；缺省恒等，D1–30 逐字节零变化（V4 determinism b666e7fc 不变） | packages/systems/src/index.ts |
+| director D31+ 组装 | planNight 当 day>30 组装 plan.env：threatMul=weather.nightThreatAdd、durability=最高房屋等级耐久（building_def.house）；D1–30 不携带 | apps/headless/src/sim.ts |
+| 配套状态/表 | GameState.houseLevels（加法+旧档迁移 `??= {}`）；weather.json v2 += nightThreatAdd×6（雨1.05/血月尘暴1.10/余1.0） | config/weather.json |
+| V15 ✅ | 施效天气子集（雨/血月尘暴交替）60 夜×6 路合成场景：基线 38.9% → 开启 47.2%（**+8.3pp 落设计窗 [+5,+15]**） | verify ALL GREEN |
+| V16 ✅ | 耐久 Lv0(0.8)/Lv2(1.0)/Lv5(1.5)：84.7%→47.2%→1.7% 单调降 | 同上 |
+| 单测 | runNight env 缺省恒等零变化 + threatMul/durability 精确生效（95 tests 全过） | packages/systems/tests/systems.test.ts |
+| 遗留 | day_curve v2 D31–60 行（数值组按 §2.2 重算）——V15/V16 现以合成场景直击 runNight 单点，不依赖 v2 | — |

@@ -76,6 +76,24 @@ test('恐慌：教学段封顶 + 出逃掷骰（deps 注入可测）', () => {
   assert.equal(s.tenants.length, 0)
 })
 
+test('ADR-17 runNight env：缺省恒等零变化；threatMul/durability 按 §2.2 生效', () => {
+  const s = gameWith(20)
+  s.day = 45
+  s.defense.power = 1132
+  const plan: NightPlan = { day: 45, routes: [{ roomId: 'r0', hp: 1110 }, { roomId: 'r1', hp: 1110 }], modifiers: [], seed: 7 }
+  const deps = { formula, constants, buildingDef: tables.buildingDef, dayRng: createDayRng(42, 'monster', 45) }
+  const base = runNight(s, plan, deps)
+  const identity = runNight(s, plan, deps, { threatMul: 1, durability: 1 })
+  // 缺省 vs 恒等 env：session 逐字段一致（D1–30 零变化语义）
+  assert.equal(base.routes[0].r, identity.routes[0].r)
+  assert.equal(base.settlementHash, identity.settlementHash)
+  // threatMul 1.1：r 缩为 1/1.1；durability 1.5：r 放大 1.5
+  const rain = runNight(s, plan, deps, { threatMul: 1.1 })
+  assert.ok(Math.abs(rain.routes[0].r - base.routes[0].r / 1.1) < 1e-9, `r_threat=${rain.routes[0].r}`)
+  const bastion = runNight(s, plan, deps, { durability: 1.5 })
+  assert.ok(Math.abs(bastion.routes[0].r - base.routes[0].r * 1.5) < 1e-9, `r_dur=${bastion.routes[0].r}`)
+})
+
 test('D7 夜战：均匀布防 r_i≈1.02 → 路级 LOSE_1 → 夜死亡=1（复现 M0 设计死亡数）', () => {
   const s = gameWith(20)
   s.day = 7
