@@ -193,7 +193,7 @@ export class Kernel {
         }
       }
     }
-    const queue = [...this.records.keys()].filter(n => (indeg.get(n) ?? 0) === 0)
+    const queue = Array.from(this.records.keys()).filter(n => (indeg.get(n) ?? 0) === 0) // Array.from：Creator 下层编译将 [...iter] 降为 [].concat(iter)（不展开迭代器）
     const out: string[] = []
     while (queue.length) {
       const n = queue.shift()!
@@ -344,7 +344,7 @@ export class Kernel {
   }
 
   async unmount(scope: string): Promise<this> {
-    const recs = [...this.records.values()].filter(r => r.scope === scope && r.state !== 'disposed')
+    const recs = Array.from(this.records.values()).filter(r => r.scope === scope && r.state !== 'disposed') // 同上
     for (const rec of recs.slice().reverse()) await this.teardown(rec, true)
     return this
   }

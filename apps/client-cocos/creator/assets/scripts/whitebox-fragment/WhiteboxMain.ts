@@ -80,9 +80,16 @@ export class WhiteboxMain extends Component {
   }
 
   private async boot() {
+    const S = (n: string, e: unknown): never => {
+      const ne = e instanceof Error ? e : new Error(String(e));
+      ne.message = `[${n}] ${ne.message}`;
+      throw ne;
+    };
+    try {
     const { canvas, ctx } = createOffscreen(DESIGN_W, DESIGN_H);
     this.off = canvas;
     this.renderer = new WhiteboxRenderer(canvas, { onFps: () => {} });
+    } catch (e) { S('S1 离屏画布/渲染器', e); }
 
     // —— 模拟回放数据（与浏览器 entry.ts 同构；逻辑全部来自 sync 产物）——
     const t = TABLES as any;
@@ -96,23 +103,34 @@ export class WhiteboxMain extends Component {
     };
     const kernel = createKernel({ appName: 'nl-creator', clock: { logicalDay: () => 0, wallMs: () => Date.now() } });
     (this as any).__kernel = kernel;
-    kernel.register([]);
-    const bundle = buildBundle(app);
-    this.depsSnap = bundle.map((p: any) => `${p.name}:${JSON.stringify(p.depends)}`).join(' | ');
-    await kernel.boot(bundle);
-    const sim = runSimulation(app, kernel, { days: 7, seed: 42 });
-    this.simSessions = sim.sessions;
-    this.pb.monsterNames = Object.fromEntries(t.monster.entries.map((m: any) => [m.id, m.name]));
-    this.frames = sim.records.map((r: any) => ({
-      day: r.day, population: r.population, roomsBuilt: r.roomsBuilt,
-      gold: r.gold, income: r.income, power: r.power, rAvg: r.rAvg,
-      deaths: r.deaths, wounds: r.wounds, sessionHash: r.sessionHash,
-      modifiers: r.modifiers, avgLevel: r.avgLevel, panicSum: r.panicSum,
-      breachedRooms: (sim.sessions[r.day]?.routes ?? []).filter((rt: any) => rt.r < 0.95).map((rt: any) => rt.roomId),
-      eventCards: [...(sim.eventCards[r.day] ?? [])].sort((a: any, b: any) => b.weight - a.weight)
-    }));
+    let bundle: ReturnType<typeof buildBundle>;
+    try {
+      kernel.register([]);
+      bundle = buildBundle(app);
+      this.depsSnap = bundle.map((p: any) => `${p.name}:${JSON.stringify(p.depends)}`).join(' | ');
+    } catch (e) { S('S2a register/buildBundle', e); }
+    try {
+      await kernel.boot(bundle!);
+    } catch (e) { S('S2b kernel.boot', e); }
+    let sim: ReturnType<typeof runSimulation>;
+    try {
+      sim = runSimulation(app, kernel, { days: 7, seed: 42 });
+      this.simSessions = sim.sessions;
+    } catch (e) { S('S2c runSimulation', e); }
+    try {
+      this.pb.monsterNames = Object.fromEntries(t.monster.entries.map((m: any) => [m.id, m.name]));
+      this.frames = sim!.records.map((r: any) => ({
+        day: r.day, population: r.population, roomsBuilt: r.roomsBuilt,
+        gold: r.gold, income: r.income, power: r.power, rAvg: r.rAvg,
+        deaths: r.deaths, wounds: r.wounds, sessionHash: r.sessionHash,
+        modifiers: r.modifiers, avgLevel: r.avgLevel, panicSum: r.panicSum,
+        breachedRooms: (sim!.sessions[r.day]?.routes ?? []).filter((rt: any) => rt.r < 0.95).map((rt: any) => rt.roomId),
+        eventCards: [...(sim!.eventCards[r.day] ?? [])].sort((a: any, b: any) => b.weight - a.weight)
+      }));
+    } catch (e) { S('S2d frames 映射', e); }
 
     // —— 动态纹理桥 ——
+    try {
     const imageAsset = new ImageAsset(this.off);
     this.texture = new Texture2D();
     this.texture.image = imageAsset;
@@ -125,6 +143,7 @@ export class WhiteboxMain extends Component {
     sp.type = Sprite.Type.SIMPLE;
     sp.spriteFrame = sf;
     viewNode.parent = this.node;
+    } catch (e) { S('S3 纹理桥/节点装配', e); }
 
     // —— 输入桥 ——
     this.node.on(Node.EventType.TOUCH_END, this.onTouch, this);
