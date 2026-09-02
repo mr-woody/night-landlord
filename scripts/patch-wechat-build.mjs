@@ -5,7 +5,7 @@
 // ③ game.js 注入 wx.loadSubpackage 包装（引擎经 System.import('cc') 按需加载，分包先加载）
 // ④ cocos-js/game.js 分包入口文件（小游戏分包规则：分包根必须有 game.js）
 // 用法：node scripts/patch-wechat-build.mjs [--appid wxXXXXXXXX]
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -107,7 +107,28 @@ if (existsSync(gameJsPath)) {
   }
 }
 
-// ④ 分包入口 game.js（小游戏分包规则：分包根必须有 game.js）
+// ④ AI sprite 资产打包（docs/assets/ai → wechatgame/sprites/ai，主包 1362+2015<4MB）
+const srcAi = join(root, 'docs/assets/ai')
+const dstAi = join(wxRoot, 'sprites/ai')
+if (existsSync(srcAi)) {
+  let n = 0
+  const manifestPath = join(srcAi, 'sprite-manifest.json')
+  const files = existsSync(manifestPath)
+    ? JSON.parse(readFileSync(manifestPath, 'utf8')).files ?? []
+    : []
+  for (const f of files) {
+    const from = join(srcAi, f)
+    const to = join(dstAi, f)
+    mkdirSync(dirname(to), { recursive: true })
+    copyFileSync(from, to)
+    n++
+  }
+  mkdirSync(dirname(join(dstAi, 'sprite-manifest.json')), { recursive: true })
+  copyFileSync(manifestPath, join(dstAi, 'sprite-manifest.json'))
+  changes.push(`sprites/ai 打包 ${n} 张`)
+}
+
+// ④b 分包入口 game.js（小游戏分包规则：分包根必须有 game.js）
 const subEntry = join(wxRoot, 'cocos-js/game.js')
 if (existsSync(join(wxRoot, 'cocos-js')) && !existsSync(subEntry)) {
   writeFileSync(subEntry,

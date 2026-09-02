@@ -17,6 +17,7 @@ import { createFormula, loadConstants } from '../shared/formula/index';
 import { buildBundle, runSimulation, type AppContext, type EventCardMeta } from '../shared-headless/sim';
 import type { BattleSession } from '../shared/systems/index';
 import { TABLES } from '../shared-tables/tables';
+import { spriteManifest } from '../whitebox-core/json-data';
 
 const SKILL_CD_MS = motion('normal').dur * 10;
 
@@ -159,6 +160,31 @@ export class WhiteboxMain extends Component {
     sp.spriteFrame = sf;
     viewNode.parent = this.node;
     } catch (e) { S('S3 纹理桥/节点装配', e); }
+
+    // —— AI sprite 层（M5 C7）：wx.createImage 装载包内 sprites/ai/**，注入 renderer.sprites（缺资产程序化回退）——
+    const spriteMap = new Map<string, any>();
+    const wxApi = (globalThis as any).wx;
+    const files: string[] = ((spriteManifest as any).files ?? []) as string[];
+    await Promise.all(files.map((f: string) => new Promise<void>(res => {
+      const img = wxApi.createImage();
+      img.onload = () => { spriteMap.set(f, img); res(); };
+      img.onerror = () => res();
+      img.src = 'sprites/ai/' + f;
+    })));
+    const store = {
+      has: (n: string): boolean => spriteMap.has(n),
+      get: (n: string): any => spriteMap.get(n),
+      draw: (ctx: CanvasRenderingContext2D, n: string, cx: number, bottom: number, w: number, alpha = 1): void => {
+        const img = spriteMap.get(n);
+        if (!img) return;
+        const dh = w * (img.height / img.width);
+        if (alpha < 1) ctx.save();
+        if (alpha < 1) ctx.globalAlpha = alpha;
+        ctx.drawImage(img, cx - w / 2, bottom - dh, w, dh);
+        if (alpha < 1) ctx.restore();
+      }
+    };
+    (this.renderer as any).sprites = store;
 
     // —— 输入桥 ——
     this.node.on(Node.EventType.TOUCH_END, this.onTouch, this);
