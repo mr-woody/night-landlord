@@ -17,7 +17,7 @@ import gatherTableJson from '../../../config/gather_table.json'
 import wildlifeJson from '../../../config/wildlife.json'
 import type { BattleSession } from '../../../packages/systems/src/index.ts'
 import { WhiteboxRenderer, fpsReport, type DayFrame, type Playback } from './renderer.ts'
-import { SpriteStore, SPRITE_FILES } from './sprite.ts'
+import { SpriteStore } from './sprite.ts'
 import { col, motion } from './theme.ts'
 import {
   createUiState, openModal, closeModal, topModal, pushEvent, setPage,
@@ -63,14 +63,9 @@ const renderer = new WhiteboxRenderer(canvas, {
   }
 })
 
-// M5 P3-1：AI sprite 异步预载（全部路径候选 miss 时保持 null 语义外的空 store=程序化回退）
+// M5 P3-1/C16：AI sprite 清单驱动预载（只 load sprite-manifest.json 中存在的文件，缺资产零 404）
 const spriteStore = new SpriteStore()
-const spriteDir = (n: string) =>
-  n.startsWith('house_') ? 'houses/' : n.startsWith('monster_') ? 'monsters/' : n.startsWith('fx_') ? 'fx/' : 'anchors/'
-Promise.all([
-  ...SPRITE_FILES.houses, ...SPRITE_FILES.monsters, ...SPRITE_FILES.anchors, ...SPRITE_FILES.fx
-].map(n => spriteStore.load(n, spriteDir(n))))
-  .then(() => { renderer.sprites = spriteStore })
+spriteStore.loadFromManifest().then(() => { renderer.sprites = spriteStore })
 renderer.spriteDebug = new URLSearchParams(location.search).has('spritedbg')
 
 let frames: DayFrame[] = []

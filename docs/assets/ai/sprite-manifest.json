@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "files": [
+    "anchors/anchor_building_cutaway@2x.png",
+    "anchors/anchor_monster_seeker@2x.png",
+    "anchors/anchor_rain_frame@2x.png",
+    "anchors/anchor_tenant_guard@2x.png",
+    "anchors/anchor_tenant_nurse@2x.png",
+    "anchors/anchor_tenant_worker@2x.png"
+  ]
+}

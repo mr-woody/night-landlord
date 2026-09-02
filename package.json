@@ -20,7 +20,7 @@
     "gen:assets:ai": "node scripts/gen-ai-assets.mjs",
     "check:assets": "node scripts/check-assets.mjs",
     "sync:creator": "node scripts/sync-creator.mjs && node scripts/gen-creator-scene.mjs",
-    "build:whitebox": "esbuild apps/client-cocos/whitebox/entry.ts --bundle --outfile=apps/client-cocos/whitebox/bundle.js",
+    "build:whitebox": "node scripts/sync-sprites.mjs && esbuild apps/client-cocos/whitebox/entry.ts --bundle --outfile=apps/client-cocos/whitebox/bundle.js",
     "sync:cocos": "node scripts/sync-cocos.mjs",
     "sync:cocos:check": "node scripts/sync-cocos.mjs --check",
     "check:cocos": "node scripts/check-cocos-shared.mjs",

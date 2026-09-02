@@ -24,3 +24,4 @@ apps/client-cocos/whitebox/fonts/*.otf
 # AI 生图密钥与批量候选证据（.env.example 为模板；候选目录证据量大，只留终图与报告入库）
 .env
 docs/assets/ai/candidates/
+apps/client-cocos/whitebox/assets/ai/
