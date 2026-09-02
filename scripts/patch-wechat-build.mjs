@@ -43,13 +43,24 @@ if (JSON.stringify(gameJson.subpackages ?? []) !== JSON.stringify(SUB)) {
   changes.push('game.json subpackages += cocos-js(engine)')
 }
 
-// ③ game.js 分包加载包装（幂等：已含 loadSubpackage 则跳过）
+// ③ game.js：bootFail 诊断助手 + onApplicationCreated 整函数替换（含 loadSubpackage name/超时/catch）
+//    ——整函数替换保证任意产物状态（未打补丁/半补丁/语法损坏）都收敛到规范实现。
 const gameJsPath = join(wxRoot, 'game.js')
-const WRAP_ANCHOR = 'function onApplicationCreated(application) {'
-const WRAP_CODE = `function onApplicationCreated(application) {
+const BOOTFAIL_HELPER = `function bootFail (stage, err) {
+    console.error('[boot]', stage, err);
+    try {
+        wx.showModal({
+            title: '启动失败 · ' + stage,
+            content: String((err && (err.message || err.errMsg)) || err).slice(0, 400),
+            showCancel: false
+        });
+    } catch (e) { /* 显示失败时仅留 console */ }
+}
+`
+const FULL_FUNCTION = `function onApplicationCreated(application) {
     // 引擎分包（cocos-js → subpackage "engine"）：主包 ≤4MB 红线（NFR-7/上线清单 1.3）。
     // 引擎仅在启动链此处经 System.import('cc') 使用，分包加载完成后再进入引擎导入。
-    // 真机必填 name（errno 1001: parameter.name should be String）。
+    // 真机必填 name（errno 1001: parameter.name should be String）；30s 分包超时守卫。
     return new Promise(function (resolve, reject) {
         var settled = false
         var timer = setTimeout(function () {
@@ -62,17 +73,36 @@ const WRAP_CODE = `function onApplicationCreated(application) {
             fail: function (err) { if (!settled) { settled = true; clearTimeout(timer); reject(new Error('loadSubpackage fail: ' + JSON.stringify(err))) } }
         })
     }).then(function () {
-        return System.import('cc')`
-if (existsSync(gameJsPath) && !readFileSync(gameJsPath, 'utf8').includes("name: 'engine'")) {
-  const js = readFileSync(gameJsPath, 'utf8')
-  if (js.includes(WRAP_ANCHOR)) {
-    const patched = js.replace(
-      WRAP_ANCHOR + "\n    return System.import('cc')",
-      WRAP_CODE
-    )
-    if (patched !== js) {
-      writeFileSync(gameJsPath, patched)
-      changes.push('game.js += wx.loadSubpackage 包装')
+        return System.import('cc').then((module) => {
+            return firstScreen.setProgress(0.6).then(() => Promise.resolve(module));
+        });
+    }).then((cc) => {
+        require('./engine-adapter');
+        return application.init(cc);
+    }).then(() => {
+        return firstScreen.end().then(() => application.start());
+    }).catch(function (err) {
+        bootFail(String(err && err.message || err).includes('loadSubpackage') ? '分包加载' : '引擎导入', err);
+    });
+`
+if (existsSync(gameJsPath)) {
+  let js = readFileSync(gameJsPath, 'utf8')
+  const anchor = 'function onApplicationCreated(application) {'
+  let start = js.indexOf(anchor)
+  if (start >= 0) {
+    // bootFail 助手守卫插入（含 FULL_FUNCTION 内层，插入一次即被整函数替换吸收）
+    if (!js.includes('function bootFail')) {
+      js = js.slice(0, start) + BOOTFAIL_HELPER + js.slice(start)
+      start = js.indexOf(anchor)
+      changes.push('game.js：bootFail 诊断助手')
+    }
+    const end = js.indexOf('\n}', start) // 模板中该函数顶格闭合
+    if (end >= 0) {
+      const patched = js.slice(0, start) + FULL_FUNCTION + js.slice(end)
+      if (patched !== js) {
+        writeFileSync(gameJsPath, patched)
+        changes.push('game.js：onApplicationCreated 整函数替换（分包加载/诊断）')
+      }
     }
   }
 }
