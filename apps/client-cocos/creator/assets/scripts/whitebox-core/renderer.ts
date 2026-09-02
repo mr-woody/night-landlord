@@ -4,6 +4,13 @@
 // 字体：family tokens 对应 @font-face 子集（思源黑体 Bold / BebasNeue，见 scripts/build-fonts.mjs）。
 // 纯 Canvas 2D，零引擎依赖；Creator 侧经 whitebox-core 同步复用（scripts/sync-creator.mjs）。
 import { T, col, withAlpha, shade, mix, motion, font } from './theme'
+import type { SpriteStore } from './sprite'
+import { SPRITE_FILES, pickMonsterSprite } from './sprite'
+// M5 C7：房屋 6 级 sprite 文件名（等级→文件；AI 终图缺位时回退程序化矢量）
+const HOUSE_SPRITE_BY_LV = [
+  'house_lv0_thatch@2x.png', 'house_lv1_broken_wood@2x.png', 'house_lv2_plain_wood@2x.png',
+  'house_lv3_fine_wood@2x.png', 'house_lv4_stone@2x.png', 'house_lv5_bastion@2x.png'
+]
 import type { UiState, Modal } from './state'
 import { topModal } from './state'
 import type { EventCardMeta } from '../creator/assets/scripts/shared-headless/sim'
@@ -15,13 +22,21 @@ import {
   nightRouteRect, nightSkillRects, nightLogRect, nightBackRect,
   duskBannerRect, duskConfirmRect,
   settlePanelRect, settleCounterRect, settlePopRect, settleContinueRect, SETTLE_POP_MAX,
-  pageBackRect, pageTitleRect, codexCellRect, CODEX_COLS, CODEX_ROWS, shopCardRect, SHOP_CARDS,
-  settingsRowRect, SETTINGS_ROWS
+  pageBackRect, pageTitleRect, codexCellRect, CODEX_COLS, CODEX_ROWS, shopCardRect,
+  settingsRowRect, SETTINGS_ROWS, LOTS, isoToScreen,
+  ISO_TILE_W, ISO_TILE_H, ISO_FLOOR_H, interiorBackRect, interiorSlotRect, mapBackRect, HIT_MIN,
+  wildZoneRect, wildBackRect, wildDetailRect, wildDispatchRect, wildMinusRect, wildPlusRect, WILD_ZONES, WILD_ZONE_NAME, EXPLORE_ENTRY
 } from './layout'
 import {
   nightWaves, OUTCOME_LABEL, counterValue, popProgress, settleDoneAt,
   threatBurst, dissolveAlpha, cardFlip
 } from './anim'
+import { tutorialBoard, type TutRow } from './tutorial'
+import { monsterProgress, monsterVisual, guardVisual } from './battle'
+import { weatherJson } from './json-data'
+import { buildingDefJson } from './json-data'
+import { monstersJson } from './json-data'
+import { iapSkuJson } from './json-data'
 
 export interface DayFrame {
   day: number
@@ -39,6 +54,8 @@ export interface DayFrame {
   panicSum: number
   breachedRooms: string[]
   eventCards: EventCardMeta[]
+  /** 当日天气 id（config/weather.json） */
+  weather: string
 }
 
 export interface Playback {
@@ -48,7 +65,17 @@ export interface Playback {
   settleStart: number | null
   chosenAt: number | null
   logs: string[]
-  skills: { label: string; glyph: string; cdUntil: number }[]
+  /** 室内工事位布置状态（key=`floor:room:slot`，视觉占位） */
+  forts: Record<string, boolean>
+  /** 野外探索战报（最近一次归来结算的表现层投影） */
+  wildReports: string[][]
+  /** 在外队伍（表现层投影） */
+  parties: { zone: string; size: number; returnsDay: number }[]
+  /** 房屋等级覆盖（M3.2 F7 升级交互；缺省=天数成长占位） */
+  houseLevels: Record<number, number>
+  /** 住户容量（worldCapacity 投影：已解锁楼栋×30，招募面板/B/C 栋信息用） */
+  capacity?: number
+  skills: { label: string; glyph: string; cdUntil: number; fxUntil: number; fxKind: 'supply' | 'shield' | 'wave' }[]
 }
 
 export interface RendererCallbacks {
@@ -73,6 +100,10 @@ export class WhiteboxRenderer {
   private warmupLeft = 2
   private lastSample = 0
   private modalOpenAt: number | null = null
+  /** C7：AI sprite 层（entry 异步预载后注入；null/缺资产=程序化矢量回退，零回归） */
+  sprites: SpriteStore | null = null
+  /** ?spritedbg=1：sprite 检视画廊（QA 工具） */
+  spriteDebug = false
 
   constructor(canvas: HTMLCanvasElement, private cb: RendererCallbacks) {
     this.ctx = canvas.getContext('2d')!
@@ -94,6 +125,7 @@ export class WhiteboxRenderer {
       }
       const frame = getFrame()
       if (frame) this.draw(getUi(), frame, now, getPb())
+      if (this.spriteDebug) this.drawSpriteGallery()
       requestAnimationFrame(tick)
     }
     this.lastSample = performance.now()
@@ -102,6 +134,47 @@ export class WhiteboxRenderer {
 
   getSamples(): number[] {
     return this.budgetSamples
+  }
+
+  /** P3-3：光效贴图叠加（additive 发光合成，柔边贴图免二值化入库）；fx 资产缺位时执行 fallback 程序化渐变 */
+  private drawFx(name: string, cx: number, cy: number, w: number, h: number, fallback: () => void): void {
+    const { ctx } = this
+    const img = this.sprites?.get(name)
+    if (img && this.sprites!.has(name)) {
+      ctx.save()
+      ctx.globalCompositeOperation = 'lighter'
+      ctx.globalAlpha = 0.85
+      ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h)
+      ctx.restore()
+      return
+    }
+    fallback()
+  }
+
+  /** ?spritedbg=1：sprite 检视画廊——逐枚显示装载状态（绿框=已载+缩略图，红框=miss），QA 与截图矩阵工具 */
+  private drawSpriteGallery(): void {
+    const { ctx } = this
+    if (!this.sprites) return
+    const all = [...SPRITE_FILES.houses, ...SPRITE_FILES.monsters, ...SPRITE_FILES.anchors, ...SPRITE_FILES.fx]
+    const loaded = all.filter(n => this.sprites!.has(n)).length
+    const px = 12, py = DESIGN_H - 226, pw = DESIGN_W - 24, ph = 164
+    ctx.fillStyle = withAlpha(col('bg_night'), 0.9)
+    ctx.fillRect(px, py, pw, ph)
+    ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 2
+    ctx.strokeRect(px, py, pw, ph)
+    ctx.fillStyle = col('text_secondary'); ctx.font = font(T.typography.caption)
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
+    ctx.fillText(`sprite 装载 ${loaded}/${all.length}（?spritedbg=1 检视）`, px + 12, py + 22)
+    let gx = px + 14, gy = py + 36
+    for (const n of all) {
+      const ok = this.sprites.has(n)
+      ctx.strokeStyle = ok ? col('success') : col('danger')
+      ctx.lineWidth = 1.5
+      ctx.strokeRect(gx, gy, 50, 50)
+      if (ok) this.sprites!.draw(ctx, n, gx + 25, gy + 48, 46)
+      gx += 58
+      if (gx + 50 > px + pw - 8) { gx = px + 14; gy += 58 }
+    }
   }
 
   // ════════ 基础绘制库 ════════
@@ -246,6 +319,17 @@ export class WhiteboxRenderer {
     }
   }
 
+  private iconStar(x: number, y: number, r: number, color: string): void {
+    const { ctx } = this
+    ctx.beginPath()
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 - Math.PI / 2
+      const rr = i % 2 === 0 ? r : r * 0.45
+      ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr)
+    }
+    ctx.closePath(); ctx.fillStyle = color; ctx.fill()
+  }
+
   private iconWarn(x: number, y: number, s: number): void {
     const { ctx } = this
     ctx.beginPath()
@@ -276,15 +360,29 @@ export class WhiteboxRenderer {
       }
       case 'DAY':
         this.drawDayBg(now)
-        if (ui.page === 'main') {
+        if (ui.page === 'map') {
+          this.drawMapView(ui, frame, now)
+          this.drawHouseVillage(frame, now, pb)
+          this.drawWeatherLayer(this.weatherEntry(frame.weather), now)
+          this.drawTutorialBanner(frame)
+          this.drawTutorialSteps(frame)
+          this.drawDock()
+        }
+        else if (ui.page === 'interior') this.drawInterior(ui, frame, now, pb)
+        else if (ui.page === 'wild') this.drawWildView(ui, frame, now, pb)
+        else if (ui.page === 'main') {
+          this.drawWeatherLayer(this.weatherEntry(frame.weather), now)
+          this.button(mapBackRect(), '◀ 小区', 'normal')
           this.drawHud(frame, now)
+          this.drawTutorialBanner(frame)
+          this.drawTutorialSteps(frame)
           this.drawResources(frame)
           this.drawBuilding(frame, now)
           this.drawEventEntry(frame)
           this.drawReport(frame)
           this.drawDock()
         } else {
-          this.drawPage(ui.page, now)
+          this.drawPage(ui.page, now, frame)
         }
         this.drawModal(ui, frame, now, pb)
         break
@@ -326,6 +424,96 @@ export class WhiteboxRenderer {
       ctx.beginPath(); ctx.arc(x, y, 2 + seed * 2.5, 0, Math.PI * 2)
       ctx.fillStyle = withAlpha(col('text_primary'), 0.05 + seed * 0.05); ctx.fill()
     }
+  }
+
+  /** 天气条目查询（frame.weather id → config/weather.json 条目） */
+  private weatherEntry(id: string): any {
+    const list = (weatherJson as any).entries as any[]
+    return list.find(e => e.id === id) ?? list[0]
+  }
+
+  /** 天气层：光照 overlay + 粒子（雨丝/雪花/雾带/血月尘）——全屏表现层 */
+  private drawWeatherLayer(w: any, now: number): void {
+    const { ctx } = this
+    if (w.lightMul < 1) {
+      ctx.fillStyle = withAlpha(col(w.tintKey), (1 - w.lightMul) * 0.55)
+      ctx.fillRect(0, 0, DESIGN_W, DESIGN_H)
+    }
+    if (w.particles === 'rain') {
+      ctx.strokeStyle = withAlpha(col('text_primary'), 0.3)
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      for (let i = 0; i < 130; i++) {
+        const speed = 0.9 * (0.7 + prand(i * 3) * 0.6)
+        const x = prand(i * 13) * DESIGN_W + Math.sin(now / 400 + i) * 6
+        const y = (prand(i * 7) * DESIGN_H + now * speed) % DESIGN_H
+        ctx.moveTo(x, y); ctx.lineTo(x - 4, y + 18)
+      }
+      ctx.stroke()
+      ctx.fillStyle = withAlpha(col('text_primary'), 0.06)
+      ctx.fillRect(0, DESIGN_H - 140, DESIGN_W, 140)
+    } else if (w.particles === 'snow') {
+      ctx.fillStyle = withAlpha(col('text_primary'), 0.75)
+      for (let i = 0; i < 90; i++) {
+        const speed = 0.12 * (0.6 + prand(i * 5) * 0.8)
+        const x = (prand(i * 11) * DESIGN_W + Math.sin(now / 700 + i * 2) * 26) % DESIGN_W
+        const y = (prand(i * 23) * DESIGN_H + now * speed) % DESIGN_H
+        ctx.beginPath(); ctx.arc(x, y, 1.8 + prand(i) * 2.4, 0, Math.PI * 2); ctx.fill()
+      }
+    } else if (w.particles === 'fog') {
+      for (let i = 0; i < 3; i++) {
+        const y = 180 + i * 260 + Math.sin(now / 2200 + i * 1.7) * 36
+        ctx.fillStyle = withAlpha(col('text_secondary'), 0.10)
+        ctx.beginPath(); ctx.roundRect(-40, y, DESIGN_W + 80, 170, 90); ctx.fill()
+      }
+    } else if (w.particles === 'dust') {
+      ctx.strokeStyle = withAlpha(col('alert_blood'), 0.35)
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      for (let i = 0; i < 60; i++) {
+        const speed = 0.5 * (0.6 + prand(i * 9) * 0.8)
+        const x = DESIGN_W - ((prand(i * 13) * DESIGN_W + now * speed) % (DESIGN_W + 60))
+        const y = prand(i * 17) * DESIGN_H
+        ctx.moveTo(x, y); ctx.lineTo(x - 16, y + 2)
+      }
+      ctx.stroke()
+    }
+  }
+
+  /** 天气 HUD 角标（图标 + 名称） */
+  private drawWeatherBadge(w: any, x: number, y: number): void {
+    const { ctx } = this
+    ctx.beginPath(); ctx.roundRect(x, y, 108, 28, T.radius.chip)
+    ctx.fillStyle = withAlpha(col('bg_night'), 0.5); ctx.fill()
+    ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 2; ctx.stroke()
+    if (w.particles === 'rain') {
+      ctx.strokeStyle = withAlpha(col('text_primary'), 0.8); ctx.lineWidth = 1.5
+      ctx.beginPath()
+      for (let i = 0; i < 3; i++) { ctx.moveTo(x + 14 + i * 8, y + 6); ctx.lineTo(x + 11 + i * 8, y + 18) }
+      ctx.stroke()
+    } else if (w.particles === 'snow') {
+      this.iconStar(x + 18, y + 13, 8, col('text_primary'))
+    } else if (w.particles === 'fog') {
+      ctx.strokeStyle = col('text_secondary'); ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(x + 8, y + 10); ctx.lineTo(x + 28, y + 10)
+      ctx.moveTo(x + 10, y + 16); ctx.lineTo(x + 30, y + 16)
+      ctx.stroke()
+    } else if (w.particles === 'dust') {
+      ctx.beginPath(); ctx.arc(x + 18, y + 13, 8, 0, Math.PI * 2)
+      ctx.fillStyle = col('alert_blood'); ctx.fill()
+    } else if (w.id === 'overcast') {
+      ctx.fillStyle = col('text_secondary')
+      ctx.beginPath()
+      ctx.arc(x + 13, y + 15, 7, 0, Math.PI * 2)
+      ctx.arc(x + 23, y + 13, 9, 0, Math.PI * 2)
+      ctx.fill()
+    } else {
+      this.iconStar(x + 18, y + 13, 8, col('gold_primary'))
+    }
+    ctx.fillStyle = col('text_primary')
+    ctx.font = font(T.typography.caption)
+    ctx.fillText(w.name, x + 36, y + 15)
   }
 
   /** 夜空星点（NIGHT/DAWN 过渡） */
@@ -378,6 +566,8 @@ export class WhiteboxRenderer {
     }
     // 设置入口（齿轮矢量）
     const st = settingsRect()
+    // 天气角标（M3.2）
+    this.drawWeatherBadge(this.weatherEntry(frame.weather), st.x - 196, hud.h / 2 - 14)
     this.circleButton(st.x + st.w / 2, hud.h / 2, 26, () => this.iconGear(st.x + st.w / 2, hud.h / 2, 13, col('text_secondary')))
     // 特殊夜标签
     if (frame.modifiers.length) {
@@ -662,11 +852,12 @@ export class WhiteboxRenderer {
     ctx.globalAlpha = 1
   }
 
-  // ---- NIGHT 夜战面板 ----
+  // ---- NIGHT 全屏夜战（M3.3 v2：类 3D 深度战场——三车道/影子/小屋防区/双方交互实体）----
   private drawNight(frame: DayFrame, now: number, pb: Playback): void {
     const { ctx } = this
     ctx.save()
-    if (frame.modifiers.includes('BLOOD_MOON') && pb.nightStart !== null) {
+    const isBM = frame.modifiers.includes('BLOOD_MOON')
+    if (isBM && pb.nightStart !== null) {
       const burst = threatBurst(pb.nightStart, now)
       if (burst.shake > 0) ctx.translate(Math.sin(now / 16) * burst.shake, Math.cos(now / 13) * burst.shake)
       this.bgBase(col('bg_night'))
@@ -679,21 +870,27 @@ export class WhiteboxRenderer {
       this.bgBase(col('bg_night'))
       this.drawStars(now, 0.9)
     }
-    // 血月大月亮相（右上，氛围）
-    if (frame.modifiers.includes('BLOOD_MOON')) {
+    // 血月大月亮（右上氛围）+ 全场红移光效（P3-3：fx_light_ring additive，缺资产回退径向渐变）
+    if (isBM) {
       ctx.beginPath(); ctx.arc(DESIGN_W - 120, 150, 52, 0, Math.PI * 2)
       ctx.fillStyle = withAlpha(col('alert_blood'), 0.25); ctx.fill()
       this.iconMoon(DESIGN_W - 120, 150, 40, true)
+      this.drawFx('fx_light_ring@2x.png', DESIGN_W / 2, DESIGN_H * 0.35, DESIGN_W * 0.95, DESIGN_W * 0.95, () => {
+        const g = ctx.createRadialGradient(DESIGN_W / 2, DESIGN_H * 0.35, 120, DESIGN_W / 2, DESIGN_H * 0.35, 620)
+        g.addColorStop(0, withAlpha(col('alert_blood'), 0))
+        g.addColorStop(1, withAlpha(col('alert_blood'), 0.16))
+        ctx.fillStyle = g; ctx.fillRect(0, 0, DESIGN_W, DESIGN_H)
+      })
     }
     ctx.textBaseline = 'middle'
-    const isBM = frame.modifiers.includes('BLOOD_MOON')
-    const waves = pb.session && pb.nightStart !== null ? nightWaves(pb.session.routes, pb.nightStart, now) : null
+    // 标题条
     ctx.fillStyle = isBM ? col('alert_blood') : col('text_primary')
     ctx.font = font(T.typography.h1, { weight: 'bold' })
     ctx.fillText(isBM ? '血月' : '夜袭', T.space.l, 120)
     if (isBM) this.iconMoon(T.space.l + 130, 118, 14, true)
     ctx.fillStyle = col('text_secondary')
     ctx.font = this.numFont(T.typography.h2)
+    const waves = pb.session && pb.nightStart !== null ? nightWaves(pb.session.routes, pb.nightStart, now) : null
     ctx.fillText(`${waves?.waveNo ?? 0}/${pb.session?.routes.length ?? 0}`, T.space.l + 260, 120)
     ctx.font = font(T.typography.caption)
     ctx.fillText('波', T.space.l + 344, 120)
@@ -702,96 +899,220 @@ export class WhiteboxRenderer {
       ctx.font = this.numFont(T.typography.h2)
       ctx.fillText('?', T.space.l + 420, 120)
     }
+    // ── 战场：三深度车道（远/中/近，尺寸缩放=类 3D 纵深）──
+    const laneDefs = [
+      { y: 430, scale: 0.78 },
+      { y: 640, scale: 0.9 },
+      { y: 880, scale: 1.0 }
+    ]
+    const houseX = 590
+    // 地面带（透视梯形）
+    laneDefs.forEach((l, d) => {
+      ctx.fillStyle = withAlpha(col('bg_dawn'), 0.06 + d * 0.02)
+      ctx.beginPath()
+      ctx.moveTo(40 + d * 20, l.y - 40 * l.scale)
+      ctx.lineTo(DESIGN_W - 40 - d * 10, l.y - 40 * l.scale)
+      ctx.lineTo(DESIGN_W - 40, l.y + 50 * l.scale)
+      ctx.lineTo(40, l.y + 50 * l.scale)
+      ctx.closePath(); ctx.fill()
+    })
+    // 目标小屋（每 lane 一栋，按房屋等级外观；破防=血红脉冲）
+    if (pb.session && waves) {
+      pb.session.routes.forEach((_, i) => {
+        const lane = laneDefs[i % laneDefs.length]
+        const hx = houseX + Math.floor(i / laneDefs.length) * 90
+        const hy = lane.y + 8
+        const rv = waves.revealed[i]
+        const breachedNow = rv && rv.state !== 2
+        const resolved = waves.waveNo > i + 1
+        this.drawHouseMini(hx, hy, lane.scale, breachedNow && (resolved || this.isCurrentLane(waves, i, now)) ? col('alert_blood') : undefined, now)
+        // 守卫驻守（职业差异化：棍棒/弓弩/顶锅；红臂章）
+        const gx = hx - 46 * lane.scale
+        ctx.save(); ctx.translate(gx, hy); ctx.scale(lane.scale, lane.scale)
+        const attacking = this.isCurrentLane(waves, i, now) && monsterProgress(i + 1, pb.nightStart ?? 0, now) > 0.72
+        this.drawGuard(0, 0, guardVisual(i), attacking, now)
+        ctx.restore()
+        // 波次标签（车道左端）
+        ctx.fillStyle = col('text_secondary')
+        ctx.font = this.numFont(T.typography.body)
+        ctx.fillText(WAVE_LETTERS[i], 56 + (i % laneDefs.length) * 12, lane.y + 6)
+      })
+    }
+    // 怪物实体（行进/攻击/崩解，深度缩放）
+    if (pb.session && waves && pb.nightStart !== null) {
+      pb.session.routes.forEach((rt, i) => {
+        const rv = waves.revealed[i]
+        if (!rv) return
+        const lane = laneDefs[i % laneDefs.length]
+        const isCurrent = waves.waveNo === i + 1
+        const prog = isCurrent ? monsterProgress(waves.waveNo, pb.nightStart ?? 0, now) : waves.waveNo > i + 1 ? 1 : 0
+        if (prog <= 0 && !isCurrent) return
+        const visual = monsterVisual(rt.monsterId ?? '')
+        const startX = 90, endX = houseX - 70 * lane.scale
+        const mx = startX + (endX - startX) * prog
+        const my = lane.y + 20 * lane.scale + (visual === 'flyer' ? -26 * lane.scale : 0)
+          + (isCurrent ? Math.sin(now / 95) * 2.5 * lane.scale : 0)
+        const lunge = isCurrent && prog > 0.72 ? Math.sin(now / 55) * 7 * lane.scale : 0
+        const sc = lane.scale * (visual === 'elite' ? 1.3 : 1)
+        // 影子（类 3D 关键线索；飞行种影子偏移小=高度线索）
+        const shOff = visual === 'flyer' ? 26 * lane.scale : 0
+        ctx.beginPath()
+        ctx.ellipse(mx - lunge, my + shOff, 20 * sc * lane.scale, 6 * sc * lane.scale, 0, 0, Math.PI * 2)
+        ctx.fillStyle = withAlpha(col('bg_night'), 0.6); ctx.fill()
+        // 攻击扑击 + 受击白闪
+        ctx.save()
+        ctx.translate(mx + lunge, my + (visual === 'flyer' ? Math.sin(now / 120) * 4 : Math.abs(Math.sin(now / 110)) * -3))
+        ctx.scale(sc, sc)
+        if (isCurrent && prog > 0.72 && Math.sin(now / 55) > 0.4) {
+          ctx.fillStyle = withAlpha(col('text_primary'), 0.55)
+          ctx.fillRect(-16, -14, 32, 26) // 攻击瞬间白闪
+        }
+        this.drawMonster(visual, now, isCurrent && prog > 0.72) // §10.2：prog>0.72=攻击相位（扑击循环）
+        ctx.restore()
+        // 命中反馈：目标小屋白闪（攻击节拍）
+        if (isCurrent && prog > 0.72 && Math.sin(now / 55) > 0.4) {
+          ctx.fillStyle = withAlpha(col('text_primary'), 0.25)
+          ctx.fillRect(houseX - 40, lane.y - 60, 130, 110)
+        }
+        void frame
+      })
+      // 结果标记（已结算 lane：守住=崩解粒子；破防=小屋血红脉冲）
+      pb.session.routes.forEach((_, i) => {
+        const rv = waves?.revealed[i]
+        if (!rv || waves!.waveNo <= i + 1) return
+        const lane = laneDefs[i % laneDefs.length]
+        const hx = houseX + Math.floor(i / laneDefs.length) * 90, hy = lane.y + 8
+        if (rv.state === 2) {
+          for (let p = 0; p < 6; p++) {
+            const a = prand(i * 7 + p) * Math.PI * 2
+            ctx.beginPath()
+            ctx.arc(hx - 40 + Math.cos(a) * (8 + p * 4), hy - 30 - Math.sin(a) * (6 + p * 3), 3, 0, Math.PI * 2)
+            ctx.fillStyle = withAlpha(col('text_primary'), 0.55); ctx.fill()
+          }
+        } else {
+          ctx.fillStyle = withAlpha(col('alert_blood'), 0.3 + 0.25 * Math.sin(now / 160))
+          ctx.beginPath(); ctx.roundRect(hx - 30, hy - 46, 96, 74, 8); ctx.fill()
+          ctx.fillStyle = col('text_primary')
+          ctx.font = font(T.typography.caption, { weight: 'bold' })
+          ctx.textAlign = 'center'
+          ctx.fillText('破防', hx + 18, hy - 8)
+          ctx.textAlign = 'left'
+        }
+      })
+    }
+    // 主力技：冲击波扇形（防线向怪物方向扩散）
+    const waveFx = pb.skills.find(k => k.fxKind === 'wave')
+    if (waveFx && now < waveFx.fxUntil) {
+      const k = 1 - (waveFx.fxUntil - now) / 900
+      for (const lane of laneDefs) {
+        ctx.beginPath()
+        ctx.moveTo(houseX - 280, lane.y + 10)
+        ctx.arc(houseX - 280, lane.y + 10, 130 + k * 430, -0.5, 0.5)
+        ctx.closePath()
+        ctx.strokeStyle = withAlpha(col('gold_primary'), 0.7 * (1 - k))
+        ctx.lineWidth = 6 * (1 - k) + 1
+        ctx.stroke()
+      }
+    }
+    // 技能差异化 VFX（设计 §10.3）：空投=降落伞下落；护盾=蓝色半球罩
+    pb.skills.forEach(sk => {
+      if (now >= sk.fxUntil) return
+      const remain = (sk.fxUntil - now) / 1200
+      if (sk.fxKind === 'supply') {
+        const py = 180 + (1 - remain) * 420
+        // P3-3：空投光柱（fx_light_column additive，缺资产回退线性渐变光带）
+        this.drawFx('fx_light_column@2x.png', DESIGN_W / 2, py / 2 + 20, 120, py + 40, () => {
+          const g = ctx.createLinearGradient(0, 0, 0, py)
+          g.addColorStop(0, withAlpha(col('gold_primary'), 0))
+          g.addColorStop(1, withAlpha(col('gold_primary'), 0.18))
+          ctx.fillStyle = g; ctx.fillRect(DESIGN_W / 2 - 60, 0, 120, py)
+        })
+        ctx.strokeStyle = withAlpha(col('text_primary'), 0.7); ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(DESIGN_W / 2 - 26, py); ctx.lineTo(DESIGN_W / 2, py + 26)
+        ctx.moveTo(DESIGN_W / 2 + 26, py); ctx.lineTo(DESIGN_W / 2, py + 26)
+        ctx.stroke()
+        ctx.beginPath(); ctx.arc(DESIGN_W / 2, py - 6, 30, Math.PI, 0)
+        ctx.fillStyle = withAlpha(col('gold_primary'), 0.85); ctx.fill()
+        ctx.strokeStyle = col('bg_night'); ctx.stroke()
+        ctx.fillStyle = mix(col('gold_deep'), col('bg_night'), 0.3)
+        ctx.fillRect(DESIGN_W / 2 - 14, py + 26, 28, 20)
+        ctx.beginPath(); ctx.arc(DESIGN_W / 2, py + 56, 34 * (1 - remain * 0.5), 0, Math.PI * 2)
+        ctx.strokeStyle = withAlpha(col('gold_primary'), 0.5); ctx.lineWidth = 3; ctx.stroke()
+      } else {
+        const breathe = 0.5 + 0.5 * Math.sin(now / 180)
+        ctx.beginPath()
+        ctx.arc(houseX + 60, 760, 190, Math.PI, 0)
+        ctx.fillStyle = withAlpha(col('success'), 0.10 + breathe * 0.06); ctx.fill()
+        ctx.strokeStyle = withAlpha(col('success'), 0.5 + breathe * 0.3); ctx.lineWidth = 4; ctx.stroke()
+      }
+    })
+    // 路血条 HUD（压缩三 lanes 置顶）
     if (pb.session && waves) {
       pb.session.routes.forEach((_, i) => {
         const rv = waves.revealed[i]
         const r = nightRouteRect(i)
         const isCurrent = waves.waveNo === i + 1
         const fill = rv ? (isCurrent ? waves.currentFill : 1) : 0
+        const stateColor = !rv ? col('panel_stroke') : rv.state === 0 ? col('alert_blood') : rv.state === 1 ? col('gold_deep') : col('success')
         ctx.fillStyle = col('text_secondary')
-        ctx.font = this.numFont(T.typography.body)
-        ctx.fillText(WAVE_LETTERS[i], r.x, r.y + r.h / 2)
-        const barX = r.x + 64, barW = r.w - 64 - 180
-        ctx.beginPath(); ctx.roundRect(barX, r.y + r.h / 2 - 16, barW, 32, T.radius.chip)
-        ctx.fillStyle = withAlpha(col('bg_night'), 0.7); ctx.fill()
-        ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 2; ctx.stroke()
+        ctx.font = this.numFont(T.typography.caption)
+        ctx.textBaseline = 'middle'
+        ctx.fillText(WAVE_LETTERS[i], r.x + 40, r.y + r.h / 2)
+        const barX = r.x + 76, barW = r.w - 76 - 150
+        ctx.fillStyle = withAlpha(col('bg_night'), 0.7)
+        ctx.beginPath(); ctx.roundRect(barX, r.y + r.h / 2 - 8, barW, 16, 8); ctx.fill()
         if (fill > 0 && rv) {
-          const stateColor = rv.state === 0 ? col('alert_blood') : rv.state === 1 ? col('gold_deep') : col('success')
-          const g = ctx.createLinearGradient(barX, 0, barX + barW, 0)
-          g.addColorStop(0, shade(stateColor, 0.75)); g.addColorStop(1, stateColor)
-          ctx.fillStyle = g
-          ctx.beginPath(); ctx.roundRect(barX + 3, r.y + r.h / 2 - 13, Math.max(8, (barW - 6) * fill), 26, T.radius.chip - 2); ctx.fill()
-          // 末端高光点
-          ctx.beginPath(); ctx.arc(barX + 3 + Math.max(8, (barW - 6) * fill), r.y + r.h / 2, 5, 0, Math.PI * 2)
-          ctx.fillStyle = withAlpha(col('text_primary'), 0.7); ctx.fill()
+          ctx.fillStyle = stateColor
+          ctx.beginPath(); ctx.roundRect(barX + 2, r.y + r.h / 2 - 6, Math.max(6, (barW - 4) * fill), 12, 6); ctx.fill()
         }
         if (rv) {
-          const mon = pb.monsterNames[rv.route.monsterId ?? ''] ?? '怪物'
-          ctx.fillStyle = rv.state === 0 ? col('alert_blood') : col('text_primary')
-          ctx.font = font(T.typography.body)
-          ctx.fillText(`${mon} ${Math.round(rv.route.r * 100)}%${rv.state === 0 ? ' ‼' : rv.state === 1 ? ' ⚠' : ''}`, barX + barW + T.space.s, r.y + r.h / 2)
-        } else {
           ctx.fillStyle = col('text_secondary')
-          ctx.font = this.numFont(T.typography.body)
-          ctx.fillText('??', barX + barW + T.space.s, r.y + r.h / 2)
+          ctx.font = font(T.typography.caption)
+          ctx.fillText(`${this.roomLabel(rv.route.roomId)} ${Math.round(rv.route.r * 100)}%`, barX + barW + T.space.s, r.y + r.h / 2)
         }
       })
     }
     // 主动技
-    nightSkillRects().forEach((r, i) => {
-      const sk = pb.skills[i]
-      if (!sk) return
-      ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn)
-      ctx.fillStyle = col('panel'); ctx.fill()
-      ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 3; ctx.stroke()
-      ctx.fillStyle = col('text_primary')
-      ctx.font = this.numFont(T.typography.h2)
-      ctx.fillText(sk.glyph, r.x + r.w / 2 - 16, r.y + r.h / 2 - 8)
-      ctx.font = font(T.typography.caption)
-      ctx.fillStyle = col('text_secondary')
-      const lw = ctx.measureText(sk.label).width
-      ctx.fillText(sk.label, r.x + (r.w - lw) / 2, r.y + r.h - 18)
-      const cdLeft = sk.cdUntil - now
-      if (cdLeft > 0) {
-        const frac = cdLeft / (motion('normal').dur * 10)
-        ctx.beginPath()
-        ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 8, 30, -Math.PI / 2, -Math.PI / 2 + (1 - frac) * Math.PI * 2)
-        ctx.strokeStyle = col('gold_primary'); ctx.lineWidth = 5; ctx.stroke()
-        ctx.fillStyle = withAlpha(col('bg_night'), 0.55)
-        ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 8, 26, 0, Math.PI * 2); ctx.fill()
-      }
-    })
+    this.drawSkillButtons(now, pb)
     ctx.restore()
   }
 
-  /** 战况日志 + 战毕返回 */
-  private drawNightLog(frame: DayFrame, now: number, pb: Playback): void {
+  private isCurrentLane(waves: { waveNo: number }, i: number, now: number): boolean {
+    void now
+    return waves.waveNo === i + 1
+  }
+
+  /** 目标小屋立面（按房屋等级外观；等级来自 pb.houseLevels 覆盖或天数成长） */
+  private drawHouseMini(x: number, y: number, scale: number, flash: string | undefined, now: number): void {
     const { ctx } = this
-    const r = nightLogRect()
-    this.panel(r.x, r.y, r.w, r.h)
     ctx.save()
-    ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel); ctx.clip()
-    ctx.textBaseline = 'middle'
-    const lines: string[] = []
-    if (pb.session && pb.nightStart !== null) {
-      const waves = nightWaves(pb.session.routes, pb.nightStart, now)
-      waves.revealed.forEach((rv, i) => {
-        const mon = pb.monsterNames[rv.route.monsterId ?? ''] ?? '怪物'
-        lines.push(`第${i + 1}波 路${WAVE_LETTERS[i]} · ${rv.route.roomId} · ${mon} · r=${rv.route.r.toFixed(2)} → ${OUTCOME_LABEL[rv.route.outcome]}`)
-      })
-    }
-    lines.push(...pb.logs)
-    ctx.font = font(T.typography.body)
-    const visible = lines.slice(-Math.floor((r.h - T.space.s * 2) / 36))
-    visible.forEach((ln, i) => {
-      ctx.fillStyle = i === visible.length - 1 ? col('text_primary') : col('text_secondary')
-      ctx.fillText(ln, r.x + T.space.m, r.y + 32 + i * 36)
-    })
-    if (pb.session && pb.nightStart !== null && nightWaves(pb.session.routes, pb.nightStart, now).done) {
-      this.button(nightBackRect(), '天亮了 →', 'primary')
+    ctx.translate(x, y)
+    ctx.scale(scale, scale)
+    const w = 80, wallH = 34
+    ctx.fillStyle = mix(col('panel'), col('gold_deep'), 0.3)
+    ctx.fillRect(0, -wallH, w, wallH)
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 3
+    ctx.strokeRect(0, -wallH, w, wallH)
+    ctx.beginPath()
+    ctx.moveTo(-8, -wallH); ctx.lineTo(w / 2, -wallH - 24); ctx.lineTo(w + 8, -wallH)
+    ctx.closePath()
+    ctx.fillStyle = col('gold_deep'); ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.stroke()
+    // 窗（暖光）
+    ctx.fillStyle = withAlpha(col('gold_primary'), 0.8)
+    ctx.fillRect(10, -wallH + 10, 14, 12)
+    ctx.fillRect(w - 26, -wallH + 10, 14, 12)
+    if (flash) {
+      ctx.fillStyle = flash
+      ctx.globalAlpha = 0.3 + 0.2 * Math.sin(now / 120)
+      ctx.fillRect(-4, -wallH - 20, w + 8, wallH + 24)
+      ctx.globalAlpha = 1
     }
     ctx.restore()
   }
+
+  // 主动技
 
   // ---- DAWN 收租结算 ----
   private drawSettle(frame: DayFrame, now: number, pb: Playback): void {
@@ -853,6 +1174,671 @@ export class WhiteboxRenderer {
     }
   }
 
+  // ---- L1 野外地图（探索；UI 规范 v2.0 §7.3）----
+  private drawWildView(ui: UiState, frame: DayFrame, now: number, pb: Playback): void {
+    const { ctx } = this
+    ctx.fillStyle = col('bg_night'); ctx.fillRect(0, 0, DESIGN_W, DESIGN_H)
+    ctx.textBaseline = 'middle'
+    this.button(wildBackRect(), '◀ 小区', 'normal')
+    ctx.fillStyle = col('text_primary')
+    ctx.font = font(T.typography.h2, { weight: 'bold' })
+    ctx.fillText('野外 · 大区域地图', wildBackRect().x + wildBackRect().w + T.space.m, wildBackRect().y + wildBackRect().h / 2)
+    // 队伍徽标（在外队伍）
+    const parties = pb.parties ?? []
+    let px = wildBackRect().x + wildBackRect().w + T.space.l + 240
+    for (const p of parties) {
+      ctx.fillStyle = withAlpha(col('success'), 0.15)
+      ctx.beginPath(); ctx.roundRect(px, wildBackRect().y + 8, 190, wildBackRect().h - 16, T.radius.chip); ctx.fill()
+      ctx.strokeStyle = col('success'); ctx.lineWidth = 2; ctx.stroke()
+      ctx.fillStyle = col('text_primary')
+      ctx.font = font(T.typography.caption)
+      ctx.fillText(`${WILD_ZONE_NAME(p.zone)} · ${p.size}人`, px + 12, wildBackRect().y + wildBackRect().h / 2 - 12)
+      ctx.fillStyle = col('text_secondary')
+      ctx.fillText(`D${p.returnsDay} 归来`, px + 12, wildBackRect().y + wildBackRect().h / 2 + 14)
+      px += 205
+    }
+    // 区域卡 ×4
+    WILD_ZONES.forEach((z, i) => {
+      const r = wildZoneRect(i)
+      const locked = frame.day < z.unlockDay
+      const sel = ui.sel.wildZone === z.zone
+      this.panel(r.x, r.y, r.w, r.h, T.radius.btn)
+      if (sel) { ctx.strokeStyle = col('gold_primary'); ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn); ctx.lineWidth = 3; ctx.stroke() }
+      // 区域剪影
+      ctx.fillStyle = locked ? withAlpha(col('panel_stroke'), 0.5) : z.danger === 'high' ? withAlpha(col('alert_blood'), 0.3) : z.danger === 'mid' ? withAlpha(col('gold_deep'), 0.25) : withAlpha(col('success'), 0.2)
+      for (let t = 0; t < 3; t++) {
+        const tx = r.x + 40 + t * 70, ty = r.y + 60
+        ctx.beginPath()
+        ctx.moveTo(tx, ty - 30); ctx.lineTo(tx + 26, ty + 26); ctx.lineTo(tx - 26, ty + 26)
+        ctx.closePath(); ctx.fill()
+        ctx.fillRect(tx - 4, ty + 26, 8, 12)
+      }
+      ctx.fillStyle = col('text_primary')
+      ctx.font = font(T.typography.h2, { weight: 'bold' })
+      ctx.fillText(locked ? `${z.name} D${z.unlockDay}` : z.name, r.x + T.space.m, r.y + 130)
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.fillText(`路程 ${z.travelTime} 分钟 · 危险 ${z.danger === 'low' ? '低' : z.danger === 'mid' ? '中' : '高'}`, r.x + T.space.m, r.y + 165)
+    })
+    // 详情 + 派出
+    const sel = WILD_ZONES.find(z => z.zone === ui.sel.wildZone)
+    const d = wildDetailRect()
+    this.panel(d.x, d.y, d.w, d.h)
+    if (!sel) {
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.body)
+      ctx.fillText('点击上方区域查看探索详情', d.x + T.space.m, d.y + 40)
+    } else {
+      const locked = frame.day < sel.unlockDay
+      ctx.fillStyle = col('text_primary')
+      ctx.font = font(T.typography.body, { weight: 'bold' })
+      ctx.fillText(`${sel.name}${locked ? `（D${sel.unlockDay} 解锁）` : ''}`, d.x + T.space.m, d.y + 40)
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.fillText('队伍人数', d.x + T.space.m, d.y + 100)
+      ctx.fillStyle = col('text_primary')
+      ctx.font = this.numFont(T.typography.h2)
+      ctx.fillText(`${ui.sel.partySize ?? 1}`, wildMinusRect().x + wildMinusRect().w + HIT_MIN + 20, wildMinusRect().y + wildMinusRect().h / 2)
+      this.button(wildMinusRect(), '－', 'normal')
+      this.button(wildPlusRect(), '＋', 'normal')
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.fillText(`体力 ${sel.travelTime > 20 ? 35 : sel.travelTime > 10 ? 25 : 20}/人 · ${sel.travelTime > 20 ? '跨夜风险（夜晚危险 ×2）' : '当日归来'}`, d.x + T.space.m, d.y + 220)
+      if (!locked) this.button(wildDispatchRect(), '派出 ▶', 'primary')
+    }
+    // 最近归来的野外战报
+    if ((pb.wildReports?.length ?? 0) > 0) {
+      const rr = pb.wildReports[pb.wildReports.length - 1]
+      ctx.fillStyle = withAlpha(col('panel'), 0.9)
+      ctx.beginPath(); ctx.roundRect(d.x, d.y + 240, d.w, 48, T.radius.chip); ctx.fill()
+      ctx.fillStyle = col('gold_primary')
+      ctx.font = font(T.typography.caption, { weight: 'bold' })
+      ctx.fillText(`归来战报：${rr.join(' · ')}`, d.x + T.space.m, d.y + 264)
+    }
+    void now
+  }
+
+  /** 独栋小屋群落（M3.2 F5；K-H1 决议）：30 栋错排，6 级进化外观，烟囱/窗光/间距 */
+  private drawHouseVillage(frame: DayFrame, now: number, pb: Playback): void {
+    const { ctx } = this
+    ctx.textBaseline = 'middle'
+    // 区域名
+    ctx.fillStyle = col('text_secondary')
+    ctx.font = font(T.typography.caption)
+    ctx.fillText('住户小屋群落', 90, 690)
+    for (let i = 0; i < 30; i++) {
+      const col = i % 6, row = Math.floor(i / 6)
+      const x = 96 + col * 100 + (row % 2) * 50  // 错排=间距属性可视化
+      const y = 726 + row * 84
+      const occupied = i < frame.population
+      const dayGrowth = Math.min(5, Math.floor(frame.day / 6) + (i % 2 === 0 ? 0 : 1))
+      const level = Math.min(5, Math.max(pb.houseLevels[i] ?? 0, dayGrowth))
+      this.drawHouse(x, y, level, occupied, now, i)
+    }
+  }
+
+  /** 单栋小屋：6 级外观（茅草屋→破损木屋→普通木屋→精品木屋→石屋→砖石堡垒） */
+  private drawHouse(x: number, y: number, level: number, occupied: boolean, now: number, i: number): void {
+    const { ctx } = this
+    // C7：AI sprite 优先（等距小屋，底边接地锚定；未入住 35% 减淡）；缺资产回退程序化矢量
+    const spriteName = HOUSE_SPRITE_BY_LV[Math.min(5, level)]
+    if (this.sprites?.has(spriteName)) {
+      this.sprites!.draw(ctx, spriteName, x + 31, y + 4, 88, occupied ? 1 : 0.35)
+      return
+    }
+    const w = 62, wallH = 26 + level * 3
+    // 墙体（等级越高越精致：0 枯黄泥墙 / 1 缺口木板 / 2 整齐木板 / 3 双色+石基 / 4 石块 / 5 砖石）
+    const wallByLv = [
+      mix(col('gold_deep'), col('bg_night'), 0.72),
+      shade(col('panel_stroke'), 0.9),
+      mix(col('panel'), col('gold_deep'), 0.25),
+      col('panel'),
+      col('panel_stroke'),
+      shade(col('panel_stroke'), 1.15)
+    ][Math.min(5, level)]
+    ctx.fillStyle = wallByLv
+    ctx.fillRect(x, y - wallH, w, wallH)
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2.5
+    ctx.strokeRect(x, y - wallH, w, wallH)
+    if (level >= 3) { // 石基/砖缝
+      ctx.fillStyle = withAlpha(col('bg_night'), 0.35)
+      ctx.fillRect(x, y - 6, w, 6)
+    }
+    if (level === 1) { // 破损补丁
+      ctx.strokeStyle = withAlpha(col('bg_night'), 0.7); ctx.lineWidth = 2
+      ctx.beginPath(); ctx.moveTo(x + 12, y - wallH + 4); ctx.lineTo(x + 20, y - 6); ctx.stroke()
+    }
+    // 屋顶（等级决定形制与材质色）
+    ctx.beginPath()
+    ctx.moveTo(x - 9, y - wallH); ctx.lineTo(x + w / 2, y - wallH - (16 + level * 3)); ctx.lineTo(x + w + 9, y - wallH)
+    ctx.closePath()
+    const roofByLv = [
+      mix(col('gold_primary'), col('bg_night'), 0.55), // 茅草枯黄
+      mix(col('gold_primary'), col('bg_night'), 0.62),
+      mix(col('gold_deep'), col('bg_night'), 0.35),    // 木棕
+      mix(col('panel_stroke'), col('gold_deep'), 0.4), // 精品
+      shade(col('panel_stroke'), 0.75),                // 石瓦
+      mix(col('panel_stroke'), col('danger'), 0.18)    // 砖石
+    ][Math.min(5, level)]
+    ctx.fillStyle = roofByLv; ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2.5; ctx.stroke()
+    if (level >= 2) { // 屋顶纹理
+      ctx.strokeStyle = withAlpha(col('bg_night'), 0.4); ctx.lineWidth = 1.5
+      for (let t = 1; t <= level - 1 && t <= 3; t++) {
+        ctx.beginPath()
+        ctx.moveTo(x - 9 + t * 6, y - wallH); ctx.lineTo(x + w / 2, y - wallH - (16 + level * 3) + t * 3)
+        ctx.lineTo(x + w + 9 - t * 6, y - wallH)
+        ctx.stroke()
+      }
+    }
+    if (level >= 3) { // 气窗
+      ctx.fillStyle = col('bg_night')
+      ctx.fillRect(x + w / 2 - 6, y - wallH - 10, 12, 10)
+    }
+    if (level >= 5) { // 瞭望角楼
+      ctx.fillRect(x + w - 6, y - wallH - 22, 12, 22)
+      ctx.fillStyle = col('danger')
+      ctx.fillRect(x + w - 4, y - wallH - 20, 8, 4)
+    }
+    // 门（occupied 亮色 / 空 灰）
+    ctx.fillStyle = occupied ? col('gold_primary') : col('text_secondary')
+    ctx.fillRect(x + w / 2 - 7, y - 18, 14, 18)
+    // 窗（occupied 夜光；本层白昼微光）
+    ctx.fillStyle = occupied ? withAlpha(col('gold_primary'), 0.8) : withAlpha(col('panel_stroke'), 0.8)
+    ctx.fillRect(x + 8, y - wallH + 8, 10, 10)
+    // 烟囱（occupied：呼吸烟柱）
+    if (occupied && level >= 2) {
+      const puff = (now / 300 + i * 11) % 36
+      ctx.beginPath(); ctx.arc(x + w - 10, y - wallH - 18 - puff * 0.6, 3 + puff * 0.08, 0, Math.PI * 2)
+      ctx.fillStyle = withAlpha(col('text_secondary'), Math.max(0, 0.5 - puff / 60)); ctx.fill()
+      ctx.fillStyle = col('panel_stroke')
+      ctx.fillRect(x + w - 14, y - wallH - 14, 8, 12)
+    }
+  }
+
+  /** 新手引导横幅（M3.4-①首切片）：当日 scripted 教学事件 → 顶部金色目标条 */
+  private drawTutorialBanner(frame: DayFrame): void {
+    const tut = frame.eventCards.find(c => c.id.startsWith('evt_tut_'))
+    if (!tut) return
+    const { ctx } = this
+    const y = hudRect().h + 4
+    ctx.fillStyle = withAlpha(col('gold_primary'), 0.16)
+    ctx.beginPath(); ctx.roundRect(T.space.s, y, DESIGN_W - T.space.s * 2, 52, T.radius.chip); ctx.fill()
+    ctx.strokeStyle = col('gold_deep'); ctx.lineWidth = 2; ctx.stroke()
+    ctx.fillStyle = col('gold_primary')
+    ctx.beginPath(); ctx.roundRect(T.space.s + 10, y + 12, 56, 28, 6); ctx.fill()
+    ctx.fillStyle = shade(col('gold_primary'), 0.3)
+    ctx.font = font(T.typography.caption, { weight: 'bold' })
+    ctx.fillText('教学', T.space.s + 18, y + 27)
+    ctx.fillStyle = col('text_primary')
+    ctx.font = font(T.typography.body, { weight: 'bold' })
+    ctx.fillText(`目标：${tut.title}`, T.space.s + 80, y + 27)
+  }
+
+  /** 分步引导步骤板（M3.4-②）：当日步骤高亮/下一步指引/完成打勾 */
+  private drawTutorialSteps(frame: DayFrame): void {
+    const { ctx } = this
+    const fired = new Set(frame.eventCards.map(c => c.id))
+    const titles = new Map(frame.eventCards.map(c => [c.id, c.title]))
+    const { rows, current } = tutorialBoard(frame.day, fired)
+    if (rows.length === 0) return
+    const w = 330, x = DESIGN_W - w - 16, y = 1150
+    const h = 56 + rows.length * 88
+    this.panel(x, y, w, h, T.radius.btn)
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = col('gold_primary')
+    ctx.beginPath(); ctx.roundRect(x + 14, y + 12, 40, 26, 6); ctx.fill()
+    ctx.fillStyle = shade(col('gold_primary'), 0.3)
+    ctx.font = font(T.typography.caption, { weight: 'bold' })
+    ctx.fillText('步骤', x + 20, y + 26)
+    ctx.fillStyle = col('text_primary')
+    ctx.font = font(T.typography.caption, { weight: 'bold' })
+    ctx.fillText(`今日目标 ${rows.filter(r => r.done).length}/${rows.length}`, x + 66, y + 26)
+    rows.forEach((row: TutRow, i: number) => {
+      const ry = y + 52 + i * 88
+      const isCurrent = current?.id === row.step.id
+      if (isCurrent) {
+        ctx.beginPath(); ctx.roundRect(x + 10, ry - 4, w - 20, 84, T.radius.chip)
+        ctx.fillStyle = withAlpha(col('gold_primary'), 0.12); ctx.fill()
+        ctx.strokeStyle = col('gold_deep'); ctx.lineWidth = 2; ctx.stroke()
+      }
+      // 打勾圆
+      ctx.beginPath(); ctx.arc(x + 34, ry + 14, 13, 0, Math.PI * 2)
+      if (row.done) { ctx.fillStyle = col('success'); ctx.fill() }
+      ctx.strokeStyle = row.done ? col('success') : col('panel_stroke'); ctx.lineWidth = 2.5; ctx.stroke()
+      if (row.done) {
+        ctx.strokeStyle = shade(col('success'), 0.25); ctx.lineWidth = 3
+        ctx.beginPath(); ctx.moveTo(x + 27, ry + 14); ctx.lineTo(x + 32, ry + 20); ctx.lineTo(x + 42, ry + 6); ctx.stroke()
+      } else {
+        ctx.fillStyle = col('text_secondary')
+        ctx.beginPath(); ctx.arc(x + 34, ry + 14, 5, 0, Math.PI * 2); ctx.fill()
+      }
+      ctx.fillStyle = row.done ? col('text_secondary') : col('text_primary')
+      ctx.font = font(T.typography.body, { weight: row.done ? undefined : 'bold' })
+      ctx.fillText(titles.get(row.step.id) ?? row.step.id, x + 56, ry + 10)
+      if (isCurrent && !row.done) {
+        ctx.fillStyle = col('gold_primary')
+        ctx.font = font(T.typography.caption)
+        ctx.font = font(T.typography.caption)
+        for (const [j, ln] of this.wrap(row.step.hint, w - 100).entries()) {
+          ctx.fillText(`▸ ${ln}`, x + 56, ry + 42 + j * 24)
+        }
+      }
+    })
+  }
+
+  /** 新开放角标（楼栋解锁后 3 天内显示，替代锁定态） */
+  private newlyOpenBadge(cx: number, cy: number): void {
+    const { ctx } = this
+    ctx.fillStyle = col('success')
+    ctx.beginPath(); ctx.roundRect(cx - 34, cy - 12, 68, 26, T.radius.chip); ctx.fill()
+    ctx.fillStyle = shade(col('success'), 0.3)
+    ctx.font = font(T.typography.caption, { weight: 'bold' })
+    ctx.textAlign = 'center'
+    ctx.fillText('新开放', cx, cy + 1)
+    ctx.textAlign = 'left'
+  }
+
+  /** 守卫绘制（职业差异：守卫棍棒横扫/猎人弓弩/平民顶锅；攻击节拍挥击） */
+  private drawGuard(x: number, y: number, visual: 'club' | 'bow' | 'pot', attacking: boolean, now: number): void {
+    this.iconPerson(x, y, 26, col('text_primary'))
+    const { ctx } = this
+    ctx.fillStyle = col('alert_blood')
+    ctx.fillRect(x - 3, y - 2, 8, 5)
+    const swing = attacking ? Math.sin(now / 70) * 0.6 : 0
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 3
+    if (visual === 'club') {
+      ctx.save()
+      ctx.translate(x + 10, y - 6)
+      ctx.rotate(-0.6 + swing)
+      ctx.strokeRect(0, -2, 18, 4)
+      ctx.fillStyle = col('panel_stroke'); ctx.fillRect(14, -5, 7, 7)
+      ctx.restore()
+    } else if (visual === 'bow') {
+      ctx.beginPath(); ctx.arc(x + 12, y - 4, 9, -1.1, 1.1); ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(x + 12 + Math.cos(-1.1) * 9, y - 4 + Math.sin(-1.1) * 9)
+      ctx.lineTo(x + 12 + Math.cos(1.1) * 9, y - 4 + Math.sin(1.1) * 9)
+      ctx.stroke()
+      if (attacking) {
+        ctx.strokeStyle = col('gold_primary'); ctx.lineWidth = 2
+        const ax = x + 14 + (Math.sin(now / 70) + 1) * 8
+        ctx.beginPath(); ctx.moveTo(ax, y - 4); ctx.lineTo(ax + 14, y - 4); ctx.stroke()
+      }
+    } else {
+      ctx.beginPath(); ctx.ellipse(x + 11, y - 16, 9, 5, 0, 0, Math.PI * 2)
+      ctx.fillStyle = col('panel_stroke'); ctx.fill()
+      ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2; ctx.stroke()
+    }
+  }
+
+  /** 怪物绘制（差异化：循声者爬行+声波圈/破窗者携梯/攀楼种挂钩/飞行种悬停/精英红眼尖刺） */
+  private drawMonster(visual: 'crawler' | 'breaker' | 'climber' | 'flyer' | 'elite', now: number, attacking = false): void {
+    const { ctx } = this
+    // C8：循声者优先用 AI sprite（§10.2 状态机 attack 相位切 attack 帧+前倾）；缺资产回退程序化矢量
+    if (visual === 'crawler' && this.sprites) {
+      const name = pickMonsterSprite(n => this.sprites!.has(n), attacking)
+      if (name) {
+        if (attacking) { ctx.save(); ctx.rotate(0.16) } // 前倾（面朝右，攻击扑压）
+        this.sprites.draw(ctx, name, 0, 4, attacking ? 40 : 34)
+        if (attacking) ctx.restore()
+        return
+      }
+    }
+    const body = shade(col('panel_stroke'), 0.55)
+    const legSwing = Math.sin(now / 90) * 3
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 3
+    if (visual === 'flyer') {
+      const flap = Math.sin(now / 60) * 6
+      ctx.beginPath()
+      ctx.moveTo(0, -8); ctx.lineTo(-14, -14 + flap); ctx.moveTo(0, -8); ctx.lineTo(14, -14 - flap)
+      ctx.stroke()
+    }
+    if (visual === 'crawler' || visual === 'elite') {
+      ctx.beginPath()
+      ctx.moveTo(-8, 8); ctx.lineTo(-12, 14 + legSwing)
+      ctx.moveTo(8, 8); ctx.lineTo(12, 14 - legSwing)
+      ctx.stroke()
+    }
+    ctx.beginPath()
+    if (visual === 'flyer') ctx.ellipse(0, 0, 12, 9, 0, 0, Math.PI * 2)
+    else ctx.ellipse(0, 0, 14, 10, 0, 0, Math.PI * 2)
+    ctx.fillStyle = body; ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2; ctx.stroke()
+    if (visual === 'breaker') {
+      ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 3
+      ctx.beginPath(); ctx.moveTo(10, -6); ctx.lineTo(20, 4); ctx.stroke()
+    }
+    if (visual === 'climber') {
+      ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2
+      ctx.beginPath(); ctx.arc(-12, -4, 4, 0, Math.PI * 2); ctx.stroke()
+    }
+    if (visual === 'elite') {
+      ctx.beginPath()
+      ctx.moveTo(-10, -10); ctx.lineTo(-14, -16); ctx.moveTo(10, -10); ctx.lineTo(14, -16)
+      ctx.stroke()
+    }
+    const er = visual === 'elite' ? 4 : 3
+    ctx.fillStyle = col('alert_blood')
+    ctx.beginPath(); ctx.arc(-5, -3, er, 0, Math.PI * 2); ctx.fill()
+    ctx.beginPath(); ctx.arc(5, -3, er, 0, Math.PI * 2); ctx.fill()
+  }
+
+  /** 主动技按钮（88px 热区 + CD 环 + 差异化 VFX 触发窗） */
+  private drawSkillButtons(now: number, pb: Playback): void {
+    const { ctx } = this
+    nightSkillRects().forEach((r, i) => {
+      const sk = pb.skills[i]
+      if (!sk) return
+      ctx.beginPath()
+      ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.btn)
+      ctx.fillStyle = col('panel'); ctx.fill()
+      ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 3; ctx.stroke()
+      ctx.fillStyle = col('text_primary')
+      ctx.font = this.numFont(T.typography.h2)
+      ctx.fillText(sk.glyph, r.x + r.w / 2 - 16, r.y + r.h / 2 - 8)
+      ctx.font = font(T.typography.caption)
+      ctx.fillStyle = col('text_secondary')
+      const lw = ctx.measureText(sk.label).width
+      ctx.fillText(sk.label, r.x + (r.w - lw) / 2, r.y + r.h - 18)
+      const cdLeft = sk.cdUntil - now
+      if (cdLeft > 0) {
+        const frac = cdLeft / (motion('normal').dur * 10)
+        ctx.beginPath()
+        ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 8, 30, -Math.PI / 2, -Math.PI / 2 + (1 - frac) * Math.PI * 2)
+        ctx.strokeStyle = col('gold_primary'); ctx.lineWidth = 5; ctx.stroke()
+        ctx.fillStyle = withAlpha(col('bg_night'), 0.55)
+        ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 8, 26, 0, Math.PI * 2); ctx.fill()
+      }
+    })
+  }
+
+  /** 战况日志 + 战毕返回 */
+  private drawNightLog(frame: DayFrame, now: number, pb: Playback): void {
+    const { ctx } = this
+    const r = nightLogRect()
+    this.panel(r.x, r.y, r.w, r.h)
+    ctx.save()
+    ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel); ctx.clip()
+    ctx.textBaseline = 'middle'
+    const lines: string[] = []
+    if (pb.session && pb.nightStart !== null) {
+      const waves = nightWaves(pb.session.routes, pb.nightStart, now)
+      waves.revealed.forEach((rv, i) => {
+        const mon = pb.monsterNames[rv.route.monsterId ?? ''] ?? '怪物'
+        lines.push(`第${i + 1}波 路${WAVE_LETTERS[i]} · ${this.roomLabel(rv.route.roomId)} · ${mon} · r=${rv.route.r.toFixed(2)} → ${OUTCOME_LABEL[rv.route.outcome]}`)
+      })
+    }
+    lines.push(...pb.logs)
+    ctx.font = font(T.typography.body)
+    const visible = lines.slice(-Math.floor((r.h - T.space.s * 2) / 36))
+    visible.forEach((ln, i) => {
+      ctx.fillStyle = i === visible.length - 1 ? col('text_primary') : col('text_secondary')
+      ctx.fillText(ln, r.x + T.space.m, r.y + 32 + i * 36)
+    })
+    if (pb.session && pb.nightStart !== null && nightWaves(pb.session.routes, pb.nightStart, now).done) {
+      this.button(nightBackRect(), '天亮了 →', 'primary')
+    }
+    ctx.restore()
+  }
+
+  // ---- L2 小区地图（等距；UI 规范 v2.0 §7.1）----
+  private drawMapView(ui: UiState, frame: DayFrame, now: number): void {
+    const { ctx } = this
+    ctx.textBaseline = 'middle'
+    this.drawHudMini(frame, now)
+    for (let gx = 0; gx < 7; gx++) {
+      for (let gy = 0; gy < 8; gy++) {
+        const c = isoToScreen(gx, gy)
+        ctx.beginPath()
+        ctx.moveTo(c.x, c.y)
+        ctx.lineTo(c.x + ISO_TILE_W / 2, c.y + ISO_TILE_H / 2)
+        ctx.lineTo(c.x, c.y + ISO_TILE_H)
+        ctx.lineTo(c.x - ISO_TILE_W / 2, c.y + ISO_TILE_H / 2)
+        ctx.closePath()
+        ctx.fillStyle = (gx + gy) % 2 === 0 ? withAlpha(col('panel'), 0.5) : withAlpha(col('panel_stroke'), 0.25)
+        ctx.fill()
+      }
+    }
+    for (const [id, lot] of Object.entries(LOTS)) {
+      const locked = frame.day < lot.unlockDay
+      const base = isoToScreen(lot.gx, lot.gy)
+      const cx = base.x, cy = base.y + ISO_TILE_H / 2
+      if (lot.kind === 'bld') this.drawIsoBuilding(cx, cy, locked, frame, id, now)
+      if (lot.kind === 'bld' && !locked && frame.day >= lot.unlockDay && frame.day - lot.unlockDay < 3) this.newlyOpenBadge(cx, cy - 6 * ISO_FLOOR_H - 34)
+      else if (lot.kind === 'gate') this.drawIsoGate(cx, cy)
+      else if (lot.kind === 'wall') this.drawIsoWall(cx, cy)
+      else if (lot.kind === 'plaza') this.drawIsoPlaza(cx, cy)
+      else this.drawIsoFacility(cx, cy, locked)
+      ctx.font = font(T.typography.caption, { weight: 'bold' })
+      ctx.textAlign = 'center'
+      ctx.fillStyle = locked ? col('text_secondary') : col('text_primary')
+      ctx.fillText(locked ? `${lot.name} D${lot.unlockDay}` : lot.name, cx, cy + 36)
+      ctx.textAlign = 'left'
+    }
+    const ex = EXPLORE_ENTRY
+    ctx.beginPath(); ctx.roundRect(ex.x, ex.y, ex.w, ex.h, T.radius.btn)
+    ctx.fillStyle = withAlpha(col('success'), 0.14); ctx.fill()
+    ctx.strokeStyle = col('success'); ctx.lineWidth = 2; ctx.stroke()
+    ctx.fillStyle = col('text_primary')
+    ctx.font = font(T.typography.body, { weight: 'bold' })
+    ctx.textAlign = 'center'
+    ctx.fillText('🌲 出门探索（M3.3 开放）', ex.x + ex.w / 2, ex.y + ex.h / 2 + 1)
+    ctx.textAlign = 'left'
+    this.drawDock()
+    void ui
+  }
+
+  private drawHudMini(frame: DayFrame, now: number): void {
+    const { ctx } = this
+    const hud = hudRect()
+    const g = ctx.createLinearGradient(0, 0, 0, hud.h)
+    g.addColorStop(0, mix(col('panel'), col('text_primary'), 0.07))
+    g.addColorStop(1, col('panel'))
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, hud.w, hud.h)
+    ctx.fillStyle = col('panel_stroke'); ctx.fillRect(0, hud.h - 3, hud.w, 3)
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = withAlpha(col('bg_night'), 0.5)
+    ctx.beginPath(); ctx.roundRect(T.space.s, 8, 150, hud.h - 16, T.radius.chip); ctx.fill()
+    ctx.fillStyle = col('gold_primary')
+    ctx.font = this.numFont(T.typography.h2)
+    ctx.fillText(`D${frame.day}`, T.space.s + 16, hud.h / 2 + 1)
+    const cycle = Math.ceil(frame.day / 7)
+    for (let i = 0; i < 4; i++) {
+      const mx = T.space.s + 176 + i * 30
+      ctx.beginPath(); ctx.arc(mx, hud.h / 2, 8, 0, Math.PI * 2)
+      ctx.fillStyle = i < cycle ? (frame.modifiers.includes('BLOOD_MOON') ? col('alert_blood') : col('gold_primary')) : withAlpha(col('panel_stroke'), 0.8)
+      ctx.fill()
+      ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 2; ctx.stroke()
+    }
+    this.drawWeatherBadge(this.weatherEntry(frame.weather), DESIGN_W - 32 - 196, hud.h / 2 - 14)
+    const st = settingsRect()
+    this.circleButton(st.x + st.w / 2, hud.h / 2, 26, () => this.iconGear(st.x + st.w / 2, hud.h / 2, 13, col('text_secondary')))
+    void now
+  }
+
+  private drawIsoBuilding(cx: number, cy: number, locked: boolean, frame: DayFrame, id: string, now: number): void {
+    const { ctx } = this
+    const w = ISO_TILE_W * 0.9, h = ISO_TILE_H * 0.9, floors = 6
+    const topZ = floors * ISO_FLOOR_H
+    const left = locked ? col('panel_stroke') : shade(col('panel'), 0.8)
+    const right = locked ? shade(col('panel_stroke'), 0.92) : col('panel')
+    const topFill = locked ? shade(col('panel_stroke'), 0.9) : mix(col('panel'), col('text_primary'), 0.12)
+    ctx.beginPath()
+    ctx.moveTo(cx - w / 2, cy - h / 2 - topZ); ctx.lineTo(cx, cy - topZ)
+    ctx.lineTo(cx, cy - topZ + h / 2 + ISO_TILE_H / 2); ctx.lineTo(cx - w / 2, cy - h / 2 + ISO_TILE_H / 2 + h / 2)
+    ctx.closePath(); ctx.fillStyle = left; ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2.5; ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(cx + w / 2, cy - h / 2 - topZ); ctx.lineTo(cx, cy - topZ)
+    ctx.lineTo(cx, cy - topZ + h / 2 + ISO_TILE_H / 2); ctx.lineTo(cx + w / 2, cy - h / 2 + ISO_TILE_H / 2 + h / 2)
+    ctx.closePath(); ctx.fillStyle = right; ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(cx, cy - topZ - h / 2); ctx.lineTo(cx + w / 2, cy - topZ)
+    ctx.lineTo(cx, cy - topZ + h / 2); ctx.lineTo(cx - w / 2, cy - topZ)
+    ctx.closePath(); ctx.fillStyle = topFill; ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.stroke()
+    if (!locked) {
+      const litTotal = id === 'lot_bld_a' ? Math.min(30, frame.population) : 0
+      for (let f = 0; f < floors; f++) {
+        const fy = cy - (f + 1) * ISO_FLOOR_H
+        ctx.beginPath(); ctx.moveTo(cx - w / 2, fy - h / 2); ctx.lineTo(cx + w / 2, fy - h / 2)
+        ctx.strokeStyle = withAlpha(col('bg_night'), 0.5); ctx.lineWidth = 1.5; ctx.stroke()
+        for (let win = 0; win < 3; win++) {
+          const lit = f * 3 + win < litTotal
+          const wx = cx + (win - 1) * (w / 4) + w / 8, wy = fy - ISO_FLOOR_H * 0.45
+          ctx.fillStyle = lit ? withAlpha(col('gold_primary'), 0.9) : withAlpha(col('panel_stroke'), 0.6)
+          ctx.fillRect(wx - 5, wy - 5, 10, 10)
+        }
+      }
+      if (id === 'lot_bld_a') {
+        const pulse = 0.5 + 0.5 * Math.sin(now / 700)
+        ctx.beginPath(); ctx.arc(cx, cy + 6, 12 + pulse * 5, 0, Math.PI * 2)
+        ctx.strokeStyle = withAlpha(col('success'), 0.5 + pulse * 0.4); ctx.lineWidth = 3; ctx.stroke()
+      }
+    }
+  }
+
+  /** 夜战目标房间标签：F{n}-R{m} → A栋 n 层 m 号（M0 数值窗口内目标恒在默认栋 A） */
+  private roomLabel(roomId: string): string {
+    const m = /F(\d+)-R(\d+)/.exec(roomId)
+    return m ? `A栋${m[1]}层${m[2]}号` : roomId
+  }
+
+  private drawIsoGate(cx: number, cy: number): void {
+    const { ctx } = this
+    ctx.beginPath(); ctx.roundRect(cx - 55, cy - 30, 110, 34, 6)
+    ctx.fillStyle = col('panel_stroke'); ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2.5; ctx.stroke()
+    ctx.beginPath(); ctx.roundRect(cx - 34, cy - 58, 68, 30, 6)
+    ctx.fillStyle = mix(col('panel_stroke'), col('gold_deep'), 0.35); ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.stroke()
+    ctx.fillStyle = col('gold_primary')
+    ctx.font = font(T.typography.caption, { weight: 'bold' })
+    ctx.textAlign = 'center'
+    ctx.fillText('门', cx, cy - 42)
+    ctx.textAlign = 'left'
+  }
+
+  private drawIsoWall(cx: number, cy: number): void {
+    const { ctx } = this
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath(); ctx.roundRect(cx - 60 + i * 42, cy - 16, 36, 20, 4)
+      ctx.fillStyle = shade(col('panel_stroke'), 0.85); ctx.fill()
+      ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2; ctx.stroke()
+    }
+  }
+
+  private drawIsoPlaza(cx: number, cy: number): void {
+    const { ctx } = this
+    ctx.beginPath()
+    ctx.moveTo(cx, cy - 20); ctx.lineTo(cx + 52, cy + 6); ctx.lineTo(cx, cy + 32); ctx.lineTo(cx - 52, cy + 6)
+    ctx.closePath()
+    ctx.fillStyle = withAlpha(col('panel'), 0.7); ctx.fill()
+    ctx.strokeStyle = col('panel_stroke'); ctx.lineWidth = 2; ctx.stroke()
+    ctx.strokeStyle = col('text_secondary'); ctx.lineWidth = 3
+    ctx.beginPath(); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy - 58); ctx.stroke()
+    ctx.fillStyle = col('alert_blood')
+    ctx.beginPath(); ctx.moveTo(cx, cy - 58); ctx.lineTo(cx + 22, cy - 50); ctx.lineTo(cx, cy - 42)
+    ctx.closePath(); ctx.fill()
+  }
+
+  private drawIsoFacility(cx: number, cy: number, locked: boolean): void {
+    const { ctx } = this
+    const w = ISO_TILE_W * 0.66, h = ISO_TILE_H * 0.66
+    const z = ISO_FLOOR_H * 1.4
+    ctx.beginPath()
+    ctx.moveTo(cx - w / 2, cy - h / 2 - z); ctx.lineTo(cx, cy - z)
+    ctx.lineTo(cx, cy - z + h / 2 + ISO_TILE_H / 2); ctx.lineTo(cx - w / 2, cy - h / 2 + ISO_TILE_H / 2 + h / 2)
+    ctx.closePath(); ctx.fillStyle = locked ? col('panel_stroke') : shade(col('panel'), 0.85); ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 2; ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(cx, cy - h / 2 - z); ctx.lineTo(cx + w / 2, cy - h / 2 - z + h / 2)
+    ctx.lineTo(cx + w / 2, cy - h / 2 + ISO_TILE_H / 2 + h / 2); ctx.lineTo(cx, cy - z + h / 2 + ISO_TILE_H / 2)
+    ctx.closePath(); ctx.fillStyle = locked ? shade(col('panel_stroke'), 0.92) : col('panel'); ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(cx, cy - h / 2 - z - 14); ctx.lineTo(cx + w / 2, cy - h / 2 - z + h / 2 - 7)
+    ctx.lineTo(cx, cy - h / 2 - z + h / 2); ctx.lineTo(cx - w / 2, cy - h / 2 - z + h / 2 - 7)
+    ctx.closePath(); ctx.fillStyle = col('gold_deep'); ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.stroke()
+  }
+
+  // ---- L3 房屋内部（点击房间进入；UI 规范 v2.0 §7.2）----
+  private drawInterior(ui: UiState, frame: DayFrame, now: number, pb: Playback): void {
+    const { ctx } = this
+    const floor = ui.sel.floor ?? 0, room = ui.sel.room ?? 0
+    const roomIndex = floor * ROOMS_PER_FLOOR + room
+    const occupied = roomIndex < frame.population
+    ctx.fillStyle = col('bg_night'); ctx.fillRect(0, 0, DESIGN_W, DESIGN_H)
+    ctx.textBaseline = 'middle'
+    this.button(interiorBackRect(), '◀ 楼层', 'normal')
+    ctx.fillStyle = col('text_primary')
+    ctx.font = font(T.typography.h2, { weight: 'bold' })
+    ctx.fillText(`A栋 · ${floor + 1}层 · ${room + 1}号房`, interiorBackRect().x + interiorBackRect().w + T.space.m, interiorBackRect().y + interiorBackRect().h / 2)
+    const fx0 = 60, fx1 = DESIGN_W - 60, fy0 = 560, fy1 = 1180, wallTop = 270
+    const g = ctx.createLinearGradient(0, fy0, 0, fy1)
+    g.addColorStop(0, mix(col('gold_deep'), col('bg_night'), 0.55))
+    g.addColorStop(1, mix(col('gold_deep'), col('bg_night'), 0.78))
+    ctx.beginPath()
+    ctx.moveTo(fx0, fy0); ctx.lineTo(fx1, fy0); ctx.lineTo(fx1 + 60, fy1); ctx.lineTo(fx0 - 60, fy1)
+    ctx.closePath(); ctx.fillStyle = g; ctx.fill()
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 3; ctx.stroke()
+    ctx.fillStyle = mix(col('panel'), col('bg_night'), 0.35)
+    ctx.fillRect(fx0, wallTop, fx1 - fx0, fy0 - wallTop)
+    ctx.strokeStyle = col('bg_night'); ctx.strokeRect(fx0, wallTop, fx1 - fx0, fy0 - wallTop)
+    const wx = fx0 + 40, wy = wallTop + 40, ww = 150, wh = 170
+    ctx.fillStyle = withAlpha(col('gold_primary'), occupied ? 0.35 : 0.12)
+    ctx.fillRect(wx, wy, ww, wh)
+    ctx.strokeStyle = col('bg_night'); ctx.lineWidth = 5
+    ctx.strokeRect(wx, wy, ww, wh)
+    ctx.beginPath(); ctx.moveTo(wx + ww / 2, wy); ctx.lineTo(wx + ww / 2, wy + wh)
+    ctx.moveTo(wx, wy + wh / 2); ctx.lineTo(wx + ww, wy + wh / 2); ctx.stroke()
+    const dx = fx1 - 200
+    ctx.fillStyle = mix(col('panel_stroke'), col('gold_deep'), 0.3)
+    ctx.fillRect(dx, wallTop + 60, 110, fy0 - wallTop - 60)
+    ctx.strokeStyle = col('bg_night'); ctx.strokeRect(dx, wallTop + 60, 110, fy0 - wallTop - 60)
+    ctx.beginPath(); ctx.arc(dx + 92, wallTop + 60 + (fy0 - wallTop - 60) / 2, 6, 0, Math.PI * 2)
+    ctx.fillStyle = col('gold_primary'); ctx.fill()
+    for (let i = 0; i < 2; i++) {
+      const sr = interiorSlotRect(i)
+      const fortified = pb.forts[`${floor}:${room}:${i}`] ?? false
+      ctx.setLineDash(fortified ? [] : [10, 8])
+      ctx.beginPath(); ctx.roundRect(sr.x, sr.y, sr.w, sr.h, T.radius.chip)
+      ctx.fillStyle = fortified ? withAlpha(col('success'), 0.16) : withAlpha(col('bg_night'), 0.5)
+      ctx.fill()
+      ctx.strokeStyle = fortified ? col('success') : col('panel_stroke')
+      ctx.setLineDash([])
+      ctx.lineWidth = 3; ctx.stroke()
+      ctx.fillStyle = fortified ? col('success') : col('text_secondary')
+      ctx.font = font(T.typography.body, { weight: fortified ? 'bold' : undefined })
+      ctx.textAlign = 'center'
+      ctx.fillText(fortified ? '已加固' : `工事位 ${i + 1}`, sr.x + sr.w / 2, sr.y + sr.h / 2)
+      ctx.textAlign = 'left'
+    }
+    if (occupied) {
+      const px = DESIGN_W / 2, py = (fy0 + fy1) / 2 - 30
+      const breathe = 1 + 0.02 * Math.sin(now / 800)
+      ctx.save()
+      ctx.translate(px, py); ctx.scale(breathe, breathe)
+      this.iconPerson(0, 0, 110, col('text_primary'))
+      ctx.restore()
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.caption)
+      ctx.textAlign = 'center'
+      ctx.fillText('住户 · 生命 100 · 恐慌 0', px, py + 92)
+      ctx.textAlign = 'left'
+    } else {
+      ctx.fillStyle = col('text_secondary')
+      ctx.font = font(T.typography.h2)
+      ctx.textAlign = 'center'
+      ctx.fillText('空房 · 待入住', DESIGN_W / 2, (fy0 + fy1) / 2)
+      ctx.textAlign = 'left'
+    }
+  }
+
   // ---- 模态 ----
   private drawModal(ui: UiState, frame: DayFrame, now: number, pb: Playback): void {
     const { ctx } = this
@@ -875,7 +1861,8 @@ export class WhiteboxRenderer {
       this.drawEventCard(top, y, frame, now, pb)
       return
     }
-    const title = top.kind === 'confirmNight' ? '确认入夜？'
+    const title = top.id.startsWith('house:') ? `小屋 ${Number(top.id.split(':')[1]) + 1} 号`
+      : top.kind === 'confirmNight' ? '确认入夜？'
       : ({ deploy: '布防', recruit: '招募', upgrade: '升级', settings: '设置' } as Record<string, string>)[top.id] ?? top.id
     ctx.fillStyle = col('gold_primary')
     ctx.beginPath(); ctx.roundRect(r.x + T.space.m, y + 32, 6, 32, 3); ctx.fill()
@@ -886,13 +1873,72 @@ export class WhiteboxRenderer {
     ctx.beginPath(); ctx.moveTo(r.x + T.space.m, y + 80); ctx.lineTo(r.x + r.w - T.space.m, y + 80); ctx.stroke()
     ctx.fillStyle = col('text_secondary')
     ctx.font = font(T.typography.body)
-    const body = top.kind === 'confirmNight' ? '入夜后不可打断（全屏夜战）' : '占位面板：M3 接入对应系统操作'
-    ctx.fillText(body, r.x + T.space.m, y + 120)
+    if (top.id.startsWith('house:')) {
+      // 房屋升级面板（M3.2 F7）：等级/消耗/升级按钮（EffectOp 走 side state）
+      const idx = Number(top.id.split(':')[1])
+      const lv = Math.min(5, pb.houseLevels[idx] ?? 0)
+      ctx.fillStyle = col('text_primary')
+      ctx.font = font(T.typography.body, { weight: 'bold' })
+      ctx.fillText(`当前等级 Lv${lv}${lv >= 5 ? '（满级）' : ` → Lv${lv + 1}`}`, r.x + T.space.m, y + 120)
+      const cost = lv >= 5 ? {} : (((buildingDefJson as any).entries.find((e: any) => e.type === 'house' && e.level === lv + 1)?.cost ?? {}) as Record<string, number>)
+      const costText = Object.entries(cost).map(([k, v]) => `${k === 'gold' ? '金币' : '建材'} ×${v}`).join('  ') || '免费'
+      ctx.fillStyle = col('gold_primary')
+      ctx.font = font(T.typography.body)
+      ctx.fillText(`升级消耗：${costText}`, r.x + T.space.m, y + 160)
+      if (lv < 5) {
+        const cr = modalConfirmRect()
+        this.button({ ...cr, y: cr.y - r.y + y }, '升级 ▶', 'primary')
+      }
+    } else {
+      this.drawPanelBody(top, frame, pb, y, r)
+    }
     if (top.kind === 'confirmNight') {
       const cr = modalConfirmRect()
       this.button({ ...cr, y: cr.y - r.y + y }, '入夜 ▶', 'primary')
     }
     this.closeBtn(y - r.y, top.kind === 'event' && top.chosen !== undefined ? '继续' : '关闭')
+  }
+
+  /** 常规面板正文（M4：dock/地块面板真实数据，取代 M2.5 占位文案） */
+  private drawPanelBody(
+    top: Modal, frame: DayFrame, pb: Playback,
+    y: number, r: { x: number; y: number; w: number; h: number }
+  ): void {
+    const { ctx } = this
+    const x = r.x + T.space.m
+    const line = (s: string, dy: number, c = col('text_secondary'), bold = false): void => {
+      ctx.fillStyle = c
+      ctx.font = font(T.typography.body, { weight: bold ? 'bold' : 'normal' })
+      ctx.fillText(s, x, y + dy, r.w - T.space.m * 2.4)
+    }
+    if (top.id === 'deploy') {
+      const forts = Object.values(pb.forts).filter(Boolean).length
+      line(`已布防工事位 ${forts} 处`, 120, col('text_primary'), true)
+      line('点击小屋或房间进入室内布置沙袋/箭塔', 160)
+      line('工事位提升夜战防线比值 r（越接近 1 越稳固）', 196)
+    } else if (top.id === 'recruit') {
+      line(`住户 ${frame.population} 人 · 容量 ${pb.capacity ?? 30} 人`, 120, col('text_primary'), true)
+      line('B 栋 / C 栋 D30 解锁后各 +30 容量', 160)
+      line('夜晚死亡与恐慌流失会减少住户，白天可补充', 196)
+    } else if (top.id === 'upgrade') {
+      const ups = Object.keys(pb.houseLevels).length
+      line(`已升级房屋 ${ups} 栋 · 等级影响日租金与耐久`, 120, col('text_primary'), true)
+      line('点击任意小屋查看当前等级与升级消耗', 160)
+      line('茅草屋 → 砖石堡垒共 6 级（房屋进化）', 196)
+    } else if (top.id === 'B栋' || top.id === 'C栋' || top.id === 'lot_bld_b' || top.id === 'lot_bld_c') {
+      const name = top.id.startsWith('lot_') ? (LOTS[top.id]?.name ?? top.id) : top.id
+      const unlocked = frame.day >= 30
+      line(`${name} · ${unlocked ? '已解锁' : 'D30 解锁'}`, 120, col('text_primary'), true)
+      line(unlocked ? '新开放角标已亮起，夜战目标轮换纳入本栋' : '解锁条件：主线推进至第 30 天', 160)
+      line(`每栋住户容量 +30（当前 ${pb.capacity ?? 30}）`, 196)
+    } else if (top.id.startsWith('lot_')) {
+      const lot = LOTS[top.id]
+      line(lot ? `${lot.name}${lot.unlockDay > 1 ? ` · D${lot.unlockDay} 解锁` : ' · 已开放'}` : top.id, 120, col('text_primary'), true)
+      line('设施运营操作随后续里程碑逐步接入', 160)
+    } else {
+      // 运行时信息面板（派出结果等）：正文即信息文案
+      line(top.id, 120)
+    }
   }
 
   /** 事件卡（§3.2 模板） */
@@ -969,8 +2015,8 @@ export class WhiteboxRenderer {
     })
   }
 
-  /** 占位页（功能点4）：图鉴 3 列网格剪影 / 商店礼包横滑 / 设置列表 */
-  private drawPage(page: 'main' | 'codex' | 'shop' | 'settings', now: number): void {
+  /** 占位页（M2.5 功能点4）：图鉴=monster.json 进化树 / 商店=iap_sku.json SKU / 设置列表 */
+  private drawPage(page: 'main' | 'codex' | 'shop' | 'settings', now: number, frame: DayFrame): void {
     const { ctx } = this
     ctx.textBaseline = 'middle'
     this.button(pageBackRect(), '◀ 返回', 'normal')
@@ -979,45 +2025,71 @@ export class WhiteboxRenderer {
     ctx.font = font(T.typography.h1, { weight: 'bold' })
     ctx.fillText(titles[page] ?? '', pageTitleRect().x, pageTitleRect().y + pageTitleRect().h / 2)
     if (page === 'codex') {
-      for (let row = 0; row < CODEX_ROWS; row++) {
-        for (let c = 0; c < CODEX_COLS; c++) {
-          const r = codexCellRect(c, row)
-          const unlocked = row === 0 && c === 0
-          const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h)
-          g.addColorStop(0, unlocked ? withAlpha(col('success'), 0.16) : withAlpha(col('bg_night'), 0.55))
-          g.addColorStop(1, unlocked ? withAlpha(col('success'), 0.06) : withAlpha(col('bg_night'), 0.3))
-          ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel)
-          ctx.fillStyle = g; ctx.fill()
-          ctx.strokeStyle = unlocked ? col('success') : col('panel_stroke')
-          ctx.lineWidth = 2; ctx.stroke()
-          ctx.font = this.numFont(T.typography.h1)
-          ctx.fillStyle = unlocked ? col('text_primary') : col('text_secondary')
-          ctx.textAlign = 'center'
-          if (unlocked) this.iconPerson(r.x + r.w / 2, r.y + r.h / 2 - 14, 56, col('gold_primary'))
-          else {
-            // 锁：环 + 方体
+      const monsters = (monstersJson as unknown as { entries: { id: string; name: string; tier: string; unlockDay: number; mechanics: string[] }[] }).entries
+      const tierColor: Record<string, string> = { minion: col('text_secondary'), elite: col('gold_primary'), boss: col('alert_blood') }
+      const mechName: Record<string, string> = { breakDoor: '破门', climbWindow: '攀爬', fly: '飞行', focusFire: '集火', silentCompat: '静默潜入' }
+      const cells = CODEX_COLS * CODEX_ROWS
+      for (let i = 0; i < cells; i++) {
+        const c = i % CODEX_COLS, row = Math.floor(i / CODEX_COLS)
+        const r = codexCellRect(c, row)
+        const m = monsters[i]
+        const unlocked = m !== undefined && frame.day >= m.unlockDay
+        const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h)
+        g.addColorStop(0, unlocked ? withAlpha(col('success'), 0.16) : withAlpha(col('bg_night'), 0.55))
+        g.addColorStop(1, unlocked ? withAlpha(col('success'), 0.06) : withAlpha(col('bg_night'), 0.3))
+        ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel)
+        ctx.fillStyle = g; ctx.fill()
+        ctx.strokeStyle = unlocked ? col('success') : col('panel_stroke')
+        ctx.lineWidth = 2; ctx.stroke()
+        ctx.textAlign = 'center'
+        if (m) {
+          // 进化树条目：形态剪影按 tier 差异化，未解锁剪影+锁
+          ctx.save()
+          ctx.translate(r.x + r.w / 2, r.y + r.h / 2 - 34)
+          ctx.scale(2.2, 2.2)
+          this.drawMonster(unlocked ? (m.tier === 'boss' ? 'elite' : m.id === 'm_flier' ? 'flyer' : m.id === 'm_climber' ? 'climber' : m.id === 'm_breaker' ? 'breaker' : 'crawler') : 'crawler', now)
+          ctx.restore()
+          if (!unlocked) {
+            ctx.globalAlpha = 0.45
             ctx.strokeStyle = col('text_secondary'); ctx.lineWidth = 4
             ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 30, 16, Math.PI, 0); ctx.stroke()
             ctx.fillStyle = col('text_secondary')
             ctx.beginPath(); ctx.roundRect(r.x + r.w / 2 - 22, r.y + r.h / 2 - 30, 44, 34, 6); ctx.fill()
+            ctx.globalAlpha = 1
           }
-          ctx.font = font(T.typography.caption)
+          ctx.font = font(T.typography.caption, { weight: 'bold' })
           ctx.fillStyle = unlocked ? col('text_primary') : col('text_secondary')
-          ctx.fillText(unlocked ? '循声者' : '未解锁', r.x + r.w / 2, r.y + r.h - 40)
-          ctx.textAlign = 'left'
+          ctx.fillText(m.name, r.x + r.w / 2, r.y + r.h - 76)
+          ctx.font = font(T.typography.caption)
+          ctx.fillStyle = tierColor[m.tier] ?? col('text_secondary')
+          const mechs = m.mechanics.map(k => mechName[k] ?? k).join('·')
+          ctx.fillText(`${m.tier === 'minion' ? '杂兵' : m.tier === 'elite' ? '精英' : '首领'}${mechs ? ` · ${mechs}` : ''}`, r.x + r.w / 2, r.y + r.h - 46)
+          ctx.fillStyle = unlocked ? col('success') : col('text_secondary')
+          ctx.fillText(unlocked ? `D${m.unlockDay} 已入池` : `D${m.unlockDay} 解锁`, r.x + r.w / 2, r.y + r.h - 16)
+        } else {
+          // 空位：赛季预留（夜王 D30 之外的新进化枝）
+          ctx.strokeStyle = col('text_secondary'); ctx.lineWidth = 4
+          ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + r.h / 2 - 30, 16, Math.PI, 0); ctx.stroke()
+          ctx.fillStyle = col('text_secondary')
+          ctx.beginPath(); ctx.roundRect(r.x + r.w / 2 - 22, r.y + r.h / 2 - 30, 44, 34, 6); ctx.fill()
+          ctx.font = font(T.typography.caption)
+          ctx.fillStyle = col('text_secondary')
+          ctx.fillText('赛季预留', r.x + r.w / 2, r.y + r.h - 46)
         }
+        ctx.textAlign = 'left'
       }
       ctx.fillStyle = col('text_secondary')
       ctx.font = font(T.typography.caption)
-      ctx.fillText('占位：M3 按怪物进化树/住户名册填充', T.space.l, codexCellRect(0, CODEX_ROWS - 1).y + codexCellRect(0, 0).h + 40)
+      ctx.fillText(`怪物进化树 · 共 ${monsters.length} 种（图鉴随主线日程解锁）`, T.space.l, codexCellRect(0, CODEX_ROWS - 1).y + codexCellRect(0, 0).h + 40)
     } else if (page === 'shop') {
-      const names = ['首充双倍', '物资补给包', '天赋石礼包']
-      const prices = ['¥6', '¥30', '¥68']
-      const was = ['¥12', '¥45', '¥98']
-      for (let i = 0; i < SHOP_CARDS; i++) {
+      const skus = (iapSkuJson as unknown as { entries: { id: string; type: string; price: number; triggerDay: number; valueAnchor: number; contents: { op: string; res?: string; n?: number; buff?: string }[] }[] }).entries
+      const typeName: Record<string, string> = { firstCharge: '首充双倍', pack: '物资礼包', pass: '特权通行证', monthly: '月卡', gacha: '招募补给' }
+      const resName: Record<string, string> = { material: '建材', food: '食物', gold: '金币' }
+      for (let i = 0; i < skus.length; i++) {
+        const sku = skus[i]
         const r = shopCardRect(i)
         this.panel(r.x, r.y, r.w, r.h)
-        ctx.strokeStyle = i === 0 ? col('gold_deep') : col('panel_stroke')
+        ctx.strokeStyle = sku.type === 'firstCharge' ? col('gold_deep') : col('panel_stroke')
         ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, T.radius.panel); ctx.stroke()
         ctx.fillStyle = col('gold_primary')
         ctx.beginPath(); ctx.arc(r.x + r.w / 2, r.y + 140, 42, 0, Math.PI * 2); ctx.fill()
@@ -1026,29 +2098,30 @@ export class WhiteboxRenderer {
         this.iconCoin(r.x + r.w / 2 - 30, r.y + 110, 12)
         ctx.fillStyle = col('text_primary')
         ctx.font = font(T.typography.h2, { weight: 'bold' })
-        ctx.fillText(names[i], r.x + T.space.m, r.y + 280)
+        ctx.fillText(typeName[sku.type] ?? sku.id, r.x + T.space.m, r.y + 260)
         ctx.fillStyle = col('text_secondary')
         ctx.font = font(T.typography.body)
-        ctx.fillText(was[i], r.x + T.space.m, r.y + 340)
-        const ww = ctx.measureText(was[i]).width
-        ctx.strokeStyle = col('danger')
-        ctx.beginPath(); ctx.moveTo(r.x + T.space.m, r.y + 340); ctx.lineTo(r.x + T.space.m + ww, r.y + 340); ctx.stroke()
+        const contents = sku.contents.map(c => c.op === 'ADD_RES' ? `${resName[c.res ?? ''] ?? c.res}×${c.n}` : c.op === 'ADD_GOLD' ? `金币×${c.n}` : c.op === 'SPAWN_TENANT' ? '高级住户' : c.op === 'GRANT_BUFF' ? '租金增益' : '专属特权').join(' + ')
+        ctx.fillText(contents, r.x + T.space.m, r.y + 316, r.w - T.space.m * 2)
+        ctx.fillStyle = col('text_secondary')
+        ctx.fillText(`D${sku.triggerDay} 曝光 · 性价比锚 ×${sku.valueAnchor}`, r.x + T.space.m, r.y + 356)
+        const price = `¥${sku.price}`
         ctx.fillStyle = col('gold_primary')
         ctx.font = this.numFont(T.typography.h2)
-        ctx.fillText(prices[i], r.x + T.space.m + ww + T.space.s, r.y + 340)
-        if (i === 0) {
+        ctx.fillText(price, r.x + T.space.m, r.y + 420)
+        if (sku.type === 'firstCharge') {
           ctx.fillStyle = col('alert_blood')
           ctx.beginPath(); ctx.roundRect(r.x + r.w - 128, r.y + 24, 96, 40, T.radius.chip); ctx.fill()
           ctx.fillStyle = col('text_primary')
           ctx.font = font(T.typography.caption, { weight: 'bold' })
           ctx.textAlign = 'center'
-          ctx.fillText('双倍', r.x + r.w - 80, r.y + 45)
+          ctx.fillText('首充', r.x + r.w - 80, r.y + 45)
           ctx.textAlign = 'left'
         }
       }
       ctx.fillStyle = col('text_secondary')
       ctx.font = font(T.typography.caption)
-      ctx.fillText('占位：SKU 走 iap_sku.json，IAA/IAP 合规审查后接入', T.space.l, shopCardRect(0).y + 600)
+      ctx.fillText(`SKU=iap_sku.json · 共 ${skus.length} 款（支付经平台 fail-open 通道，未开通时仅展示）`, T.space.l, shopCardRect(0).y + 600)
     } else {
       for (const [i, row] of SETTINGS_ROWS.entries()) {
         const r = settingsRowRect(i)
@@ -1063,6 +2136,12 @@ export class WhiteboxRenderer {
           ctx.lineTo(r.x + r.w - T.space.l + 16, r.y + r.h / 2)
           ctx.lineTo(r.x + r.w - T.space.l, r.y + r.h / 2 + 12)
           ctx.closePath(); ctx.fill()
+        } else if (row.key === 'privacy' || row.key === 'minors' || row.key === 'odds') {
+          // 合规行（E5 骨架）：入口+说明；真实内容页/实名能力接平台（M4）
+          ctx.fillStyle = col('text_secondary')
+          ctx.font = font(T.typography.caption)
+          ctx.fillText('查看', r.x + r.w - T.space.l - 60, r.y + r.h / 2)
+          ctx.fillText('▸', r.x + r.w - T.space.l, r.y + r.h / 2)
         } else {
           const tw = 96
           const tx = r.x + r.w - tw - T.space.m

@@ -1,5 +1,9 @@
 [
   {
+    "file": "apps/client-cocos/creator/assets/scripts/shared/control/index.ts",
+    "hash": "314fae80"
+  },
+  {
     "file": "apps/client-cocos/creator/assets/scripts/shared/core/index.ts",
     "hash": "1bbc7857"
   },
@@ -20,16 +24,32 @@
     "hash": "69bc0c97"
   },
   {
+    "file": "apps/client-cocos/creator/assets/scripts/shared/monetize/index.ts",
+    "hash": "48e215ce"
+  },
+  {
     "file": "apps/client-cocos/creator/assets/scripts/shared/systems/index.ts",
-    "hash": "6c708ec6"
+    "hash": "db19718e"
+  },
+  {
+    "file": "apps/client-cocos/creator/assets/scripts/shared/weather/index.ts",
+    "hash": "7a25ddc6"
+  },
+  {
+    "file": "apps/client-cocos/creator/assets/scripts/shared/world/index.ts",
+    "hash": "6e2607e8"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/shared-headless/sim.ts",
-    "hash": "e8b0cd81"
+    "hash": "a21adc2c"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/theme-data.ts",
     "hash": "248a05a5"
+  },
+  {
+    "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/json-data.ts",
+    "hash": "8251553f"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/theme.ts",
@@ -37,22 +57,34 @@
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/layout.ts",
-    "hash": "31e51f73"
+    "hash": "f21ae1da"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/state.ts",
-    "hash": "3888a734"
+    "hash": "f2311407"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/anim.ts",
-    "hash": "fc86386a"
+    "hash": "336e829e"
+  },
+  {
+    "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/battle.ts",
+    "hash": "1f0b4fab"
+  },
+  {
+    "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/tutorial.ts",
+    "hash": "d6cfcc3d"
+  },
+  {
+    "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/sprite.ts",
+    "hash": "23390818"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/renderer.ts",
-    "hash": "506d91b5"
+    "hash": "6e01f9ae"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/shared-tables/tables.ts",
-    "hash": "d2ccc6a4"
+    "hash": "72994431"
   }
 ]

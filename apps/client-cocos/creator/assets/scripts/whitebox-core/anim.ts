@@ -26,8 +26,8 @@ export const OUTCOME_LABEL: Record<RouteOutcome, string> = {
   LOSE_3P: '破防×3+'
 }
 
-/** 夜战波次推进：每波间隔 WAVE_MS（=normal×3，tokens 派生），血条按 normal 曲线充能 */
-const WAVE_MS = motion('normal').dur * 3
+/** 夜战波次推进：每波间隔 WAVE_MS（=normal×3=900ms，tokens 派生），血条按 normal 曲线充能 */
+export const WAVE_MS = motion('normal').dur * 3
 export function nightWaves(routes: RouteResult[], start: number, now: number): {
   revealed: RouteView[]
   currentFill: number

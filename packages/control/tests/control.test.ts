@@ -1,7 +1,7 @@
 // @rn/control 单测：覆盖合并/拒绝非法键/类型守卫/回滚（base 不变）/留痕 + OverlaySource 契约（E4）。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { applyOverlay, validateOverlayFile, MemoryOverlaySource, FileOverlaySource, type OverlayFile } from '../src/index.ts'
@@ -39,7 +39,7 @@ test('OverlaySource 契约：Memory/File 源加载 + 结构校验 + 应用闭环
   const dir = mkdtempSync(join(tmpdir(), 'ov-'))
   const fp = join(dir, 'ov.json')
   writeFileSync(fp, JSON.stringify(file))
-  const fromFile = await new FileOverlaySource(fp).load()
+  const fromFile = await new FileOverlaySource(fp, (p) => readFileSync(p, 'utf8')).load()
   assert.equal(fromFile.version, 2)
 
   assert.equal(validateOverlayFile({ version: 0 }).ok, false)

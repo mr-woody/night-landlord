@@ -32,6 +32,7 @@
   "devDependencies": {
     "@types/node": "^24.0.0",
     "esbuild": "^0.28.2",
+    "miniprogram-automator": "^0.12.1",
     "typescript": "^5.6.0"
   }
 }

@@ -53,6 +53,27 @@ export class WhiteboxMain extends Component {
   private booted = false;
 
   async start() {
+    try {
+      await this.boot();
+    } catch (e: any) {
+      this.showFatal(e);
+    }
+  }
+
+  /** 真机诊断：组件级启动异常以 modal 直显（引擎不 await async start，静默 rejection 会黑屏空转） */
+  private showFatal(e: any): void {
+    console.error('[WhiteboxMain]', e);
+    try {
+      const w: any = globalThis as any;
+      w.wx?.showModal?.({
+        title: '场景启动异常',
+        content: String(e?.message || e).slice(0, 300) + '\n— ' + String(e?.stack || '').split('\n')[1]?.trim().slice(0, 160),
+        showCancel: false
+      });
+    } catch { /* 保底仅 console */ }
+  }
+
+  private async boot() {
     const { canvas, ctx } = createOffscreen(DESIGN_W, DESIGN_H);
     this.off = canvas;
     this.renderer = new WhiteboxRenderer(canvas, { onFps: () => {} });

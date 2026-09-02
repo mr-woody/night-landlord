@@ -37,7 +37,7 @@ export interface GameState {
   stats: { deathsTotal: number; deathsToday: number; goldEarnedTotal: number; breachesLastNight: number }
 }
 
-export interface BuildingEntry { type: string; level: number; cost: Record<string, number>; capacity?: number; slots?: Record<string, number>; unlockDay?: number }
+export interface BuildingEntry { type: string; level: number; cost: Record<string, number>; capacity?: number; slots?: Record<string, number>; unlockDay?: number; /** M3.2 房屋进化：耐久系数（type='house' 专用） */ durability?: number; desc?: string }
 export interface Tables {
   dayCurve: DayCurveTable
   constants: ConstantsTable
@@ -250,7 +250,7 @@ export function settleDawn(state: GameState, deps: { formula: Formula; constants
 
 // ---- 夜战（路级判定 + BattleSession 可序列化）----
 export interface NightRoute { roomId: string; hp: number; monsterId?: string }
-export interface NightPlan { day: number; routes: NightRoute[]; modifiers: string[]; seed: number }
+export interface NightPlan { day: number; routes: NightRoute[]; modifiers: string[]; seed: number; /** 目标楼栋地块（M3.0 世界空间；缺省=默认栋 A） */ lotId?: string }
 export interface RouteResult { roomId: string; f: number; hp: number; r: number; outcome: RouteOutcome; monsterId?: string }
 export interface BattleSession {
   day: number

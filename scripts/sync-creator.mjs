@@ -68,6 +68,18 @@ for (const pkg of readdirSync(join(root, 'packages'))) {
   const core = join(outRoot, 'whitebox-core')
   // theme-data.ts（生成式 tokens，替代 JSON import——Creator 编译管线对 JSON module 支持不稳）
   plan.push({ out: join(core, 'theme-data.ts'), code: `// 生成产物（scripts/sync-creator.mjs，源=config/theme.json）——勿手改\nexport const THEME = ${JSON.stringify(theme, null, 2)} as const\n` })
+  const jsonVars = {
+    weatherJson: JSON.parse(readFileSync(join(root, 'config/weather.json'), 'utf8')),
+    buildingDefJson: JSON.parse(readFileSync(join(root, 'config/building_def.json'), 'utf8')),
+    monstersJson: JSON.parse(readFileSync(join(root, 'config/monster.json'), 'utf8')),
+    iapSkuJson: JSON.parse(readFileSync(join(root, 'config/iap_sku.json'), 'utf8')),
+    spriteManifest: JSON.parse(readFileSync(join(root, 'docs/assets/ai/sprite-manifest.json'), 'utf8'))
+  }
+  plan.push({
+    out: join(core, 'json-data.ts'),
+    code: '// 生成产物（scripts/sync-creator.mjs，源=config/*.json + docs/assets/ai/sprite-manifest.json）——勿手改\n' +
+      Object.entries(jsonVars).map(([k, v]) => `export const ${k} = ${JSON.stringify(v)} as const`).join('\n') + '\n'
+  })
   const rewriteImportPath = (fromFile, spec) => {
     // 去掉 .ts 扩展；工程内路径映射
     let target = spec.replace(/\.ts$/, '')
@@ -82,7 +94,7 @@ for (const pkg of readdirSync(join(root, 'packages'))) {
     if (target.startsWith('.')) return target // 相对同目录（theme/layout/state/anim/renderer 互引）
     return target
   }
-  for (const name of ['theme.ts', 'layout.ts', 'state.ts', 'anim.ts', 'renderer.ts']) {
+  for (const name of ['theme.ts', 'layout.ts', 'state.ts', 'anim.ts', 'battle.ts', 'tutorial.ts', 'sprite.ts', 'renderer.ts']) {
     const f = join(root, 'apps/client-cocos/whitebox', name)
     let code = readFileSync(f, 'utf8')
     if (name === 'theme.ts') {
@@ -91,6 +103,11 @@ for (const pkg of readdirSync(join(root, 'packages'))) {
         `import { THEME as themeJson } from './theme-data'`
       )
     }
+    // 通用改写：其余 JSON import-attributes → 生成式 json-data.ts（C13 同策略，防漂移复发）
+    code = code.replace(
+      /import (\w+) from '[^']*\.json' with \{ type: 'json' \}/g,
+      (m, name2) => `import { ${name2} } from './json-data'`
+    )
     // 相对导入：去 .ts 扩展 + 工程内映射（含 import type）
     code = code.replace(/from '([^']+)'/g, (m, spec) => {
       if (!spec.startsWith('.')) return m // 'cc' 等外部模块不动
