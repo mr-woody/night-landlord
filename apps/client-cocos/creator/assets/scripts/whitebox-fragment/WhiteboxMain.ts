@@ -193,6 +193,8 @@ export class WhiteboxMain extends Component {
         data: JSON.stringify({
           booted: this.booted,
           phase: this.ui.phase, page: this.ui.page, day: this.idx + 1,
+          modal: (() => { const m = topModal(this.ui); return m ? { kind: m.kind, id: m.id, chosen: m.chosen ?? null } : null })(),
+          wildZone: this.ui.sel.wildZone ?? null,
           gold: this.frames[this.idx]?.gold ?? null,
           frames: this.frames.length,
           probe: (() => {
