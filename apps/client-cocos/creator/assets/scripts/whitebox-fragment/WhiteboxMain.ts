@@ -68,6 +68,7 @@ export class WhiteboxMain extends Component {
     } catch (e: any) {
       const k: any = (this as any).__kernel;
       const recSnap = k?.records ? Array.from(k.records.values(), (r: any) => `${r.decl?.name}:${JSON.stringify(r.decl?.depends)}`).join(' | ') : '';
+      this.lastError = e?.message || String(e);
       this.showFatal(e, this.depsSnap + (recSnap ? '\n[records] ' + recSnap.slice(0, 400) : ''));
     }
   }
@@ -140,12 +141,17 @@ export class WhiteboxMain extends Component {
 
     // —— 动态纹理桥 ——
     try {
-    const imageAsset = new ImageAsset(this.off);
+    // 微信端 ImageAsset(canvas) 产出黑纹理——改像素直传：getImageData → ImageAsset{_data}
+    const ctx2d = this.off.getContext('2d') as CanvasRenderingContext2D;
+    (this as any).ctx2d = ctx2d;
+    const px = ctx2d.getImageData(0, 0, DESIGN_W, DESIGN_H);
+    const imageAsset = new ImageAsset({ width: DESIGN_W, height: DESIGN_H, _data: px.data, _compressed: false, format: Texture2D.PixelFormat.RGBA8888 } as any);
     this.texture = new Texture2D();
     this.texture.image = imageAsset;
     const sf = new SpriteFrame();
     sf.texture = this.texture;
     const viewNode = new Node('whitebox-view');
+    viewNode.layer = this.node.layer; // Creator 陷阱：动态节点默认 layer 与相机不匹配 → 整节点不可见
     const ut = viewNode.addComponent(UITransform);
     ut.setContentSize(DESIGN_W, DESIGN_H);
     const sp = viewNode.addComponent(Sprite);
@@ -156,6 +162,16 @@ export class WhiteboxMain extends Component {
 
     // —— 输入桥 ——
     this.node.on(Node.EventType.TOUCH_END, this.onTouch, this);
+    // 自动化探针（DevTools automator 功能测试用）：随 update 刷新的只读快照
+    (this as any).__nlState = () => ({
+      booted: this.booted,
+      phase: this.ui.phase,
+      page: this.ui.page,
+      day: this.idx + 1,
+      gold: this.frames[this.idx]?.gold ?? null,
+      population: this.frames[this.idx]?.population ?? null,
+      frames: this.frames.length
+    });
     this.booted = true;
   }
 
@@ -163,9 +179,57 @@ export class WhiteboxMain extends Component {
     return this.frames[this.idx] ?? null;
   }
 
+  private lastError = '';
+  private lastClipAt = 0;
+
+  /** 可观测桥：状态节流写入剪贴板，宿主 pbpaste 即读（模拟器/真机通用） */
+  private syncClipboard(now: number): void {
+    if (now - this.lastClipAt < 1500) return;
+    this.lastClipAt = now;
+    try {
+      const w: any = globalThis as any;
+      const k: any = (this as any).__kernel;
+      w.wx?.setClipboardData?.({
+        data: JSON.stringify({
+          booted: this.booted,
+          phase: this.ui.phase, page: this.ui.page, day: this.idx + 1,
+          gold: this.frames[this.idx]?.gold ?? null,
+          frames: this.frames.length,
+          probe: (() => {
+            try {
+              const c: any = (this as any).ctx2d;
+              if (!c) return 'no-ctx';
+              const pt = (x: number, y: number) => Array.from(c.getImageData(x, y, 1, 1).data.slice(0, 3));
+              return { hud: pt(375, 100), village: pt(140, 700), dock: pt(375, 1550) };
+            } catch (e: any) { return 'probe-err:' + e.message; }
+          })(),
+          lastError: this.lastError || null,
+          records: k?.records ? Array.from(k.records.keys()) : null
+        })
+      });
+    } catch { /* 观测失败不影响运行 */ }
+  }
+
   update() {
-    if (!this.booted || !this.renderer || !this.texture) return;
+    if (!this.renderer || !this.texture) return;
     const now = performance.now();
+    this.syncClipboard(now);
+    if (!this.booted || !this.currentFrame()) {
+      const ctx = this.off?.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#0B1020'; ctx.fillRect(0, 0, 750, 1624);
+        ctx.fillStyle = '#E8E8F0'; ctx.font = 'bold 34px sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText('永夜收租人 · 启动中', 40, 90);
+        ctx.font = '28px sans-serif'; ctx.fillStyle = '#8892B0';
+        ctx.fillText(`booted=${this.booted}`, 40, 150);
+        if (this.lastError) {
+          ctx.fillStyle = '#FF6B6B';
+          this.lastError.split('\n').slice(0, 12).forEach((ln: string, i: number) => ctx.fillText(ln.slice(0, 46), 40, 210 + i * 38));
+        }
+        this.texture.uploadData(this.off);
+      }
+      return;
+    }
     // 事件卡：翻面→结果→飞图标 完毕自动收卡（移植自 entry 主循环）
     const top = topModal(this.ui);
     if (top?.kind === 'event' && top.chosen !== undefined && this.pb.chosenAt !== null &&
@@ -173,8 +237,20 @@ export class WhiteboxMain extends Component {
       Object.assign(this.ui, closeModal(this.ui));
       this.pb.chosenAt = null;
     }
-    this.renderer.draw(this.ui, this.currentFrame()!, now, this.pb);
-    this.texture.uploadData(this.off);
+    try {
+      this.renderer.draw(this.ui, this.currentFrame()!, now, this.pb);
+    } catch (e: any) {
+      this.lastError = `[draw] ${e?.message || e}`;
+      console.error('[draw]', e);
+    }
+    try {
+      const ctx2d = this.off.getContext('2d') as CanvasRenderingContext2D;
+      const px = ctx2d.getImageData(0, 0, DESIGN_W, DESIGN_H);
+      this.texture.uploadData(px.data);
+    } catch (e: any) {
+      this.lastError = `[upload] ${e?.message || e}`;
+      console.error('[upload]', e);
+    }
   }
 
   private onTouch(ev: EventTouch) {
