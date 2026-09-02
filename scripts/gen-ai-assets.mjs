@@ -14,8 +14,8 @@
 //   ARK_API_KEY=sk-.. node scripts/gen-ai-assets.mjs         # 真跑（费用≈资产×候选×轮次×单价）
 //   可选：--candidates 8 --rounds 3 --no-rembg --seed 7
 // 环境变量（.env 自动加载，不入库）：ARK_API_KEY / ARK_MODEL_ID / ARK_BASE_URL / ARK_PRICE_PER_IMAGE
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs'
+import { execFile, execFileSync } from 'node:child_process'
 import { resolve, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Raster, encodePng, decodePng } from './lib/png.mjs'
@@ -92,7 +92,7 @@ const ASSETS = [
     ['lv3_fine_wood', '双色墙板精品小屋，雕花门楣，气窗，石块基座'],
     ['lv4_stone', '石块墙小屋，石瓦屋顶，加固门框'],
     ['lv5_bastion', '砖石堡垒小屋，瞭望角楼，铁门']
-  ].map(([n, b]) => A('houses', `house_${n}@2x.png`, 768, 576, 'scene', 'iso', 0.35, 0.95, `等距视角单人小屋：${b}`, REF('anchor_building_cutaway@2x.png'))),
+  ].map(([n, b]) => A('houses', `house_${n}@2x.png`, 768, 576, 'scene', 'iso', 0.08, 0.95, `等距视角单人小屋：${b}`, REF('anchor_building_cutaway@2x.png'))),
   // §3 怪物/野物（72px 剪影必测；3/4 侧面朝右=行进方向；参考循声者锚点统一怪物家族风格）
   A('monsters', 'monster_seeker_idle@2x.png', 384, 384, 'char', 'side', 0.12, 0.60, '无眼盲怪爬行姿态，头部声波探测圈，红色感知器官发光', REF('anchor_monster_seeker@2x.png')),
   A('monsters', 'monster_prey_rabbit@2x.png', 384, 384, 'char', 'side', 0.12, 0.60, '野兔侧面剪影，温和体态，生存狩猎猎物，面朝右', REF('anchor_monster_seeker@2x.png')),
@@ -118,7 +118,8 @@ const ASSETS = [
     ['ring', '暗红色血月光晕环，柔边呼吸感']
   ].map(([n, b]) => A('fx', `fx_light_${n}@2x.png`, 512, 512, 'fx', 'icon', 0.08, 0.70, `游戏光效贴图，居中单体：${b}；边缘必须柔和渐变到全透明`))
 ]
-const list = ONLY ? ASSETS.filter(a => ONLY.includes(a.mod) || ONLY.includes(a.id)) : ASSETS
+const list = (ONLY ? ASSETS.filter(a => ONLY.includes(a.mod) || ONLY.includes(a.id)) : ASSETS)
+  .filter(a => !(has('--skip-existing') && existsSync(join(root, 'docs/assets/ai', a.mod, a.file))))
 
 // 全出血场景（主楼剖面/天气氛围=整幅含背景交付）：不抠底、豁免透明底门、覆盖率按满幅计量
 for (const a of list) if (/^(anchor_building_cutaway|anchor_rain|weather_)/.test(a.id)) { a.fullBleed = /^(anchor_building_cutaway|weather_)/.test(a.id); a.covMin = a.fullBleed ? 0.8 : a.covMin; a.covMax = a.fullBleed ? 1 : a.covMax }
@@ -203,13 +204,16 @@ session = new_session('u2net')
 remove(Image.open(sys.argv[1]), session=session).save(sys.argv[2])
 `
 function rembg(buf, tag) {
-  if (!USE_REMBG) return buf
+  if (!USE_REMBG) return Promise.resolve(buf)
   const tmp = `/tmp/nl-rembg-${process.pid}-${tag}.png`
+  const out = tmp.replace('.png', '-cut.png')
   writeFileSync(tmp, buf)
-  try {
-    execFileSync('python3', ['-c', REMBG_PY, tmp, tmp.replace('.png', '-cut.png')], { stdio: 'pipe' })
-    return readFileSync(tmp.replace('.png', '-cut.png'))
-  } catch (e) { console.warn(`  ⚠ rembg 不可用，跳过抠底（${tag}）：${String(e.message).split('\n')[0]}`); return buf }
+  return new Promise(res => {
+    execFile('python3', ['-c', REMBG_PY, tmp, out], err => {
+      if (err) { console.warn(`  ⚠ rembg 不可用，跳过抠底（${tag}）：${String(err.message).split('\n')[0]}`); res(buf) }
+      else res(readFileSync(out))
+    })
+  })
 }
 
 function resize(src, tw, th) { // 中心点采样降采样：保住 flat 色块纯度（均值混色会产生大量容差外边缘色，毁色板命中率）；与 check-assets 72px 测法同口径
@@ -305,34 +309,65 @@ for (const spec of list) {
     const corrective = round.tries.length ? `上一轮问题：${round.tries.at(-1).fails.join('；')}。请针对性修正。` : ''
     const prompt = buildPrompt(spec, hint || corrective ? `${hint} ${corrective}` : null)
     const tryInfo = { round: rd, fails: [], ok: false }
+    const roundT0 = Date.now()
     const processed = []
-    for (let i = 0; i < N_CAND; i++) {
+    // --repick（C17）：复用盘上已有候选本地重挑（零 API 成本）——历史批次因旧评分埋没的合格图直接回收
+    if (has('--repick') && rd === 1) {
+      const cdir = join(candDir, spec.id)
+      if (existsSync(cdir)) {
+        for (const f of readdirSync(cdir).filter(f => f.endsWith('.png')).sort()) {
+          try {
+            let buf = readFileSync(join(cdir, f))
+            buf = ensurePng(buf, join(cdir, f))
+            let img = decodePng(spec.fullBleed ? buf : await rembg(buf, `${spec.id}-repick-${f}`))
+            if (img.w !== spec.w || img.h !== spec.h) img = resize(img, spec.w, spec.h)
+            processed.push({ img: snapPalette(img, spec.cls !== 'fx'), seed: 0 })
+          } catch { /* 坏候选跳过 */ }
+        }
+        if (processed.length) console.log(`  ↻ ${spec.id}: repick 复用 ${processed.length} 个既有候选`)
+      }
+    }
+    // C17 并发生成（诊断：5.0 pro 单张 ~41s，串行 8 张 ≈5.5min/轮是管线时延主因）；并发 4 防限流
+    const genOne = async i => {
+      const seed = BASE_SEED * 100000 + spec.mod.length * 7919 + rd * 997 + i
       try {
-        const seed = BASE_SEED * 100000 + spec.mod.length * 7919 + rd * 997 + i
         let buf = DRY
           ? mockGenerate({ w: spec.w, h: spec.h, seed: seed + spec.w, cls: spec.cls, covMin: spec.covMin, covMax: spec.covMax })
           : await arkGenerate({ prompt, refs: spec.ref ? [spec.ref] : [], w: spec.w, h: spec.h, seed })
         const saved = join(candDir, spec.id, `r${rd}-cand${i}.png`)
         writeFileSync(saved, buf)
         buf = ensurePng(buf, saved)
-        let img = decodePng(spec.fullBleed ? buf : rembg(buf, `${spec.id}-r${rd}-${i}`))
+        let img = decodePng(spec.fullBleed ? buf : await rembg(buf, `${spec.id}-r${rd}-${i}`))
         if (img.w !== spec.w || img.h !== spec.h) img = resize(img, spec.w, spec.h)
-        processed.push({ img: snapPalette(img, spec.cls !== 'fx'), seed })
+        return { img: snapPalette(img, spec.cls !== 'fx'), seed }
       } catch (e) {
         const msg = String(e.message)
         if (msg.includes('AccountOverdueError') || msg.includes('403')) { // 欠费/封禁：快速失败，停止烧轮次
           tryInfo.fails.push(`账户不可用（充值后重跑）: ${msg.slice(0, 120)}`)
           console.error(`✗ ${spec.id}: 账户不可用，快速失败（ARK 403）`)
           accountDead = true
-        } else tryInfo.fails.push(`候选${i}生成失败: ${msg}`)
+          return null
+        }
+        return { err: `候选${i}生成失败: ${msg}` }
       }
-      if (accountDead) break
+    }
+    const CONC = Math.min(4, N_CAND)
+    if (!has('--repick') || !processed.length) {
+      for (let s = 0; s < N_CAND && !accountDead; s += CONC) {
+        const part = await Promise.all(Array.from({ length: Math.min(CONC, N_CAND - s) }, (_, k) => genOne(s + k)))
+        for (const r of part) {
+          if (!r) continue
+          if (r.err) tryInfo.fails.push(r.err)
+          else processed.push(r)
+        }
+      }
     }
     if (accountDead) { round.tries.push(tryInfo); break }
     if (!processed.length) { round.tries.push(tryInfo); continue }
-    // 评分：覆盖率贴窗口 + 扩展色板命中率 + 色彩层次 + 深色描边占比（C13 迭代：命中率入评分，防挑中好看但脱板的候选）
+    // 评分：过门优先（+1000，杜绝"能过门的候选被埋没"）+ 覆盖率贴窗 + 色板命中率 + 色彩层次 + 深色描边
     let best = null
     for (const p of processed) {
+      const pf = gates(p.img, spec)
       const px = p.img.rgba
       let opaque = 0, dark = 0, onPal = 0
       const cs = new Set()
@@ -344,15 +379,16 @@ for (const spec of list) {
       }
       const cov = opaque / (spec.w * spec.h)
       const mid = (spec.covMin + spec.covMax) / 2, half = (spec.covMax - spec.covMin) / 2
-      const score = Math.max(0, 1 - Math.abs(cov - mid) / half) * 100 + (opaque ? onPal / opaque : 0) * 50 + Math.min(cs.size, 8) * 4 + (dark ? 10 : 0)
-      if (!best || score > best.score) best = { ...p, score }
+      const score = (pf.length ? 0 : 1000) + Math.max(0, 1 - Math.abs(cov - mid) / half) * 100 + (opaque ? onPal / opaque : 0) * 50 + Math.min(cs.size, 8) * 4 + (dark ? 10 : 0)
+      if (!best || score > best.score) best = { ...p, score, fails: pf }
     }
-    const fails = gates(best.img, spec)
+    const fails = best.fails ?? []
     if (!fails.length) {
       writeFileSync(join(dir, spec.file), encodePng(spec.w, spec.h, best.img.rgba))
       round.status = 'pass'; tryInfo.ok = true
     } else tryInfo.fails = fails
     tryInfo.seed = best.seed; tryInfo.score = Math.round(best.score * 10) / 10
+    tryInfo.elapsedSec = Math.round((Date.now() - roundT0) / 1000)
     round.tries.push(tryInfo)
   }
   report.assets.push({ id: spec.id, mod: spec.mod, status: round.status, tries: round.tries, file: round.status === 'pass' ? `docs/assets/ai/${outDirs[spec.mod]}/${spec.file}` : null })

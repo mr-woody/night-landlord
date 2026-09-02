@@ -35,6 +35,8 @@
     "gold_orange": "#E8A81A",
     "gold_pale": "#FCF4D8",
     "mid_gray": "#585858",
-    "amber_deep": "#A86408"
+    "amber_deep": "#A86408",
+    "energy_cyan": "#3EC8DC",
+    "energy_cyan_deep": "#1E88A8"
   }
 }
