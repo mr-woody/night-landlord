@@ -5807,6 +5807,93 @@
     return `${weight}${px}px "${family}", sans-serif`;
   }
 
+  // docs/assets/ai/sprite-manifest.json
+  var sprite_manifest_default = {
+    version: 1,
+    files: [
+      "anchors/anchor_building_cutaway@2x.png",
+      "anchors/anchor_monster_seeker@2x.png",
+      "anchors/anchor_rain_frame@2x.png",
+      "anchors/anchor_tenant_guard@2x.png",
+      "anchors/anchor_tenant_nurse@2x.png",
+      "anchors/anchor_tenant_worker@2x.png"
+    ]
+  };
+
+  // apps/client-cocos/whitebox/sprite.ts
+  var SPRITE_FILES = {
+    houses: [
+      "house_lv0_thatch@2x.png",
+      "house_lv1_broken_wood@2x.png",
+      "house_lv2_plain_wood@2x.png",
+      "house_lv3_fine_wood@2x.png",
+      "house_lv4_stone@2x.png",
+      "house_lv5_bastion@2x.png"
+    ],
+    monsters: ["monster_seeker_idle@2x.png", "monster_seeker_attack@2x.png"],
+    anchors: ["anchor_monster_seeker@2x.png"],
+    fx: [
+      "fx_light_column@2x.png",
+      "fx_light_circle@2x.png",
+      "fx_light_ring@2x.png",
+      "fx_particle_smoke@2x.png",
+      "fx_particle_spark@2x.png",
+      "fx_particle_glow@2x.png",
+      "fx_particle_dust@2x.png"
+    ]
+  };
+  var BASE = "assets/ai/";
+  function pickMonsterSprite(has, attacking) {
+    if (attacking && has("monster_seeker_attack@2x.png")) return "monster_seeker_attack@2x.png";
+    if (has("monster_seeker_idle@2x.png")) return "monster_seeker_idle@2x.png";
+    if (has("anchor_monster_seeker@2x.png")) return "anchor_monster_seeker@2x.png";
+    return null;
+  }
+  var SpriteStore = class {
+    map = /* @__PURE__ */ new Map();
+    /** 单文件加载（BASE 页面相对）；失败静默 false（降级信号） */
+    load(name, dir = "") {
+      const hit = this.map.get(name);
+      if (hit) return Promise.resolve(hit.complete && hit.naturalWidth > 0);
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          this.map.set(name, img);
+          resolve(true);
+        };
+        img.onerror = () => resolve(false);
+        img.src = BASE + dir + name;
+      });
+    }
+    has(name) {
+      const img = this.map.get(name);
+      return !!img && img.complete && img.naturalWidth > 0;
+    }
+    get(name) {
+      return this.map.get(name);
+    }
+    /** 清单驱动预载（C16）：只 load 构建期内联清单中的文件（缺资产零 404，补产后重建自动扩列）。
+     *  画廊/回退语义不变——未列出的文件视作 miss。返回成功加载数。 */
+    async loadFromManifest() {
+      const files = sprite_manifest_default.files ?? [];
+      const loaded = await Promise.all(files.map((f) => {
+        const i = f.indexOf("/");
+        return this.load(f.slice(i + 1), f.slice(0, i + 1));
+      }));
+      return loaded.filter(Boolean).length;
+    }
+    /** 底边中心锚定绘制（等距实体统一锚点：脚底接地）；alpha<1 用于未入住等状态减淡 */
+    draw(ctx, name, cx, bottom, w, alpha = 1) {
+      const img = this.map.get(name);
+      if (!img || !this.has(name)) return;
+      const dh = w * (img.naturalHeight / img.naturalWidth);
+      if (alpha < 1) ctx.save();
+      if (alpha < 1) ctx.globalAlpha = alpha;
+      ctx.drawImage(img, cx - w / 2, bottom - dh, w, dh);
+      if (alpha < 1) ctx.restore();
+    }
+  };
+
   // apps/client-cocos/whitebox/state.ts
   var EVENT_QUEUE_MAX = 2;
   function createUiState() {
@@ -6589,6 +6676,14 @@
   };
 
   // apps/client-cocos/whitebox/renderer.ts
+  var HOUSE_SPRITE_BY_LV = [
+    "house_lv0_thatch@2x.png",
+    "house_lv1_broken_wood@2x.png",
+    "house_lv2_plain_wood@2x.png",
+    "house_lv3_fine_wood@2x.png",
+    "house_lv4_stone@2x.png",
+    "house_lv5_bastion@2x.png"
+  ];
   var WAVE_LETTERS = ["A", "B", "C", "D", "E", "F"];
   var prand = (seed) => (seed * 9301 + 49297) % 233280 / 233280;
   function fmt(n) {
@@ -6607,6 +6702,10 @@
     warmupLeft = 2;
     lastSample = 0;
     modalOpenAt = null;
+    /** C7：AI sprite 层（entry 异步预载后注入；null/缺资产=程序化矢量回退，零回归） */
+    sprites = null;
+    /** ?spritedbg=1：sprite 检视画廊（QA 工具） */
+    spriteDebug = false;
     /** rAF 主循环：帧率采样（预热 2 窗 + 节流窗 <10fps 不计入预算）+ 重绘 */
     start(getFrame, getUi, getPb) {
       const tick = (now) => {
@@ -6623,6 +6722,7 @@
         }
         const frame = getFrame();
         if (frame) this.draw(getUi(), frame, now, getPb());
+        if (this.spriteDebug) this.drawSpriteGallery();
         requestAnimationFrame(tick);
       };
       this.lastSample = performance.now();
@@ -6630,6 +6730,51 @@
     }
     getSamples() {
       return this.budgetSamples;
+    }
+    /** P3-3：光效贴图叠加（additive 发光合成，柔边贴图免二值化入库）；fx 资产缺位时执行 fallback 程序化渐变 */
+    drawFx(name, cx, cy, w, h, fallback) {
+      const { ctx } = this;
+      const img = this.sprites?.get(name);
+      if (img && this.sprites.has(name)) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = 0.85;
+        ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+        ctx.restore();
+        return;
+      }
+      fallback();
+    }
+    /** ?spritedbg=1：sprite 检视画廊——逐枚显示装载状态（绿框=已载+缩略图，红框=miss），QA 与截图矩阵工具 */
+    drawSpriteGallery() {
+      const { ctx } = this;
+      if (!this.sprites) return;
+      const all = [...SPRITE_FILES.houses, ...SPRITE_FILES.monsters, ...SPRITE_FILES.anchors, ...SPRITE_FILES.fx];
+      const loaded = all.filter((n) => this.sprites.has(n)).length;
+      const px = 12, py = DESIGN_H - 226, pw = DESIGN_W - 24, ph = 164;
+      ctx.fillStyle = withAlpha(col("bg_night"), 0.9);
+      ctx.fillRect(px, py, pw, ph);
+      ctx.strokeStyle = col("panel_stroke");
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px, py, pw, ph);
+      ctx.fillStyle = col("text_secondary");
+      ctx.font = font(T.typography.caption);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText(`sprite \u88C5\u8F7D ${loaded}/${all.length}\uFF08?spritedbg=1 \u68C0\u89C6\uFF09`, px + 12, py + 22);
+      let gx = px + 14, gy = py + 36;
+      for (const n of all) {
+        const ok = this.sprites.has(n);
+        ctx.strokeStyle = ok ? col("success") : col("danger");
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(gx, gy, 50, 50);
+        if (ok) this.sprites.draw(ctx, n, gx + 25, gy + 48, 46);
+        gx += 58;
+        if (gx + 50 > px + pw - 8) {
+          gx = px + 14;
+          gy += 58;
+        }
+      }
     }
     // ════════ 基础绘制库 ════════
     /** 立体面板：投影 + 底色 + 描边 + 顶部高光棱线（全部 tokens 派生） */
@@ -7438,6 +7583,13 @@
         ctx.fillStyle = withAlpha(col("alert_blood"), 0.25);
         ctx.fill();
         this.iconMoon(DESIGN_W - 120, 150, 40, true);
+        this.drawFx("fx_light_ring@2x.png", DESIGN_W / 2, DESIGN_H * 0.35, DESIGN_W * 0.95, DESIGN_W * 0.95, () => {
+          const g = ctx.createRadialGradient(DESIGN_W / 2, DESIGN_H * 0.35, 120, DESIGN_W / 2, DESIGN_H * 0.35, 620);
+          g.addColorStop(0, withAlpha(col("alert_blood"), 0));
+          g.addColorStop(1, withAlpha(col("alert_blood"), 0.16));
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
+        });
       }
       ctx.textBaseline = "middle";
       ctx.fillStyle = isBM ? col("alert_blood") : col("text_primary");
@@ -7518,7 +7670,7 @@
             ctx.fillStyle = withAlpha(col("text_primary"), 0.55);
             ctx.fillRect(-16, -14, 32, 26);
           }
-          this.drawMonster(visual, now);
+          this.drawMonster(visual, now, isCurrent && prog > 0.72);
           ctx.restore();
           if (isCurrent && prog > 0.72 && Math.sin(now / 55) > 0.4) {
             ctx.fillStyle = withAlpha(col("text_primary"), 0.25);
@@ -7570,6 +7722,13 @@
         const remain = (sk.fxUntil - now) / 1200;
         if (sk.fxKind === "supply") {
           const py = 180 + (1 - remain) * 420;
+          this.drawFx("fx_light_column@2x.png", DESIGN_W / 2, py / 2 + 20, 120, py + 40, () => {
+            const g = ctx.createLinearGradient(0, 0, 0, py);
+            g.addColorStop(0, withAlpha(col("gold_primary"), 0));
+            g.addColorStop(1, withAlpha(col("gold_primary"), 0.18));
+            ctx.fillStyle = g;
+            ctx.fillRect(DESIGN_W / 2 - 60, 0, 120, py);
+          });
           ctx.strokeStyle = withAlpha(col("text_primary"), 0.7);
           ctx.lineWidth = 2;
           ctx.beginPath();
@@ -7844,6 +8003,11 @@
     /** 单栋小屋：6 级外观（茅草屋→破损木屋→普通木屋→精品木屋→石屋→砖石堡垒） */
     drawHouse(x, y, level, occupied, now, i) {
       const { ctx } = this;
+      const spriteName = HOUSE_SPRITE_BY_LV[Math.min(5, level)];
+      if (this.sprites?.has(spriteName)) {
+        this.sprites.draw(ctx, spriteName, x + 31, y + 4, 88, occupied ? 1 : 0.35);
+        return;
+      }
       const w = 62, wallH = 26 + level * 3;
       const wallByLv = [
         mix(col("gold_deep"), col("bg_night"), 0.72),
@@ -8078,8 +8242,20 @@
       }
     }
     /** 怪物绘制（差异化：循声者爬行+声波圈/破窗者携梯/攀楼种挂钩/飞行种悬停/精英红眼尖刺） */
-    drawMonster(visual, now) {
+    drawMonster(visual, now, attacking = false) {
       const { ctx } = this;
+      if (visual === "crawler" && this.sprites) {
+        const name = pickMonsterSprite((n) => this.sprites.has(n), attacking);
+        if (name) {
+          if (attacking) {
+            ctx.save();
+            ctx.rotate(0.16);
+          }
+          this.sprites.draw(ctx, name, 0, 4, attacking ? 40 : 34);
+          if (attacking) ctx.restore();
+          return;
+        }
+      }
       const body = shade(col("panel_stroke"), 0.55);
       const legSwing = Math.sin(now / 90) * 3;
       ctx.strokeStyle = col("bg_night");
@@ -8935,6 +9111,11 @@
       el.style.color = min >= 50 ? col("success") : col("danger");
     }
   });
+  var spriteStore = new SpriteStore();
+  spriteStore.loadFromManifest().then(() => {
+    renderer.sprites = spriteStore;
+  });
+  renderer.spriteDebug = new URLSearchParams(location.search).has("spritedbg");
   var frames = [];
   var idx = 0;
   var ui = createUiState();

@@ -1,7 +1,22 @@
 {
-  "generatedAt": "2026-09-01T16:46:44.490Z",
-  "provider": "ark:doubao-seedream-4-0-250828",
+  "generatedAt": "2026-09-01T23:56:23.380Z",
+  "provider": "mock(--dry)",
   "assets": [
+    {
+      "id": "anchor_building_cutaway",
+      "mod": "anchors",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 756431,
+          "score": 133.3
+        }
+      ],
+      "file": "docs/assets/ai/anchors/anchor_building_cutaway@2x.png"
+    },
     {
       "id": "anchor_tenant_worker",
       "mod": "anchors",
@@ -11,11 +26,56 @@
           "round": 1,
           "fails": [],
           "ok": true,
-          "seed": 756437,
-          "score": 166.6
+          "seed": 756431,
+          "score": 170.4
         }
       ],
       "file": "docs/assets/ai/anchors/anchor_tenant_worker@2x.png"
+    },
+    {
+      "id": "anchor_tenant_guard",
+      "mod": "anchors",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 756431,
+          "score": 170.4
+        }
+      ],
+      "file": "docs/assets/ai/anchors/anchor_tenant_guard@2x.png"
+    },
+    {
+      "id": "anchor_tenant_nurse",
+      "mod": "anchors",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 756431,
+          "score": 170.4
+        }
+      ],
+      "file": "docs/assets/ai/anchors/anchor_tenant_nurse@2x.png"
+    },
+    {
+      "id": "anchor_monster_seeker",
+      "mod": "anchors",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 756433,
+          "score": 141.5
+        }
+      ],
+      "file": "docs/assets/ai/anchors/anchor_monster_seeker@2x.png"
     },
     {
       "id": "anchor_rain_frame",
@@ -24,22 +84,403 @@
       "tries": [
         {
           "round": 1,
-          "fails": [
-            "扩展色板命中率 82.6% <85%"
-          ],
-          "ok": false,
-          "seed": 756436,
-          "score": 164.1
-        },
-        {
-          "round": 2,
           "fails": [],
           "ok": true,
-          "seed": 757434,
-          "score": 118.7
+          "seed": 756432,
+          "score": 175
         }
       ],
       "file": "docs/assets/ai/anchors/anchor_rain_frame@2x.png"
+    },
+    {
+      "id": "house_lv0_thatch",
+      "mod": "houses",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 748511,
+          "score": 178.3
+        }
+      ],
+      "file": "docs/assets/ai/houses/house_lv0_thatch@2x.png"
+    },
+    {
+      "id": "house_lv1_broken_wood",
+      "mod": "houses",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 748511,
+          "score": 178.3
+        }
+      ],
+      "file": "docs/assets/ai/houses/house_lv1_broken_wood@2x.png"
+    },
+    {
+      "id": "house_lv2_plain_wood",
+      "mod": "houses",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 748511,
+          "score": 178.3
+        }
+      ],
+      "file": "docs/assets/ai/houses/house_lv2_plain_wood@2x.png"
+    },
+    {
+      "id": "house_lv3_fine_wood",
+      "mod": "houses",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 748511,
+          "score": 178.3
+        }
+      ],
+      "file": "docs/assets/ai/houses/house_lv3_fine_wood@2x.png"
+    },
+    {
+      "id": "house_lv4_stone",
+      "mod": "houses",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 748511,
+          "score": 178.3
+        }
+      ],
+      "file": "docs/assets/ai/houses/house_lv4_stone@2x.png"
+    },
+    {
+      "id": "house_lv5_bastion",
+      "mod": "houses",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 748511,
+          "score": 178.3
+        }
+      ],
+      "file": "docs/assets/ai/houses/house_lv5_bastion@2x.png"
+    },
+    {
+      "id": "monster_seeker_idle",
+      "mod": "monsters",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 764349,
+          "score": 161.2
+        }
+      ],
+      "file": "docs/assets/ai/monsters/monster_seeker_idle@2x.png"
+    },
+    {
+      "id": "monster_prey_rabbit",
+      "mod": "monsters",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 764349,
+          "score": 161.2
+        }
+      ],
+      "file": "docs/assets/ai/monsters/monster_prey_rabbit@2x.png"
+    },
+    {
+      "id": "monster_beast_boar",
+      "mod": "monsters",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 764349,
+          "score": 161.2
+        }
+      ],
+      "file": "docs/assets/ai/monsters/monster_beast_boar@2x.png"
+    },
+    {
+      "id": "monster_night_king",
+      "mod": "monsters",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 764356,
+          "score": 125.1
+        }
+      ],
+      "file": "docs/assets/ai/monsters/monster_night_king@2x.png"
+    },
+    {
+      "id": "weather_sunny",
+      "mod": "weather",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 756432,
+          "score": 132.9
+        }
+      ],
+      "file": "docs/assets/ai/weather/weather_sunny@2x.png"
+    },
+    {
+      "id": "weather_overcast",
+      "mod": "weather",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 756432,
+          "score": 132.9
+        }
+      ],
+      "file": "docs/assets/ai/weather/weather_overcast@2x.png"
+    },
+    {
+      "id": "weather_rain",
+      "mod": "weather",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 756432,
+          "score": 132.9
+        }
+      ],
+      "file": "docs/assets/ai/weather/weather_rain@2x.png"
+    },
+    {
+      "id": "weather_fog",
+      "mod": "weather",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 756432,
+          "score": 132.9
+        }
+      ],
+      "file": "docs/assets/ai/weather/weather_fog@2x.png"
+    },
+    {
+      "id": "weather_snow",
+      "mod": "weather",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 756432,
+          "score": 132.9
+        }
+      ],
+      "file": "docs/assets/ai/weather/weather_snow@2x.png"
+    },
+    {
+      "id": "weather_bloodmoon",
+      "mod": "weather",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 756432,
+          "score": 132.9
+        }
+      ],
+      "file": "docs/assets/ai/weather/weather_bloodmoon@2x.png"
+    },
+    {
+      "id": "vfx_airdrop",
+      "mod": "vfx",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 724757,
+          "score": 181.8
+        }
+      ],
+      "file": "docs/assets/ai/vfx/vfx_airdrop@2x.png"
+    },
+    {
+      "id": "vfx_shield",
+      "mod": "vfx",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 724757,
+          "score": 169.7
+        }
+      ],
+      "file": "docs/assets/ai/vfx/vfx_shield@2x.png"
+    },
+    {
+      "id": "monster_seeker_attack",
+      "mod": "monsters",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 764349,
+          "score": 166.4
+        }
+      ],
+      "file": "docs/assets/ai/monsters/monster_seeker_attack@2x.png"
+    },
+    {
+      "id": "fx_particle_smoke",
+      "mod": "fx",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 716838,
+          "score": 95.4
+        }
+      ],
+      "file": "docs/assets/ai/fx/fx_particle_smoke@2x.png"
+    },
+    {
+      "id": "fx_particle_spark",
+      "mod": "fx",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 716838,
+          "score": 95.4
+        }
+      ],
+      "file": "docs/assets/ai/fx/fx_particle_spark@2x.png"
+    },
+    {
+      "id": "fx_particle_glow",
+      "mod": "fx",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 716838,
+          "score": 95.4
+        }
+      ],
+      "file": "docs/assets/ai/fx/fx_particle_glow@2x.png"
+    },
+    {
+      "id": "fx_particle_dust",
+      "mod": "fx",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 716838,
+          "score": 95.4
+        }
+      ],
+      "file": "docs/assets/ai/fx/fx_particle_dust@2x.png"
+    },
+    {
+      "id": "fx_light_column",
+      "mod": "fx",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 716842,
+          "score": 74.3
+        }
+      ],
+      "file": "docs/assets/ai/fx/fx_light_column@2x.png"
+    },
+    {
+      "id": "fx_light_circle",
+      "mod": "fx",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 716842,
+          "score": 74.3
+        }
+      ],
+      "file": "docs/assets/ai/fx/fx_light_circle@2x.png"
+    },
+    {
+      "id": "fx_light_ring",
+      "mod": "fx",
+      "status": "pass",
+      "tries": [
+        {
+          "round": 1,
+          "fails": [],
+          "ok": true,
+          "seed": 716842,
+          "score": 74.3
+        }
+      ],
+      "file": "docs/assets/ai/fx/fx_light_ring@2x.png"
     }
   ]
 }
