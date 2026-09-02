@@ -1,8 +1,8 @@
 // 动效时间线（M2.5 功能点3）：§二 motion 表五条曲线 + §3.4 结算三段式的纯函数投影。
 // 全部时长/缓动取自 theme.json（theme.ts motion()），可单测逐条比对。
 import { motion } from './theme'
-import type { RouteResult } from '../creator/assets/scripts/shared/systems/index'
-import type { RouteOutcome } from '../creator/assets/scripts/shared/formula/index'
+import type { RouteResult } from '../shared/systems/index'
+import type { RouteOutcome } from '../shared/formula/index'
 
 export interface RouteView {
   route: RouteResult

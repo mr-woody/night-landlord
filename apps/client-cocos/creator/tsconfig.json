@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2018",
+    "lib": ["ES2019", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "strict": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["types/**/*.d.ts", "assets/scripts/**/*.ts"]
+}

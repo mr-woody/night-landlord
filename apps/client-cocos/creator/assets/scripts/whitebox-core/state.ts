@@ -3,7 +3,7 @@
 // - 任意模态可被事件卡打断排队（队列最多 2，先进后出恢复）；夜战不可被打断（全屏接管）
 // - 事件卡选择即锁定（不可回退，§3.2）
 // 纯数据函数，无 DOM 依赖（单测直接覆盖）。
-import type { EventCardMeta } from '../creator/assets/scripts/shared-headless/sim'
+import type { EventCardMeta } from '../shared-headless/sim'
 
 export type Phase = 'DAWN_SETTLE' | 'DAY' | 'DUSK_FORECAST' | 'NIGHT'
 export type PageId = 'map' | 'main' | 'interior' | 'wild' | 'codex' | 'shop' | 'settings'

@@ -61,15 +61,15 @@
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/state.ts",
-    "hash": "f2311407"
+    "hash": "8bf58391"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/anim.ts",
-    "hash": "336e829e"
+    "hash": "34ce58b6"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/battle.ts",
-    "hash": "1f0b4fab"
+    "hash": "fc0baf5f"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/tutorial.ts",
@@ -77,11 +77,11 @@
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/sprite.ts",
-    "hash": "23390818"
+    "hash": "96a5d2f8"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/whitebox-core/renderer.ts",
-    "hash": "6e01f9ae"
+    "hash": "8b9b79f4"
   },
   {
     "file": "apps/client-cocos/creator/assets/scripts/shared-tables/tables.ts",

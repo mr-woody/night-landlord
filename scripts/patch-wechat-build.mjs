@@ -64,7 +64,7 @@ const FULL_FUNCTION = `function onApplicationCreated(application) {
     return new Promise(function (resolve, reject) {
         var settled = false
         var timer = setTimeout(function () {
-            if (!settled) { settled = true; reject(new Error('loadSubpackage cocos-js 超时（30s）')) }
+            if (!settled) { settled = true; clearTimeout(timer); console.warn('[boot] loadSubpackage 30s 未回调，乐观放行'); resolve() }
         }, 30000)
         wx.loadSubpackage({
             root: 'cocos-js',

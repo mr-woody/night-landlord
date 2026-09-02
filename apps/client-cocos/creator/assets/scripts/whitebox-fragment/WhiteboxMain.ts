@@ -10,6 +10,8 @@ import { createUiState, openModal, closeModal, topModal, pushEvent, setPage, typ
 import { DESIGN_W, DESIGN_H, hitTest } from '../whitebox-core/layout';
 import { col, motion } from '../whitebox-core/theme';
 import { settleDoneAt, nightWaves } from '../whitebox-core/anim';
+import { weatherOfDay } from '../shared/weather/index';
+import { weatherJson } from '../whitebox-core/json-data';
 import { createKernel } from '../shared/kernel/index';
 import { createFormula, loadConstants } from '../shared/formula/index';
 import { buildBundle, runSimulation, type AppContext, type EventCardMeta } from '../shared-headless/sim';
@@ -42,9 +44,15 @@ export class WhiteboxMain extends Component {
     settleStart: null,
     chosenAt: null,
     logs: [],
+    forts: {},
+    wildReports: [],
+    parties: [],
+    houseLevels: {},
+    capacity: 30,
     skills: [
-      { label: '空投物资', glyph: '💊', cdUntil: 0 },
-      { label: '护盾', glyph: '🛡', cdUntil: 0 }
+      { label: '空投物资', glyph: '💊', cdUntil: 0, fxUntil: 0, fxKind: 'supply' },
+      { label: '护盾', glyph: '🛡', cdUntil: 0, fxUntil: 0, fxKind: 'shield' },
+      { label: '冲击波', glyph: '💥', cdUntil: 0, fxUntil: 0, fxKind: 'wave' }
     ]
   };
   private frames: DayFrame[] = [];
@@ -125,7 +133,8 @@ export class WhiteboxMain extends Component {
         deaths: r.deaths, wounds: r.wounds, sessionHash: r.sessionHash,
         modifiers: r.modifiers, avgLevel: r.avgLevel, panicSum: r.panicSum,
         breachedRooms: (sim!.sessions[r.day]?.routes ?? []).filter((rt: any) => rt.r < 0.95).map((rt: any) => rt.roomId),
-        eventCards: [...(sim!.eventCards[r.day] ?? [])].sort((a: any, b: any) => b.weight - a.weight)
+        eventCards: [...(sim!.eventCards[r.day] ?? [])].sort((a: any, b: any) => b.weight - a.weight),
+        weather: weatherOfDay(r.day, 42, { weather: weatherJson as any }).id
       }));
     } catch (e) { S('S2d frames 映射', e); }
 

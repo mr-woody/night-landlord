@@ -13,8 +13,8 @@ const HOUSE_SPRITE_BY_LV = [
 ]
 import type { UiState, Modal } from './state'
 import { topModal } from './state'
-import type { EventCardMeta } from '../creator/assets/scripts/shared-headless/sim'
-import type { BattleSession } from '../creator/assets/scripts/shared/systems/index'
+import type { EventCardMeta } from '../shared-headless/sim'
+import type { BattleSession } from '../shared/systems/index'
 import {
   DESIGN_W, DESIGN_H, hudRect, resourceRect, settingsRect,
   roomRect, floorLabelRect, eventEntryRect, reportRect, dockRects, DOCK_KEYS,

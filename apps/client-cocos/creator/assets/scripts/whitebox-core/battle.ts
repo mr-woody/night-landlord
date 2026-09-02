@@ -1,7 +1,7 @@
 // 夜战演出编排（M3.2 F6；设计 §2）：从 BattleSession 生成确定性表现时间线。
 // 契约：演出与结算分离——时间线只读 session（routes/outcome/monsterId），可由
 // session+start 完全复现（单测断言）；不改任何结算数据。
-import type { BattleSession } from '../creator/assets/scripts/shared/systems/index'
+import type { BattleSession } from '../shared/systems/index'
 import { WAVE_MS } from './anim'
 
 export interface BattleCue {

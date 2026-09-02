@@ -53,7 +53,7 @@ export class SpriteStore {
   /** 清单驱动预载（C16）：只 load 构建期内联清单中的文件（缺资产零 404，补产后重建自动扩列）。
    *  画廊/回退语义不变——未列出的文件视作 miss。返回成功加载数。 */
   async loadFromManifest(): Promise<number> {
-    const files: string[] = (spriteManifest as { files: string[] }).files ?? []
+    const files: string[] = (spriteManifest as unknown as { files: string[] }).files ?? []
     const loaded = await Promise.all(files.map(f => {
       const i = f.indexOf('/')
       return this.load(f.slice(i + 1), f.slice(0, i + 1))

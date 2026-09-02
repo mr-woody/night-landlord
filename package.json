@@ -11,7 +11,7 @@
     "apps/*"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p apps/client-cocos/whitebox",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p apps/client-cocos/whitebox && tsc --noEmit -p apps/client-cocos/creator",
     "test": "node --test packages/*/tests/*.test.ts apps/headless/tests/*.test.ts apps/client-cocos/whitebox/tests/*.test.ts",
     "check:config": "node scripts/check-config.mjs",
     "check:theme": "node scripts/check-theme.mjs",

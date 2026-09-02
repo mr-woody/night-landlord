@@ -96,6 +96,7 @@ for (const pkg of readdirSync(join(root, 'packages'))) {
   }
   for (const name of ['theme.ts', 'layout.ts', 'state.ts', 'anim.ts', 'battle.ts', 'tutorial.ts', 'sprite.ts', 'renderer.ts']) {
     const f = join(root, 'apps/client-cocos/whitebox', name)
+    const dest = join(core, name) // 相对导入按「目标位置」计算（源路径会产出断链，type-only 导入虽被擦除但污染漂移检查）
     let code = readFileSync(f, 'utf8')
     if (name === 'theme.ts') {
       code = code.replace(
@@ -111,9 +112,9 @@ for (const pkg of readdirSync(join(root, 'packages'))) {
     // 相对导入：去 .ts 扩展 + 工程内映射（含 import type）
     code = code.replace(/from '([^']+)'/g, (m, spec) => {
       if (!spec.startsWith('.')) return m // 'cc' 等外部模块不动
-      return `from '${rewriteImportPath(f, spec)}'`
+      return `from '${rewriteImportPath(dest, spec)}'`
     })
-    plan.push({ out: join(core, name), code })
+    plan.push({ out: dest, code })
   }
 }
 
