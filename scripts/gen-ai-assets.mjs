@@ -398,9 +398,13 @@ for (const spec of list) {
 }
 
 writeFileSync(join(root, 'docs/assets/ai/ai-report.json'), JSON.stringify(report, null, 2))
-// sprite 清单（加载器以此为准：只 load 存在的文件，避免前端 404 噪声；P2-2 补产后自动扩列）
+// sprite 清单（加载器以此为准：只 load 存在的文件，避免前端 404 噪声）——按磁盘全量扫描，跨批次完整
 const manifestFiles = []
-for (const a of report.assets) if (a.file) manifestFiles.push(a.mod === 'anchors' ? `anchors/${a.file.split('/').pop()}` : `${outDirs[a.mod]}/${a.file.split('/').pop()}`)
+for (const d of ['anchors', 'houses', 'monsters', 'weather', 'vfx', 'fx']) {
+  const dd = join(root, 'docs/assets/ai', d)
+  if (!existsSync(dd)) continue
+  for (const f of readdirSync(dd)) if (f.endsWith('@2x.png')) manifestFiles.push(`${d}/${f}`)
+}
 writeFileSync(join(root, 'docs/assets/ai/sprite-manifest.json'), JSON.stringify({ version: 1, files: manifestFiles }, null, 2))
 console.log(`\nAI 素材闭环：${passCount}/${list.length} 过四门；报告 docs/assets/ai/ai-report.json；候选证据 docs/assets/ai/candidates/`)
 console.log('提示词修订通道：编辑 docs/assets/ai/prompt-overrides.json 后重跑（agent 迭代入口）')

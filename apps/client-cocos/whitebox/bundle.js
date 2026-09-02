@@ -5816,7 +5816,32 @@
       "anchors/anchor_rain_frame@2x.png",
       "anchors/anchor_tenant_guard@2x.png",
       "anchors/anchor_tenant_nurse@2x.png",
-      "anchors/anchor_tenant_worker@2x.png"
+      "anchors/anchor_tenant_worker@2x.png",
+      "houses/house_lv0_thatch@2x.png",
+      "houses/house_lv1_broken_wood@2x.png",
+      "houses/house_lv2_plain_wood@2x.png",
+      "houses/house_lv3_fine_wood@2x.png",
+      "houses/house_lv4_stone@2x.png",
+      "houses/house_lv5_bastion@2x.png",
+      "monsters/monster_beast_boar@2x.png",
+      "monsters/monster_night_king@2x.png",
+      "monsters/monster_prey_rabbit@2x.png",
+      "monsters/monster_seeker_attack@2x.png",
+      "monsters/monster_seeker_idle@2x.png",
+      "weather/weather_bloodmoon@2x.png",
+      "weather/weather_fog@2x.png",
+      "weather/weather_overcast@2x.png",
+      "weather/weather_rain@2x.png",
+      "weather/weather_snow@2x.png",
+      "weather/weather_sunny@2x.png",
+      "vfx/vfx_airdrop@2x.png",
+      "fx/fx_light_circle@2x.png",
+      "fx/fx_light_column@2x.png",
+      "fx/fx_light_ring@2x.png",
+      "fx/fx_particle_dust@2x.png",
+      "fx/fx_particle_glow@2x.png",
+      "fx/fx_particle_smoke@2x.png",
+      "fx/fx_particle_spark@2x.png"
     ]
   };
 
