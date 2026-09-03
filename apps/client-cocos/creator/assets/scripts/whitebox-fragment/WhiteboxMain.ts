@@ -165,12 +165,28 @@ export class WhiteboxMain extends Component {
     const spriteMap = new Map<string, any>();
     const wxApi = (globalThis as any).wx;
     const files: string[] = ((spriteManifest as any).files ?? []) as string[];
+    const failed: string[] = [];
+    const fsm = wxApi.getFileSystemManager ? wxApi.getFileSystemManager() : null;
     await Promise.all(files.map((f: string) => new Promise<void>(res => {
       const img = wxApi.createImage();
-      img.onload = () => { spriteMap.set(f, img); res(); };
-      img.onerror = () => res();
-      img.src = 'sprites/ai/' + f;
+      const disk = 'sprites/ai/' + f.replace('@2x', '_2x'); // 无斜杠相对路径 + 打包时 @ 已改名
+      const done = (ok: boolean, why = '') => { if (!ok) failed.push(f + '|' + why); res(); };
+      const t = setTimeout(() => { if (!spriteMap.has(f)) { failed.push(f + '(timeout)'); res(); } }, 5000);
+      img.onload = () => { clearTimeout(t); spriteMap.set(f, img); res(); };
+      img.onerror = () => {
+        if (fsm) {
+          try {
+            fsm.readFile({
+              filePath: disk,
+              success: (r: any) => { img.src = r.data; },
+              fail: (fe: any) => { clearTimeout(t); this.lastError = 'SPRITE fs:' + disk + ' -> ' + (fe.errMsg || JSON.stringify(fe)).slice(0, 140); done(false, 'fs'); }
+            });
+          } catch (e: any) { clearTimeout(t); this.lastError = 'SPRITE fs-ex:' + (e.message || e).slice(0, 120); done(false, 'fs-ex'); }
+        } else { clearTimeout(t); this.lastError = 'SPRITE no-fsm'; done(false, 'no-fsm'); }
+      };
+      img.src = disk;
     })));
+    (globalThis as any).__nlSprites = { loaded: spriteMap.size, total: files.length, failed };
     const store = {
       has: (n: string): boolean => spriteMap.has(n),
       get: (n: string): any => spriteMap.get(n),
@@ -228,9 +244,10 @@ export class WhiteboxMain extends Component {
               const c: any = (this as any).ctx2d;
               if (!c) return 'no-ctx';
               const pt = (x: number, y: number) => Array.from(c.getImageData(x, y, 1, 1).data.slice(0, 3));
-              return { hud: pt(375, 100), village: pt(140, 700), dock: pt(375, 1550) };
+              return { hud: pt(375, 100), village: pt(140, 700), dock: pt(375, 1550), house: pt(127, 712) };
             } catch (e: any) { return 'probe-err:' + e.message; }
           })(),
+          sprites: (globalThis as any).__nlSprites ?? null,
           lastError: this.lastError || null,
           records: k?.records ? Array.from(k.records.keys()) : null
         })

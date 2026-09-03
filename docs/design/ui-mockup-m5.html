@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<!-- M5 等距 2.5D 整体 UI 交互稿（高保真设计稿）——真 AI sprite + theme tokens。
+     打开方式：任意静态服务指向 docs/design/（如 python3 -m http.server -d docs/design 8090）→ http://localhost:8090/ui-mockup-m5.html
+     交互：顶部页签切场景；主页支持 昼/夜(血月) 切换与 标注层 开关。配《UI交互稿-M5-2.5D.md》使用。 -->
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>永夜房东 · M5 等距 2.5D UI 交互稿</title>
+<style>
+:root{
+  --bg_night:#0B1020;--bg_dawn:#141A2E;--blood:#C0392B;--gold:#FFD700;--gold_deep:#B8860B;
+  --panel:#1A2238;--stroke:#2A3555;--text:#E8E8F0;--text2:#8892B0;--ok:#7FFF9F;--danger:#FF6B6B;--panic:#9B59B6;
+}
+*{box-sizing:border-box;margin:0}
+body{background:#05070f;color:var(--text);font-family:"PingFang SC","Microsoft YaHei",sans-serif;display:flex;gap:20px;padding:16px;height:100vh;overflow:hidden}
+/* ── 左侧：页签与说明 ── */
+aside{width:230px;flex:none;display:flex;flex-direction:column;gap:6px}
+aside h1{font-size:15px;color:var(--gold);margin-bottom:4px}
+aside small{color:var(--text2);font-size:11px;line-height:1.6;display:block;margin-bottom:8px}
+.tab{padding:9px 12px;border:1.5px solid var(--stroke);border-radius:10px;cursor:pointer;font-size:13px;background:var(--panel);color:var(--text2)}
+.tab:hover{border-color:var(--gold_deep)}
+.tab.on{border-color:var(--gold);color:var(--gold);background:#241f08}
+.sub{display:flex;gap:6px;margin:6px 0}
+.pill{flex:1;text-align:center;padding:6px 4px;font-size:11px;border:1.5px solid var(--stroke);border-radius:8px;cursor:pointer;color:var(--text2)}
+.pill.on{border-color:var(--ok);color:var(--ok)}
+label.anno{margin-top:8px;font-size:12px;color:var(--text2);display:flex;gap:6px;align-items:center;cursor:pointer}
+.note{margin-top:auto;font-size:11px;color:var(--text2);line-height:1.7;border-top:1px solid var(--stroke);padding-top:8px}
+.note b{color:var(--text)}
+/* ── 右侧：750×1624 设计稿画布 ── */
+#stageWrap{flex:1;display:flex;align-items:center;justify-content:center;min-width:0}
+#stage{width:540px;height:1168px;transform-origin:top center;position:relative;background:var(--bg_night);
+  border-radius:18px;overflow:hidden;box-shadow:0 0 0 3px #000,0 20px 60px #000}
+.screen{position:absolute;inset:0;display:none}
+.screen.on{display:block}
+.sprite{image-rendering:auto;pointer-events:none}
+/* 通用组件（与 UI-UX 规范 §三/§八 对齐） */
+.hud{position:absolute;top:0;left:0;right:0;height:88px;display:flex;align-items:center;gap:10px;padding:0 20px;z-index:5}
+.cap{display:flex;align-items:center;gap:8px;background:var(--panel);border:2.5px solid var(--bg_night);border-radius:22px;padding:8px 16px;font-weight:700;font-size:17px}
+.cap .num{font-family:ui-monospace,Menlo;color:var(--gold)}
+.dock{position:absolute;left:14px;right:14px;bottom:18px;height:118px;display:flex;gap:12px;z-index:6}
+.dock .btn{flex:1;background:var(--panel);border:3px solid var(--bg_night);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:16px;font-weight:700;box-shadow:0 6px 0 rgba(0,0,0,.45);position:relative}
+.dock .btn small{font-size:10px;color:var(--text2);font-weight:400}
+.dock .btn.night{background:linear-gradient(180deg,#2b2407,var(--panel));color:var(--gold);border-color:var(--gold_deep)}
+.dock .btn .badge{position:absolute;top:-8px;right:-6px;background:var(--blood);color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;border:2px solid var(--bg_night)}
+.eventbar{position:absolute;left:20px;right:20px;top:100px;height:64px;background:linear-gradient(90deg,var(--panel),#221a2e);border:2.5px solid var(--stroke);border-left:6px solid var(--panic);border-radius:12px;display:flex;align-items:center;gap:12px;padding:0 16px;font-size:15px;z-index:4}
+.eventbar b{color:var(--panic)}
+.eventbar .go{margin-left:auto;color:var(--gold);font-size:13px}
+/* 等距小区（主页舞台） */
+.village{position:absolute;left:0;right:0;top:170px;bottom:180px;z-index:1}
+.lot-b{position:absolute;right:14px;top:6px;width:236px;border:3px solid var(--bg_night);border-radius:14px;overflow:hidden;box-shadow:0 10px 24px rgba(0,0,0,.55);z-index:2}
+.lot-b img{width:100%;height:300px;object-fit:cover;object-position:50% 62%;display:block}
+.lot-tag{position:absolute;font-size:11px;color:var(--text2);background:rgba(11,16,32,.75);padding:2px 8px;border-radius:6px;z-index:3}
+.house{position:absolute;width:104px}
+.house img{width:100%;filter:drop-shadow(0 10px 8px rgba(0,0,0,.5))}
+.house.dim{opacity:.35}
+.windows-on .house img{filter:drop-shadow(0 10px 8px rgba(0,0,0,.5)) brightness(1.12) saturate(1.05)}
+/* 昼夜叠加 */
+.overlay{position:absolute;inset:0;pointer-events:none;z-index:3}
+.overlay.dusk{background:linear-gradient(180deg,rgba(20,26,46,.25),rgba(192,57,43,.08))}
+.overlay.blood{background:radial-gradient(ellipse at 50% 30%,rgba(192,57,43,.10),rgba(192,57,43,.30) 75%);mix-blend-mode:multiply}
+.moon{position:absolute;right:56px;top:118px;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 40% 40%,#fff7d0,#ffd700 75%);box-shadow:0 0 34px 10px rgba(255,215,0,.35);z-index:4;display:none}
+.moon.blood{background:radial-gradient(circle at 40% 40%,#ff9a8a,#c0392b 75%);box-shadow:0 0 44px 14px rgba(192,57,43,.45)}
+/* 夜战 */
+.lane{position:absolute;left:0;right:230px;height:150px;border-bottom:1.5px dashed rgba(136,146,176,.25)}
+.lane .road{position:absolute;left:0;right:0;bottom:24px;height:10px;background:rgba(42,53,85,.55);border-radius:5px}
+.monster{position:absolute;filter:drop-shadow(0 6px 3px rgba(0,0,0,.6))}
+.guard{position:absolute}
+.hut{position:absolute;right:18px}
+.wavehud{position:absolute;top:96px;left:20px;right:20px;z-index:6;display:flex;flex-direction:column;gap:8px}
+.wrow{display:flex;align-items:center;gap:10px}
+.wrow .k{width:20px;font-weight:800;color:var(--text2)}
+.bar{flex:1;height:18px;background:var(--panel);border:2px solid var(--bg_night);border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:7px}
+.wrow .pct{font-size:13px;font-family:ui-monospace}
+.skills{position:absolute;left:20px;bottom:150px;display:flex;gap:14px;z-index:6}
+.skill{width:86px;height:86px;background:var(--panel);border:3px solid var(--bg_night);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;color:var(--text2);box-shadow:0 5px 0 rgba(0,0,0,.4)}
+.skill .ic{font-size:30px}
+.battlelog{position:absolute;left:20px;right:20px;bottom:44px;background:rgba(26,34,56,.92);border:2px solid var(--stroke);border-radius:12px;padding:10px 14px;font-size:13px;color:var(--text2);z-index:6}
+.battlelog b{color:var(--blood)}
+/* 事件卡 / 面板 */
+.modal{position:absolute;inset:0;background:rgba(5,7,15,.72);z-index:20;display:flex;align-items:center;justify-content:center}
+.card{width:600px;background:var(--panel);border:3px solid var(--bg_night);border-radius:18px;overflow:hidden;box-shadow:0 18px 50px #000}
+.card .hd{padding:16px 22px;font-size:19px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+.card .bd{padding:6px 22px 18px;font-size:14px;color:var(--text2);line-height:1.8}
+.opt{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:14px 16px;background:var(--bg_night);border:2px solid var(--stroke);border-radius:12px;font-size:15px;color:var(--text);cursor:pointer}
+.opt:hover{border-color:var(--gold)}
+.opt .eff{font-family:ui-monospace;font-size:13px}
+.opt .eff.plus{color:var(--ok)}.opt .eff.minus{color:var(--danger)}
+/* 通用页面骨架（L1/L3/图鉴…） */
+.pagehd{position:absolute;top:0;left:0;right:0;height:88px;display:flex;align-items:center;padding:0 20px;gap:14px;z-index:5;font-size:19px;font-weight:800}
+.back{width:44px;height:44px;border-radius:12px;background:var(--panel);border:2.5px solid var(--bg_night);display:flex;align-items:center;justify-content:center;font-size:20px}
+.zone{position:absolute;left:20px;right:20px;background:var(--panel);border:2.5px solid var(--bg_night);border-radius:16px;padding:18px;box-shadow:0 6px 0 rgba(0,0,0,.4)}
+.zone h3{font-size:16px;margin-bottom:8px}
+.zone p{font-size:12.5px;color:var(--text2);line-height:1.7}
+.grid2{display:flex;gap:12px;margin-top:10px}
+.cell{flex:1;background:var(--bg_night);border:2px solid var(--stroke);border-radius:12px;padding:12px;font-size:13px}
+.cell b{display:block;margin-bottom:4px}
+/* 收租 CTA */
+.rent{position:absolute;right:18px;bottom:152px;width:190px;background:linear-gradient(180deg,#3a2f08,#241f08);border:3px solid var(--gold_deep);border-radius:16px;padding:12px 16px;z-index:6;box-shadow:0 6px 0 rgba(0,0,0,.5)}
+.rent b{color:var(--gold);font-size:16px}
+.rent p{font-size:11px;color:var(--text2);margin:4px 0 8px}
+.rent .amt{font-family:ui-monospace;font-size:22px;color:var(--gold)}
+/* 标注层 */
+body.anno .an{display:block}
+.an{display:none;position:absolute;z-index:50;font-size:11px;color:#0b1020;background:#ffd700dd;padding:2px 7px;border-radius:5px;font-weight:700;white-space:nowrap;pointer-events:none}
+body.anno .an::before{content:"◈ "}
+body.anno #stage{outline:2px dashed #ffd70088}
+.dimtag{position:absolute;z-index:49;font-family:ui-monospace;font-size:10px;color:#ffd70088;pointer-events:none;display:none}
+body.anno .dimtag{display:block}
+.footnote{position:absolute;left:20px;right:20px;bottom:150px;font-size:12px;color:var(--text2);z-index:4}
+</style>
+</head>
+<body>
+<aside>
+  <h1>永夜房东 · M5 交互稿</h1>
+  <small>等距 2.5D 视觉体系（Seedream 5.0 真实资产 + theme tokens）<br>750×1624 @2x 设计基准</small>
+  <div class="tab on" data-s="home">① 主页 · L2 小区（日）</div>
+  <div class="tab" data-s="homeBlood">② 主页 · 血月黄昏</div>
+  <div class="tab" data-s="night">③ 夜战 · 三车道攻防</div>
+  <div class="tab" data-s="event">④ 事件卡 · 邻里呼救</div>
+  <div class="tab" data-s="settle">⑤ 黎明结算 · 收租</div>
+  <div class="tab" data-s="wild">⑥ L1 野外 · 探索</div>
+  <div class="tab" data-s="interior">⑦ L3 室内 · 布防</div>
+  <div class="tab" data-s="codes">⑧ 图鉴 / 商店 / 设置</div>
+  <div class="sub" id="homeMode">
+    <div class="pill on" data-m="day">昼</div>
+    <div class="pill" data-m="blood">血月</div>
+  </div>
+  <label class="anno"><input type="checkbox" id="anno"> 显示标注层（分区/交互点）</label>
+  <div class="note">
+    <b>主页三秒原则</b>：HUD 资产态 → 事件横幅 → 村落立体画面 → 收租 CTA → ▸夜推进。<br><br>
+    <b>图层序</b>：天空/氛围 → 等距地块 → 实体（含接地投影）→ 特效 → HUD。<br><br>
+    <b>资产</b>：全部来自 docs/assets/ai（Seedream 5.0 产线，命名红线 {模块}_{对象}_{状态}@2x）。
+  </div>
+</aside>
+
+<div id="stageWrap"><div id="stage">
+
+<!-- ①② 主页 -->
+<div class="screen on" id="s-home">
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,var(--bg_dawn),var(--bg_night) 70%)"></div>
+  <div class="overlay" id="ovl" ></div>
+  <div class="moon" id="moonIc"></div>
+  <div class="hud">
+    <div class="cap">🪙 <span class="num">3,742</span></div>
+    <div class="cap">🏠 <span class="num">24/30</span></div>
+    <div style="flex:1"></div>
+    <div class="cap" style="padding:8px 12px">☀️ D4</div>
+    <div class="cap" style="padding:8px 12px">⚙︎</div>
+  </div>
+  <div class="eventbar">📢 <b>邻里呼救</b> — 隔壁 7 号楼被围，救或不救？<span class="go">查看 ▸</span></div>
+  <div class="village">
+    <!-- 主楼地块（等距剖面 key art 特写卡） -->
+    <div class="lot-b">
+      <img src="../assets/ai/anchors/anchor_building_cutaway@2x.png">
+      <div class="lot-tag" style="left:8px;bottom:6px">主楼 · 核心堡垒（6F×5R）</div>
+    </div>
+    <!-- 小屋群落：3 列×6 行错排（左区，避让主楼卡；未入住 35% 减淡） -->
+    <div id="hs"></div>
+    <div class="lot-tag" style="left:16px;top:10px">住户小屋群落（点击小屋=查看/升级）</div>
+    <div class="lot-tag" style="left:16px;bottom:6px">▾ L1 野外 · 探索</div>
+  </div>
+  <div class="rent"><b>今日收租</b><p>天亮自动入账 · 租金曲线 tokens 派生</p><span class="amt">+1,260 🪙</span></div>
+  <div class="dock">
+    <div class="btn">🛡 布防<small>30 单元 · 3 车道</small></div>
+    <div class="btn">👥 招募<small>住户 5 维</small><span class="badge">2</span></div>
+    <div class="btn">⬆ 升级<small>房屋/工事</small></div>
+    <div class="btn night">▸ 夜<small>推进至黄昏</small></div>
+  </div>
+</div>
+
+<!-- ③ 夜战 -->
+<div class="screen" id="s-night">
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 25%,#1a1030,var(--bg_night) 75%)"></div>
+  <img class="moon blood" src="../assets/ai/anchors/anchor_building_cutaway@2x.png" style="display:none">
+  <div style="position:absolute;right:52px;top:112px;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 40% 40%,#ff8a7a,var(--blood) 70%);box-shadow:0 0 40px 12px rgba(192,57,43,.45);z-index:2"></div>
+  <div class="overlay blood"></div>
+  <div class="wavehud">
+    <div style="display:flex;justify-content:space-between;font-size:15px"><b style="color:var(--blood)">血月夜袭</b><span style="color:var(--text2)">第 1/3 波 · 2× 速 · 跳过</span></div>
+    <div class="wrow"><span class="k">A</span><div class="bar"><i style="width:72%;background:var(--ok)"></i></div><span class="pct">A栋1层2号 102%</span></div>
+    <div class="wrow"><span class="k">B</span><div class="bar"><i style="width:98%;background:#ffd70066"></i></div><span class="pct">98%</span></div>
+    <div class="wrow"><span class="k">C</span><div class="bar"><i style="width:88%;background:var(--danger)"></i></div><span class="pct">破防边缘 88%</span></div>
+  </div>
+  <!-- 三车道：远0.8/中0.9/近1.0（§10.1 深度模型） -->
+  <div class="lane" style="top:250px;zoom:.82"><div class="road"></div></div>
+  <div class="lane" style="top:430px;zoom:.91"><div class="road"></div></div>
+  <div class="lane" style="top:620px"><div class="road"></div></div>
+  <img class="monster" src="../assets/ai/monsters/monster_seeker_idle@2x.png" style="left:120px;top:296px;width:86px">
+  <img class="monster" src="../assets/ai/monsters/monster_seeker_attack@2x.png" style="left:300px;top:486px;width:96px">
+  <img class="monster" src="../assets/ai/monsters/monster_beast_boar@2x.png" style="left:60px;top:668px;width:104px;transform:scaleX(-1)">
+  <img class="guard" src="../assets/ai/anchors/anchor_tenant_guard@2x.png" style="right:252px;top:392px;width:66px;border-radius:50%">
+  <img class="guard" src="../assets/ai/anchors/anchor_tenant_guard@2x.png" style="right:246px;top:588px;width:72px;border-radius:50%">
+  <img class="hut" src="../assets/ai/houses/house_lv4_stone@2x.png" style="top:352px;width:150px">
+  <img class="hut" src="../assets/ai/houses/house_lv2_plain_wood@2x.png" style="top:545px;width:150px">
+  <img class="hut" src="../assets/ai/houses/house_lv5_bastion@2x.png" style="top:735px;width:150px">
+  <div class="skills">
+    <div class="skill"><span class="ic">🪂</span>空投物资</div>
+    <div class="skill"><span class="ic">🛡</span>护盾</div>
+  </div>
+  <div class="battlelog">第1波 路线A · <b>破窗者</b> 搭梯接近 · 守卫格挡火花 · r=1.02</div>
+  <div class="dock" style="height:86px">
+    <div class="btn">◂ 概览</div>
+    <div class="btn night">⏩ 结果已定 · 跳过</div>
+  </div>
+</div>
+
+<!-- ④ 事件卡 -->
+<div class="screen" id="s-event">
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,var(--bg_dawn),var(--bg_night) 70%)"></div>
+  <div class="village" style="opacity:.45">
+    <div class="lot-b"><img src="../assets/ai/anchors/anchor_building_cutaway@2x.png"></div>
+    <div id="hs2"></div>
+  </div>
+  <div class="modal">
+    <div class="card">
+      <div class="hd" style="color:var(--panic)">📢 突发事件 · 邻里呼救 <span style="font-size:12px;color:var(--text2)">D4 黄昏</span></div>
+      <div class="bd">
+        隔壁 7 号楼被循声者围困，楼里还有两位住户。开门收留会挤占今晚的布防位，但也可能多一份明天的租金。
+        <div class="opt"><span>🚪 开门收留（+2 住户）</span><span class="eff minus">夜战威胁 +5%</span></div>
+        <div class="opt"><span>🧱 婉拒闭门</span><span class="eff plus">明天口碑 +1</span></div>
+        <div class="opt"><span>🏹 派守卫支援</span><span class="eff minus">耐久 -50</span><span class="eff plus">租金 +80/天</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ⑤ 黎明结算 -->
+<div class="screen" id="s-settle">
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,var(--bg_dawn),#0d1226)"></div>
+  <div style="position:absolute;inset:0 0 auto 0;height:500px;background:radial-gradient(ellipse at 50% 110%,rgba(255,215,0,.18),transparent 70%)"></div>
+  <div class="pagehd">◂ 黎明 · D4 结算</div>
+  <div style="position:absolute;left:40px;top:220px;display:flex;gap:10px;z-index:2">
+    <img class="sprite" src="../assets/ai/vfx/vfx_airdrop@2x.png" style="width:90px;transform:rotate(8deg)">
+  </div>
+  <div style="position:absolute;left:70px;top:130px;width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px 4px rgba(255,215,0,.5);z-index:2"></div>
+  <div style="position:absolute;left:120px;top:180px;width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px 3px rgba(255,215,0,.4);z-index:2"></div>
+  <div class="zone" style="top:340px">
+    <h3>昨日收支（第 4 天）</h3>
+    <div class="grid2">
+      <div class="cell"><b style="color:var(--gold)">+2,480 租金</b>24 栋 · 收租宗师 +12%</div>
+      <div class="cell"><b style="color:var(--danger)">−640 支出</b>守卫饷银 / 工事维护</div>
+    </div>
+    <div class="grid2">
+      <div class="cell"><b>夜战 A 路 守住</b>破窗者 ×2 · 负伤 1（医护回血中）</div>
+      <div class="cell"><b>事件口碑 +1</b>「隔壁的呼救」选择支援</div>
+    </div>
+  </div>
+  <div class="zone" style="top:640px">
+    <h3>今日目标</h3>
+    <p>✓ 收租 ≥2,000　✓ 夜战守住 A 路　◻ 升级任意小屋至 Lv3（奖励：建材 ×80）</p>
+  </div>
+  <div class="dock"><div class="btn night" style="flex:2">☀ 进入 D5 白天 · 继续经营</div></div>
+</div>
+
+<!-- ⑥ L1 野外 -->
+<div class="screen" id="s-wild">
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,#101828,var(--bg_night) 70%)"></div>
+  <div class="pagehd"><div class="back">◂</div> L1 野外 · 废弃城区 <span style="margin-left:auto;font-size:12px;color:var(--text2)">体力 12/16</span></div>
+  <div class="zone" style="top:110px"><h3>🌳 郊野公园（近 · 低险）</h3><p>采集：食物/木材 · 遭遇：野兔（温和）</p>
+    <div class="grid2"><div class="cell">👨‍🌾 派出 2 人 · 4h<div style="margin-top:6px;color:var(--ok)">产量 ×1.0</div></div><div class="cell">剩余冷却 00:42</div></div></div>
+  <div class="zone" style="top:330px"><h3>🏚 废弃街区（中 · 中险）</h3><p>采集：建材/零件 · 遭遇：野猪（危险）</p>
+    <div class="grid2"><div class="cell">👨‍🌾 派出 3 人 · 6h<div style="margin-top:6px;color:var(--gold)">产量 ×1.35</div></div><div class="cell">天气 → 小雨 ×0.75</div></div></div>
+  <div class="zone" style="top:550px"><h3>🏥 塌陷医院（远 · 高险）</h3><p>采集：药品 · 遭遇：夜王眷属 · 血月禁入</p>
+    <div class="grid2"><div class="cell" style="opacity:.55">🔒 D30 解锁</div><div class="cell" style="opacity:.55">瞭望塔情报：???</div></div></div>
+  <div class="zone" style="top:770px"><h3>🏭 高架仓储（远 · 特殊）</h3><p>事件触发型区域 · 概率出金色物资雨</p></div>
+  <div class="footnote">雨/雾/雪由天气引擎实时叠加（光照 overlay + 粒子），本稿为基准日态</div>
+</div>
+
+<!-- ⑦ L3 室内 -->
+<div class="screen" id="s-interior">
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,#121a2e,var(--bg_night) 75%)"></div>
+  <div class="pagehd"><div class="back">◂</div> A栋 · 1F · 1-2 室 <span style="margin-left:auto;font-size:12px;color:var(--text2)">住户：老周夫妇</span></div>
+  <div class="zone" style="top:110px;height:300px">
+    <h3>房间等距视图（L3 剖面）</h3>
+    <div style="display:flex;gap:14px;margin-top:12px">
+      <img class="sprite" src="../assets/ai/houses/house_lv3_fine_wood@2x.png" style="width:200px">
+      <div style="flex:1">
+        <div class="grid2"><div class="cell">🪵 工事位 1<div style="color:var(--text2);margin-top:4px">木板封窗 · 耐久 +40</div></div>
+        <div class="cell">🪵 工事位 2<div style="color:var(--text2);margin-top:4px">空 · 可建</div></div></div>
+        <div style="margin-top:12px;font-size:12.5px;color:var(--text2);line-height:1.8">生活痕迹：炉灶余温 / 墙上全家福（氛围件，M4 皮肤体系挂等距规格）<br>窗光：夜战时此处为守卫位光源</div>
+      </div>
+    </div>
+  </div>
+  <div class="zone" style="top:440px"><h3>升级 · 小屋 Lv2 → Lv3</h3><p>建材 ×150 → 双色墙板 · 耐久系数 ×1.15 · 夜战该路 HP +15%</p>
+    <div class="grid2"><div class="cell" style="border-color:var(--gold_deep);color:var(--gold)">⬆ 确认升级</div><div class="cell">查看材质预览（Lv3 精品木屋）</div></div></div>
+  <div class="zone" style="top:660px"><h3>本室住户</h3>
+    <div class="grid2">
+      <div class="cell"><b>老周 · 工人</b>体 6 · 技 4 · 心 3 · 缘 4 · 品 5<br><span style="color:var(--text2)">天赋：收租宗师</span></div>
+      <div class="cell"><b>周婶 · 医护</b>体 3 · 技 5 · 心 4 · 缘 5 · 品 4<br><span style="color:var(--text2)">天赋：邻里和睦</span></div>
+    </div></div>
+  <div class="dock"><div class="btn">◂ 返回小区</div><div class="btn">🛠 工事建造</div><div class="btn night">⬆ 升级确认</div></div>
+</div>
+
+<!-- ⑧ 图鉴/商店/设置 -->
+<div class="screen" id="s-codes">
+  <div style="position:absolute;inset:0;background:linear-gradient(180deg,#101828,var(--bg_night) 70%)"></div>
+  <div class="pagehd"><div class="back">◂</div> 图鉴 · 商店 · 设置</div>
+  <div class="zone" style="top:110px"><h3>📖 怪物图鉴（三级进化树）</h3>
+    <div style="display:flex;gap:16px;margin-top:10px">
+      <img class="sprite" src="../assets/ai/monsters/monster_seeker_idle@2x.png" style="width:96px">
+      <img class="sprite" src="../assets/ai/monsters/monster_seeker_attack@2x.png" style="width:96px;filter:brightness(1.2)">
+      <img class="sprite" src="../assets/ai/monsters/monster_beast_boar@2x.png" style="width:110px">
+      <img class="sprite" src="../assets/ai/monsters/monster_night_king@2x.png" style="width:86px">
+      <div style="font-size:12px;color:var(--text2);line-height:1.8">循声者 → 破窗者 → 精英种<br>夜王（赛季 Boss）· 剪影 72px 可读全过</div>
+    </div></div>
+  <div class="zone" style="top:330px"><h3>🛍 商店 · 首充与礼包</h3>
+    <div class="grid2">
+      <div class="cell"><b style="color:var(--gold)">首充 ¥6</b>金色物资雨 ×3 + 限定皮肤碎片</div>
+      <div class="cell"><b>永夜战令（赛季）</b>双轨：免费/黄金 · 血月主题线</div>
+      <div class="cell"><b>房间装修皮肤</b>等距 2.5D 规格三套（M4 挂接）</div>
+    </div></div>
+  <div class="zone" style="top:560px"><h3>⚙ 设置</h3>
+    <p>BGM/音效（-16 LUFS 双格式）· 推送（黄昏提醒/血月预警）· 概率公示（合规 §3.2）· 存档槽位 CLI 同步</p></div>
+  <div class="dock"><div class="btn">◂ 返回主页</div></div>
+</div>
+
+</div></div>
+
+<script>
+// ── sprite 路径多候选兜底（任何静态服务根均可加载，同 whitebox SpriteStore 思路） ──
+const AI_BASES = ['../assets/ai/', '/docs/assets/ai/', '../../docs/assets/ai/', 'assets/ai/']
+document.querySelectorAll('img').forEach(img => {
+  const i = img.src.indexOf('/assets/ai/')
+  if (i < 0) return
+  const suffix = img.src.slice(i + '/assets/ai/'.length)
+  let bi = 0
+  img.onerror = () => { bi += 1; if (bi < AI_BASES.length) img.src = AI_BASES[bi] + suffix }
+  img.src = AI_BASES[0] + suffix
+})
+// ── 页签切换 ──
+const tabs = document.querySelectorAll('.tab')
+tabs.forEach(t => t.onclick = () => {
+  tabs.forEach(x => x.classList.remove('on')); t.classList.add('on')
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'))
+  document.getElementById('s-' + t.dataset.s).classList.add('on')
+  document.getElementById('homeMode').style.display = t.dataset.s.startsWith('home') ? 'flex' : 'none'
+})
+// ── 主页 昼/血月 ──
+const pills = document.querySelectorAll('#homeMode .pill')
+function setMode(m) {
+  pills.forEach(x => x.classList.toggle('on', x.dataset.m === m))
+  const blood = m === 'blood'
+  const ovl = document.getElementById('ovl')
+  ovl.className = 'overlay' + (blood ? ' blood' : ' dusk')
+  const moon = document.getElementById('moonIc')
+  moon.style.display = blood ? 'block' : 'none'
+  moon.className = 'moon' + (blood ? ' blood' : '')
+}
+pills.forEach(p => p.onclick = () => setMode(p.dataset.m))
+if (new URLSearchParams(location.search).get('mode') === 'blood') setMode('blood')
+// ── 小屋群落（30 栋错排，等级示意 D4：低级别为主） ──
+const HS = ['lv0_thatch','lv1_broken_wood','lv2_plain_wood','lv3_fine_wood','lv4_stone','lv5_bastion']
+function village(id, scale) {
+  const host = document.getElementById(id); if (!host) return
+  for (let i = 0; i < 18; i++) {
+    const col = i % 3, row = Math.floor(i / 3)
+    const lv = Math.min(5, Math.floor(Math.random() * 3) + (i % 5 === 0 ? 1 : 0))
+    const h = document.createElement('div')
+    h.className = 'house' + (i > 13 ? ' dim' : '')
+    h.style.left = (16 + col * 118 + (row % 2) * 42) * scale + 'px'
+    h.style.top = (row * 116) * scale + 'px'
+    h.style.width = 104 * scale + 'px'
+    h.innerHTML = `<img src="../assets/ai/houses/house_${HS[lv]}@2x.png">`
+    host.appendChild(h)
+  }
+}
+village('hs', 1); village('hs2', 1)
+// ── 标注层 ──
+const ANNO = [
+  ['s-home', 20, 30, 'HUD 资产态（金/人口/天次/设置）'], ['s-home', 20, 104, '事件横幅：当日事件入口'],
+  ['s-home', 300, 190, '主楼地块=key art'], ['s-home', 30, 560, '小屋群落 30 栋·点击升级'],
+  ['s-home', 420, 1000, '收租 CTA（核心释放）'], ['s-home', 30, 1046, 'Dock：布防/招募/升级/▸夜'],
+  ['s-night', 20, 100, '波次 HUD（三路血条+速控）'], ['s-night', 60, 250, '三车道深度 0.8/0.9/1.0'],
+  ['s-night', 430, 700, '技能：空投/护盾'], ['s-night', 30, 1000, '战报条（结算语言）'],
+  ['s-wild', 20, 30, '体力经济（探索预算）'], ['s-interior', 20, 30, 'L3 等距剖面+工事位'],
+]
+ANNO.forEach(([s, x, y, txt]) => {
+  const a = document.createElement('div'); a.className = 'an'; a.textContent = txt
+  a.style.left = x + 'px'; a.style.top = y + 'px'
+  document.getElementById(s).appendChild(a)
+})
+// 画布随窗口高度缩放
+function fit() {
+  const h = innerHeight - 32
+  const s = Math.min(1, h / 1168)
+  document.getElementById('stage').style.transform = 'scale(' + s + ')'
+  document.getElementById('stageWrap').style.width = 540 * s + 'px'
+}
+addEventListener('resize', fit); fit()
+</script>
+</body>
+</html>

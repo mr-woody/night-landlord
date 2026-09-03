@@ -118,7 +118,8 @@ if (existsSync(srcAi)) {
     : []
   for (const f of files) {
     const from = join(srcAi, f)
-    const to = join(dstAi, f)
+    // @ 在 createImage src 的 URL 语义中是保留字符（userinfo 分隔符）→ 包内改名规避
+    const to = join(dstAi, f.replace('@2x', '_2x'))
     mkdirSync(dirname(to), { recursive: true })
     copyFileSync(from, to)
     n++
